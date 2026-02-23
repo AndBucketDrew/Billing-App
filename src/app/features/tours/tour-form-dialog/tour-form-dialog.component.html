@@ -1,0 +1,86 @@
+<h2 mat-dialog-title>{{ getDialogTitle() | translate }}</h2>
+
+<mat-dialog-content>
+  <form [formGroup]="tourForm" class="tour-form">
+    
+    <!-- Tour Name -->
+    <mat-form-field appearance="outline" class="form-field-full">
+      <mat-label>{{ 'TOUR.NAME' | translate }}</mat-label>
+      <input matInput 
+             formControlName="name" 
+             [placeholder]="'TOUR.NAME' | translate"
+             required>
+      <mat-icon matPrefix>tour</mat-icon>
+      <mat-error *ngIf="tourForm.get('name')?.invalid">
+        {{ getErrorMessage('name') | translate }}
+      </mat-error>
+    </mat-form-field>
+
+    <!-- Tour Description -->
+    <mat-form-field appearance="outline" class="form-field-full">
+      <mat-label>{{ 'TOUR.DESCRIPTION' | translate }}</mat-label>
+      <textarea matInput 
+                formControlName="description" 
+                [placeholder]="'TOUR.DESCRIPTION' | translate"
+                rows="3"></textarea>
+      <mat-icon matPrefix>description</mat-icon>
+    </mat-form-field>
+
+    <!-- Meeting Point -->
+    <mat-form-field appearance="outline" class="form-field-full">
+      <mat-label>{{ 'TOUR.MEETING_POINT' | translate }}</mat-label>
+      <input matInput 
+             formControlName="meetingPoint" 
+             [placeholder]="'TOUR.MEETING_POINT' | translate"
+             required>
+      <mat-icon matPrefix>place</mat-icon>
+      <mat-error *ngIf="tourForm.get('meetingPoint')?.invalid">
+        {{ getErrorMessage('meetingPoint') | translate }}
+      </mat-error>
+    </mat-form-field>
+
+    <!-- Base Price (Net) -->
+    <mat-form-field appearance="outline" class="form-field-full">
+      <mat-label>{{ 'TOUR.BASE_PRICE_NET' | translate }}</mat-label>
+      <input matInput 
+             type="number" 
+             formControlName="basePriceNet" 
+             step="0.01"
+             min="0"
+             [placeholder]="'0.00'"
+             required>
+      <mat-icon matPrefix>euro</mat-icon>
+      <span matTextSuffix>€</span>
+      <mat-error *ngIf="tourForm.get('basePriceNet')?.invalid">
+        {{ getErrorMessage('basePriceNet') | translate }}
+      </mat-error>
+    </mat-form-field>
+
+    <!-- Price Preview (Net only, no VAT) -->
+    <div class="price-preview" *ngIf="tourForm.get('basePriceNet')?.value > 0">
+      <div class="preview-row">
+        <span class="preview-label">{{ 'TOUR.BASE_PRICE_NET' | translate }}:</span>
+        <span class="preview-value">
+          {{ tourForm.get('basePriceNet')?.value | number:'1.2-2' }} €
+        </span>
+      </div>
+      <div class="preview-note">
+        {{ 'TOUR.VAT_SET_ON_INVOICE' | translate }}
+      </div>
+    </div>
+
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="onCancel()">
+    {{ 'COMMON.CANCEL' | translate }}
+  </button>
+  <button mat-raised-button 
+          color="primary" 
+          (click)="onSubmit()"
+          [disabled]="tourForm.invalid">
+    <mat-icon>save</mat-icon>
+    {{ 'COMMON.SAVE' | translate }}
+  </button>
+</mat-dialog-actions>

@@ -1,0 +1,151 @@
+<div class="invoices-container">
+  
+  <!-- Header Card -->
+  <mat-card class="header-card">
+    <mat-card-content>
+      <div class="header-content">
+        <div class="title-section">
+          <h1 class="page-title">{{ 'INVOICE.TITLE' | translate }}</h1>
+          <p class="page-subtitle">{{ 'INVOICE.CREATE' | translate }}</p>
+        </div>
+        <div class="header-actions">
+          <!-- Status Filter -->
+          <mat-button-toggle-group [(value)]="filterStatus" class="status-filter">
+            <mat-button-toggle value="all">
+              {{ 'COMMON.ALL' | translate }}
+            </mat-button-toggle>
+            <mat-button-toggle value="draft">
+              {{ 'INVOICE.STATUS_DRAFT' | translate }}
+            </mat-button-toggle>
+            <mat-button-toggle value="finalized">
+              {{ 'INVOICE.STATUS_FINALIZED' | translate }}
+            </mat-button-toggle>
+          </mat-button-toggle-group>
+          
+          <button mat-raised-button color="primary" (click)="createInvoice()">
+            <mat-icon>add</mat-icon>
+            {{ 'INVOICE.CREATE' | translate }}
+          </button>
+        </div>
+      </div>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Invoices Table -->
+  <mat-card class="table-card">
+    <mat-card-content>
+      <div class="table-container">
+        <table mat-table [dataSource]="getFilteredInvoices(invoices$ | async)" class="invoices-table">
+          
+          <!-- Invoice Number Column -->
+          <ng-container matColumnDef="invoiceNumber">
+            <th mat-header-cell *matHeaderCellDef>{{ 'INVOICE.NUMBER' | translate }}</th>
+            <td mat-cell *matCellDef="let invoice" class="invoice-number-cell">
+              <strong>{{ invoice.invoiceNumber }}</strong>
+            </td>
+          </ng-container>
+
+          <!-- Date Column -->
+          <ng-container matColumnDef="invoiceDate">
+            <th mat-header-cell *matHeaderCellDef>{{ 'INVOICE.DATE' | translate }}</th>
+            <td mat-cell *matCellDef="let invoice">
+              {{ formatDate(invoice.invoiceDate) }}
+            </td>
+          </ng-container>
+
+          <!-- Customer Column -->
+          <ng-container matColumnDef="customerName">
+            <th mat-header-cell *matHeaderCellDef>{{ 'INVOICE.CUSTOMER_NAME' | translate }}</th>
+            <td mat-cell *matCellDef="let invoice" class="customer-cell">
+              {{ invoice.customerName }}
+            </td>
+          </ng-container>
+
+          <!-- Total Column -->
+          <ng-container matColumnDef="totalGross">
+            <th mat-header-cell *matHeaderCellDef class="total-header">
+              {{ 'INVOICE.TOTAL_GROSS' | translate }}
+            </th>
+            <td mat-cell *matCellDef="let invoice" class="total-cell">
+              {{ formatCurrency(invoice.totalGross) }}
+            </td>
+          </ng-container>
+
+          <!-- Status Column -->
+          <ng-container matColumnDef="status">
+            <th mat-header-cell *matHeaderCellDef class="status-header">
+              {{ 'INVOICE.STATUS' | translate }}
+            </th>
+            <td mat-cell *matCellDef="let invoice" class="status-cell">
+              <mat-chip [class]="getStatusClass(invoice.status)">
+                {{ getStatusLabel(invoice.status) }}
+              </mat-chip>
+            </td>
+          </ng-container>
+
+          <!-- Actions Column -->
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef class="actions-header">
+              {{ 'COMMON.ACTIONS' | translate }}
+            </th>
+            <td mat-cell *matCellDef="let invoice" class="actions-cell">
+              
+              <!-- Edit (draft only) -->
+              <button mat-icon-button 
+                      [matTooltip]="'COMMON.EDIT' | translate"
+                      (click)="editInvoice(invoice)"
+                      [disabled]="invoice.status === 'finalized'">
+                <mat-icon>edit</mat-icon>
+              </button>
+              
+              <!-- Generate PDF -->
+              <button mat-icon-button 
+                      color="primary"
+                      [matTooltip]="'INVOICE.GENERATE_PDF' | translate"
+                      (click)="generatePDF(invoice)">
+                <mat-icon>picture_as_pdf</mat-icon>
+              </button>
+              
+              <!-- Finalize (draft only) -->
+              <button mat-icon-button 
+                      color="accent"
+                      [matTooltip]="'INVOICE.FINALIZE' | translate"
+                      (click)="finalizeInvoice(invoice)"
+                      *ngIf="invoice.status === 'draft'">
+                <mat-icon>check_circle</mat-icon>
+              </button>
+              
+              <!-- Delete (draft only) -->
+              <button mat-icon-button 
+                      color="warn"
+                      [matTooltip]="'COMMON.DELETE' | translate"
+                      (click)="deleteInvoice(invoice)"
+                      [disabled]="invoice.status === 'finalized'">
+                <mat-icon>delete</mat-icon>
+              </button>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns;" class="invoice-row"></tr>
+
+          <!-- Empty State -->
+          <tr class="mat-row" *matNoDataRow>
+            <td class="mat-cell empty-state" [attr.colspan]="displayedColumns.length">
+              <div class="empty-content">
+                <mat-icon class="empty-icon">receipt_long</mat-icon>
+                <h3>{{ 'INVOICE.NO_INVOICES' | translate }}</h3>
+                <p>{{ 'INVOICE.CREATE' | translate }}</p>
+                <button mat-raised-button color="primary" (click)="createInvoice()">
+                  <mat-icon>add</mat-icon>
+                  {{ 'INVOICE.CREATE' | translate }}
+                </button>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </div>
+    </mat-card-content>
+  </mat-card>
+  
+</div>

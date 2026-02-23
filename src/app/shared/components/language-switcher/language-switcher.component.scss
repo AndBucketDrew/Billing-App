@@ -1,0 +1,31 @@
+.language-button {
+  margin-left: 8px;
+  
+  .flag {
+    font-size: 24px;
+    line-height: 1;
+  }
+}
+
+.flag-menu {
+  font-size: 20px;
+  margin-right: 12px;
+}
+
+.active {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+.check-icon {
+  margin-left: auto;
+  color: #4caf50;
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}
+
+::ng-deep .mat-menu-item {
+  display: flex;
+  align-items: center;
+  min-width: 180px;
+}

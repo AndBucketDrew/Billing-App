@@ -1,0 +1,54 @@
+<div class="vat-summary-container" *ngIf="totals">
+  
+  <table class="summary-table">
+    <tbody>
+      
+      <!-- VAT Breakdown -->
+      <ng-container *ngFor="let vatGroup of totals.vatBreakdown">
+        
+        <!-- Net Total for this VAT rate -->
+        <tr class="summary-row">
+          <td class="summary-label">{{ getVatLabel(vatGroup.vatPercentage) }}</td>
+          <td class="summary-value">{{ formatCurrency(vatGroup.netTotal) }}</td>
+        </tr>
+        
+        <!-- VAT Amount (only if not reverse charge) -->
+        <tr class="summary-row vat-row" *ngIf="shouldShowVatAmount(vatGroup.vatPercentage)">
+          <td class="summary-label indent">{{ getVatAmountLabel(vatGroup.vatPercentage) }}</td>
+          <td class="summary-value">{{ formatCurrency(vatGroup.vatAmount) }}</td>
+        </tr>
+        
+      </ng-container>
+
+      <!-- Divider -->
+      <tr class="divider-row">
+        <td colspan="2"><hr></td>
+      </tr>
+
+      <!-- Grand Total -->
+      <tr class="total-row">
+        <td class="total-label">{{ 'INVOICE.TOTAL_GROSS' | translate }}</td>
+        <td class="total-value">{{ formatCurrency(totals.totalGross) }}</td>
+      </tr>
+
+    </tbody>
+  </table>
+
+  <!-- Totals Summary (Optional Detail) -->
+  <div class="totals-detail">
+    <div class="detail-row">
+      <span class="detail-label">{{ 'INVOICE.TOTAL_NET' | translate }}:</span>
+      <span class="detail-value">{{ formatCurrency(totals.totalNet) }}</span>
+    </div>
+    <div class="detail-row">
+      <span class="detail-label">{{ 'INVOICE.TOTAL_VAT' | translate }}:</span>
+      <span class="detail-value">{{ formatCurrency(totals.totalVat) }}</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- Empty State -->
+<div class="empty-summary" *ngIf="!totals">
+  <p>{{ 'INVOICE.ADD_LINE_ITEM' | translate }}</p>
+</div>

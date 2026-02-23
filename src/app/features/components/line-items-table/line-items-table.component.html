@@ -1,0 +1,133 @@
+<div class="line-items-container">
+  
+  <table mat-table [dataSource]="lineItems" class="line-items-table">
+    
+    <!-- Description Column -->
+    <ng-container matColumnDef="description">
+      <th mat-header-cell *matHeaderCellDef>{{ 'INVOICE.DESCRIPTION' | translate }}</th>
+      <td mat-cell *matCellDef="let item" class="description-cell">
+        <div *ngIf="!isEditing(item.id, 'description')" 
+             (click)="startEdit(item.id, 'description')"
+             class="editable-cell">
+          {{ item.description }}
+        </div>
+        <input *ngIf="isEditing(item.id, 'description')"
+               type="text"
+               [value]="item.description"
+               (blur)="updateField(item, 'description', $any($event.target).value)"
+               (keydown)="onKeydown($event, item, 'description')"
+               class="edit-input"
+               autofocus>
+      </td>
+    </ng-container>
+
+    <!-- Quantity Column -->
+    <ng-container matColumnDef="quantity">
+      <th mat-header-cell *matHeaderCellDef class="number-header">
+        {{ 'INVOICE.QUANTITY' | translate }}
+      </th>
+      <td mat-cell *matCellDef="let item" class="number-cell">
+        <div *ngIf="!isEditing(item.id, 'quantity')" 
+             (click)="startEdit(item.id, 'quantity')"
+             class="editable-cell">
+          {{ item.quantity }}
+        </div>
+        <input *ngIf="isEditing(item.id, 'quantity')"
+               type="number"
+               [value]="item.quantity"
+               (blur)="updateField(item, 'quantity', +$any($event.target).value)"
+               (keydown)="onKeydown($event, item, 'quantity')"
+               class="edit-input number-input"
+               min="1"
+               autofocus>
+      </td>
+    </ng-container>
+
+    <!-- Unit Price Column -->
+    <ng-container matColumnDef="unitPriceNet">
+      <th mat-header-cell *matHeaderCellDef class="number-header">
+        {{ 'INVOICE.UNIT_PRICE_NET' | translate }}
+      </th>
+      <td mat-cell *matCellDef="let item" class="number-cell">
+        <div *ngIf="!isEditing(item.id, 'unitPriceNet')" 
+             (click)="startEdit(item.id, 'unitPriceNet')"
+             class="editable-cell">
+          {{ formatCurrency(item.unitPriceNet) }}
+        </div>
+        <input *ngIf="isEditing(item.id, 'unitPriceNet')"
+               type="number"
+               [value]="item.unitPriceNet"
+               (blur)="updateField(item, 'unitPriceNet', +$any($event.target).value)"
+               (keydown)="onKeydown($event, item, 'unitPriceNet')"
+               class="edit-input number-input"
+               step="0.01"
+               min="0"
+               autofocus>
+      </td>
+    </ng-container>
+
+    <!-- VAT Column -->
+    <ng-container matColumnDef="vatPercentage">
+      <th mat-header-cell *matHeaderCellDef class="vat-header">
+        {{ 'INVOICE.VAT' | translate }}
+      </th>
+      <td mat-cell *matCellDef="let item" class="vat-cell">
+        <div *ngIf="!isEditing(item.id, 'vatPercentage')" 
+             (click)="startEdit(item.id, 'vatPercentage')"
+             class="editable-cell">
+          <mat-chip [class.vat-zero]="item.vatPercentage === 0">
+            {{ item.vatPercentage }}%
+          </mat-chip>
+        </div>
+        <select *ngIf="isEditing(item.id, 'vatPercentage')"
+                [value]="item.vatPercentage"
+                (blur)="updateField(item, 'vatPercentage', +$any($event.target).value)"
+                (change)="updateField(item, 'vatPercentage', +$any($event.target).value)"
+                class="edit-select"
+                autofocus>
+          <option *ngFor="let option of vatOptions" [value]="option.value">
+            {{ option.label | translate }}
+          </option>
+        </select>
+      </td>
+    </ng-container>
+
+    <!-- Total Column -->
+    <ng-container matColumnDef="lineTotalGross">
+      <th mat-header-cell *matHeaderCellDef class="number-header">
+        {{ 'INVOICE.LINE_TOTAL' | translate }}
+      </th>
+      <td mat-cell *matCellDef="let item" class="total-cell">
+        {{ formatCurrency(item.lineTotalGross) }}
+      </td>
+    </ng-container>
+
+    <!-- Actions Column -->
+    <ng-container matColumnDef="actions">
+      <th mat-header-cell *matHeaderCellDef class="actions-header">
+        {{ 'COMMON.ACTIONS' | translate }}
+      </th>
+      <td mat-cell *matCellDef="let item" class="actions-cell">
+        <button mat-icon-button 
+                color="warn"
+                [matTooltip]="'COMMON.DELETE' | translate"
+                (click)="deleteItem(item)">
+          <mat-icon>delete</mat-icon>
+        </button>
+      </td>
+    </ng-container>
+
+    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+    <tr mat-row *matRowDef="let row; columns: displayedColumns;" class="line-item-row"></tr>
+
+  </table>
+
+  <!-- Add Custom Item Button -->
+  <div class="add-item-section">
+    <button mat-stroked-button (click)="addCustomLineItem()">
+      <mat-icon>add</mat-icon>
+      {{ 'INVOICE.ADD_LINE_ITEM' | translate }}
+    </button>
+  </div>
+
+</div>

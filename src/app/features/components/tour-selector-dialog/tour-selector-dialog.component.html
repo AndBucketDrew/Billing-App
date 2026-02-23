@@ -1,0 +1,102 @@
+<h2 mat-dialog-title>{{ 'INVOICE.SELECT_TOUR' | translate }}</h2>
+
+<mat-dialog-content>
+  
+  <!-- Search Field -->
+  <mat-form-field appearance="outline" class="search-field">
+    <mat-label>{{ 'COMMON.SEARCH' | translate }}</mat-label>
+    <input matInput 
+           [(ngModel)]="searchText"
+           [placeholder]="'COMMON.SEARCH' | translate">
+    <mat-icon matPrefix>search</mat-icon>
+  </mat-form-field>
+
+  <!-- Tours List -->
+  <div class="tours-list">
+    <div *ngFor="let selection of getFilteredSelections()" 
+         class="tour-item"
+         [class.selected]="selection.selected">
+      
+      <div class="tour-header">
+        <mat-checkbox [(ngModel)]="selection.selected"
+                      (change)="toggleSelection(selection)">
+        </mat-checkbox>
+        
+        <div class="tour-info">
+          <div class="tour-name">{{ selection.tour.name }}</div>
+          <div class="tour-description">{{ selection.tour.description }}</div>
+          <div class="tour-price">
+            {{ formatCurrency(selection.tour.basePriceNet) }} 
+            <span class="price-note">{{ 'TOUR.BASE_PRICE_NET' | translate }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quantity Input (visible when selected) -->
+      <div class="quantity-section" *ngIf="selection.selected">
+        <mat-form-field appearance="outline" class="quantity-field">
+          <mat-label>{{ 'INVOICE.QUANTITY' | translate }}</mat-label>
+          <input matInput 
+                 type="number"
+                 [(ngModel)]="selection.quantity"
+                 (change)="updateQuantity(selection, selection.quantity)"
+                 min="1"
+                 step="1">
+          <mat-icon matPrefix>pin</mat-icon>
+        </mat-form-field>
+        
+        <mat-form-field appearance="outline" class="vat-field">
+          <mat-label>{{ 'INVOICE.VAT' | translate }}</mat-label>
+          <mat-select [(ngModel)]="selection.vatPercentage"
+                      (selectionChange)="updateVat(selection, selection.vatPercentage)">
+            <mat-option *ngFor="let option of vatOptions" [value]="option.value">
+              {{ option.label | translate }}
+            </mat-option>
+          </mat-select>
+          <mat-icon matPrefix>percent</mat-icon>
+        </mat-form-field>
+        
+        <div class="line-total">
+          <div class="total-breakdown">
+            <div class="breakdown-line">
+              {{ 'TOUR.BASE_PRICE_NET' | translate }}: 
+              <strong>{{ formatCurrency(selection.tour.basePriceNet * selection.quantity) }}</strong>
+            </div>
+            <div class="breakdown-line" *ngIf="selection.vatPercentage > 0">
+              {{ 'INVOICE.VAT' | translate }} {{ selection.vatPercentage }}%: 
+              <strong>{{ formatCurrency((selection.tour.basePriceNet * selection.quantity) * (selection.vatPercentage / 100)) }}</strong>
+            </div>
+            <div class="breakdown-line total" *ngIf="selection.vatPercentage === 0">
+              <span class="reverse-charge">{{ 'INVOICE.VAT_REVERSED' | translate }}</span>
+            </div>
+            <div class="breakdown-line total">
+              {{ 'INVOICE.GROSS_TOTAL' | translate }}: 
+              <strong class="grand-total">{{ formatCurrency(calculateLineTotal(selection)) }}</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Empty State -->
+    <div class="empty-state" *ngIf="getFilteredSelections().length === 0">
+      <mat-icon class="empty-icon">search_off</mat-icon>
+      <p>{{ 'TOUR.NO_TOURS' | translate }}</p>
+    </div>
+  </div>
+
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="onCancel()">
+    {{ 'COMMON.CANCEL' | translate }}
+  </button>
+  <button mat-raised-button 
+          color="primary" 
+          (click)="onConfirm()"
+          [disabled]="getSelectedCount() === 0">
+    <mat-icon>add</mat-icon>
+    {{ 'COMMON.CONFIRM' | translate }} ({{ getSelectedCount() }})
+  </button>
+</mat-dialog-actions>

@@ -1,0 +1,100 @@
+<div class="tours-container">
+  <!-- Header Card -->
+  <mat-card class="header-card">
+    <mat-card-content>
+      <div class="header-content">
+        <div class="title-section">
+          <h1 class="page-title">{{ 'TOUR.TITLE' | translate }}</h1>
+          <p class="page-subtitle">{{ 'TOUR.NO_TOURS' | translate }}</p>
+        </div>
+        <button mat-raised-button color="primary" (click)="openCreateDialog()">
+          <mat-icon>add</mat-icon>
+          {{ 'TOUR.CREATE' | translate }}
+        </button>
+      </div>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Tours Table -->
+  <mat-card class="table-card">
+    <mat-card-content>
+      <div class="table-container">
+        <table mat-table [dataSource]="(tours$ | async) || []" class="tours-table">
+          
+          <!-- Name Column -->
+          <ng-container matColumnDef="name">
+            <th mat-header-cell *matHeaderCellDef>{{ 'TOUR.NAME' | translate }}</th>
+            <td mat-cell *matCellDef="let tour" class="name-cell">
+              <strong>{{ tour.name }}</strong>
+            </td>
+          </ng-container>
+
+          <!-- Description Column -->
+          <ng-container matColumnDef="description">
+            <th mat-header-cell *matHeaderCellDef>{{ 'TOUR.DESCRIPTION' | translate }}</th>
+            <td mat-cell *matCellDef="let tour" class="description-cell">
+              {{ tour.description || '-' }}
+            </td>
+          </ng-container>
+
+          <!-- Meeting Point Column -->
+          <ng-container matColumnDef="meetingPoint">
+            <th mat-header-cell *matHeaderCellDef>{{ 'TOUR.MEETING_POINT' | translate }}</th>
+            <td mat-cell *matCellDef="let tour" class="meeting-point-cell">
+              <mat-icon class="location-icon">place</mat-icon>
+              {{ tour.meetingPoint || '-' }}
+            </td>
+          </ng-container>
+
+          <!-- Base Price Column -->
+          <ng-container matColumnDef="basePriceNet">
+            <th mat-header-cell *matHeaderCellDef class="price-header">
+              {{ 'TOUR.BASE_PRICE_NET' | translate }}
+            </th>
+            <td mat-cell *matCellDef="let tour" class="price-cell">
+              {{ formatCurrency(tour.basePriceNet) }}
+            </td>
+          </ng-container>
+
+          <!-- Actions Column -->
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef class="actions-header">
+              {{ 'COMMON.ACTIONS' | translate }}
+            </th>
+            <td mat-cell *matCellDef="let tour" class="actions-cell">
+              <button mat-icon-button 
+                      [matTooltip]="'COMMON.EDIT' | translate"
+                      (click)="openEditDialog(tour)">
+                <mat-icon>edit</mat-icon>
+              </button>
+              <button mat-icon-button 
+                      color="warn"
+                      [matTooltip]="'COMMON.DELETE' | translate"
+                      (click)="deleteTour(tour)">
+                <mat-icon>delete</mat-icon>
+              </button>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns;" class="tour-row"></tr>
+
+          <!-- Empty State -->
+          <tr class="mat-row" *matNoDataRow>
+            <td class="mat-cell empty-state" [attr.colspan]="displayedColumns.length">
+              <div class="empty-content">
+                <mat-icon class="empty-icon">tour</mat-icon>
+                <h3>{{ 'TOUR.NO_TOURS' | translate }}</h3>
+                <p>{{ 'TOUR.CREATE' | translate }}</p>
+                <button mat-raised-button color="primary" (click)="openCreateDialog()">
+                  <mat-icon>add</mat-icon>
+                  {{ 'TOUR.CREATE' | translate }}
+                </button>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </div>
+    </mat-card-content>
+  </mat-card>
+</div>
