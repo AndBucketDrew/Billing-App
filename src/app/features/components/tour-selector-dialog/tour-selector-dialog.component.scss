@@ -1,42 +1,62 @@
+// ─── Dialog Content ───────────────────────────────────────────────────────────
+
 mat-dialog-content {
   min-width: 600px;
   max-width: 700px;
-  padding: 24px;
-  
-  @media (max-width: 767px) {
-    min-width: auto;
-    padding: 16px;
-  }
+  padding: 20px 24px !important;
 }
 
-// Search Field
+// ─── Search Field ─────────────────────────────────────────────────────────────
+
 .search-field {
   width: 100%;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
-// Tours List
+// ─── Tours List ───────────────────────────────────────────────────────────────
+
 .tours-list {
-  max-height: 400px;
+  max-height: 420px;
   overflow-y: auto;
-  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  // Subtle scrollbar
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--color-border-default);
+    border-radius: 99px;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: var(--color-fg-subtle);
+  }
 }
+
+// ─── Tour Item ────────────────────────────────────────────────────────────────
 
 .tour-item {
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 12px;
-  transition: all 0.2s ease;
-  
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  transition: background 0.12s ease, border-color 0.12s ease;
+  cursor: pointer;
+
   &:hover {
-    border-color: #ccc;
-    background-color: #fafafa;
+    background: var(--color-canvas-subtle);
   }
-  
+
   &.selected {
-    border-color: #3f51b5;
-    background-color: #f5f7ff;
+    border-color: var(--color-accent-fg);
+    background: var(--color-accent-subtle);
   }
 }
 
@@ -44,157 +64,211 @@ mat-dialog-content {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  
+
   mat-checkbox {
-    margin-top: 4px;
+    margin-top: 2px;
+    flex-shrink: 0;
   }
 }
 
 .tour-info {
   flex: 1;
+  min-width: 0;
 }
 
 .tour-name {
-  font-size: 16px;
+  font-size: var(--font-size-md);
   font-weight: 600;
-  color: #333;
-  margin-bottom: 4px;
+  font-family: var(--font-family-base);
+  color: var(--color-fg-default);
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tour-description {
-  font-size: 13px;
-  color: #666;
-  margin-bottom: 8px;
+  font-size: var(--font-size-sm);
+  font-family: var(--font-family-base);
+  color: var(--color-fg-muted);
+  margin-bottom: 6px;
 }
 
 .tour-price {
-  font-size: 15px;
-  font-weight: 600;
-  color: #2e7d32;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  font-family: var(--font-family-mono);
+  color: var(--color-fg-default);
+  font-variant-numeric: tabular-nums;
 }
 
 .price-note {
-  display: inline-block;
-  background-color: #f5f5f5;
-  color: #666;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 11px;
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-xs);
   font-weight: 500;
+  color: var(--color-fg-subtle);
+  background: var(--color-canvas-inset);
+  border: 1px solid var(--color-border-muted);
+  padding: 1px 7px;
+  border-radius: 20px;
 }
 
-// Quantity Section
+// ─── Quantity Section ─────────────────────────────────────────────────────────
+
 .quantity-section {
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid #e0e0e0;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--color-border-muted);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
 .quantity-field,
 .vat-field {
   width: 200px;
-  
-  @media (max-width: 767px) {
-    width: 100%;
-  }
 }
 
+mat-icon[matPrefix] {
+  font-size: 18px;
+  margin-right: 8px;
+  color: var(--color-fg-subtle);
+}
+
+// ─── Line Total ───────────────────────────────────────────────────────────────
+
 .line-total {
-  background-color: #f5f5f5;
-  padding: 12px;
-  border-radius: 4px;
-  
+  background: var(--color-canvas-subtle);
+  border: 1px solid var(--color-border-muted);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+
   .total-breakdown {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    
+    gap: 6px;
+
     .breakdown-line {
       display: flex;
       justify-content: space-between;
-      font-size: 14px;
-      color: #666;
-      
+      align-items: center;
+      font-size: var(--font-size-sm);
+      font-family: var(--font-family-base);
+      color: var(--color-fg-muted);
+
+      strong {
+        font-family: var(--font-family-mono);
+        font-weight: 600;
+        color: var(--color-fg-default);
+        font-variant-numeric: tabular-nums;
+      }
+
       &.total {
-        margin-top: 8px;
+        margin-top: 6px;
         padding-top: 8px;
-        border-top: 2px solid #ccc;
-        font-size: 16px;
-        color: #333;
-        
+        border-top: 1px solid var(--color-border-default);
+        font-size: var(--font-size-md);
+        font-weight: 600;
+        color: var(--color-fg-default);
+
         .grand-total {
-          color: #2e7d32;
-          font-size: 18px;
+          font-size: var(--font-size-lg);
+          color: var(--color-fg-default);
         }
       }
-      
+
       .reverse-charge {
-        color: #f57c00;
+        font-size: var(--font-size-xs);
         font-weight: 600;
-        font-size: 13px;
+        font-family: var(--font-family-base);
+        color: var(--color-attention-fg);
+        background: var(--color-attention-subtle);
+        border: 1px solid rgba(154, 103, 0, 0.2);
+        padding: 2px 8px;
+        border-radius: 20px;
       }
     }
   }
 }
 
-// Empty State
+// ─── Empty State ──────────────────────────────────────────────────────────────
+
 .empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 24px;
   text-align: center;
-  padding: 40px 20px;
-  color: #999;
-  
+
   .empty-icon {
-    font-size: 60px;
-    width: 60px;
-    height: 60px;
-    margin: 0 auto 16px;
+    font-size: 40px;
+    width: 40px;
+    height: 40px;
+    color: var(--color-fg-subtle);
+    margin-bottom: 12px;
   }
-  
+
   p {
+    font-size: var(--font-size-md);
+    font-family: var(--font-family-base);
+    color: var(--color-fg-muted);
     margin: 0;
-    font-size: 14px;
   }
 }
 
-// Dialog Actions
+// ─── Dialog Actions ───────────────────────────────────────────────────────────
+
 mat-dialog-actions {
-  padding: 16px 24px;
-  
-  button {
-    margin-left: 8px;
-    
-    &:first-child {
-      margin-left: 0;
-    }
-    
-    mat-icon {
-      margin-right: 8px;
-    }
-  }
-}
+  padding: 12px 24px 16px !important;
+  margin: 0 !important;
+  gap: 8px;
+  border-top: 1px solid var(--color-border-muted);
 
-// Scrollbar
-.tours-list {
-  &::-webkit-scrollbar {
-    width: 8px;
+  button[mat-button] {
+    height: 32px;
+    padding: 0 14px;
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    font-family: var(--font-family-base);
+    color: var(--color-fg-muted);
+    border-radius: var(--radius-md);
+    line-height: 32px;
+
+    &:hover {
+      background: var(--color-canvas-subtle);
+      color: var(--color-fg-default);
+    }
   }
-  
-  &::-webkit-scrollbar-track {
-    background: #f1f1f1;
-  }
-  
-  &::-webkit-scrollbar-thumb {
-    background: #888;
-    border-radius: 4px;
-  }
-  
-  &::-webkit-scrollbar-thumb:hover {
-    background: #555;
+
+  button[mat-raised-button] {
+    height: 32px;
+    padding: 0 14px;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    font-family: var(--font-family-base);
+    background: var(--color-accent-fg) !important;
+    color: #fff !important;
+    border-radius: var(--radius-md);
+    box-shadow: 0 1px 0 rgba(31, 35, 40, 0.1);
+    line-height: 32px;
+
+    mat-icon {
+      font-size: 16px;
+      height: 16px;
+      width: 16px;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+
+    &:hover:not([disabled]) {
+      background: var(--color-accent-emphasis) !important;
+    }
+
+    &[disabled] {
+      opacity: 0.5;
+    }
   }
 }

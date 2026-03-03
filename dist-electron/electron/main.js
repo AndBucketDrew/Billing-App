@@ -95,6 +95,7 @@ function createWindow() {
         height: 900,
         minWidth: 1200,
         minHeight: 700,
+        icon: path.join(__dirname, '/../src/assets/icon.ico'),
         webPreferences: {
             contextIsolation: true,
             nodeIntegration: false,
@@ -111,6 +112,12 @@ function createWindow() {
         const indexPath = path.join(electron_1.app.getAppPath(), 'dist/billing-app/browser/index.html');
         mainWindow.loadFile(indexPath);
     }
+    // Toggle DevTools with F12
+    mainWindow.webContents.on('before-input-event', (event, input) => {
+        if (input.key === 'F12') {
+            mainWindow?.webContents.toggleDevTools();
+        }
+    });
     mainWindow.on('closed', () => {
         mainWindow = null;
     });

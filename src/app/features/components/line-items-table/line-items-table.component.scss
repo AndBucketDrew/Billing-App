@@ -1,69 +1,132 @@
+// ─── Container ────────────────────────────────────────────────────────────────
+
 .line-items-container {
   width: 100%;
 }
 
+// ─── Table ────────────────────────────────────────────────────────────────────
+
 .line-items-table {
   width: 100%;
-  background-color: white;
-  
+  border-collapse: collapse;
+  background: var(--color-canvas-default);
+
   th {
-    background-color: #f5f5f5;
+    background: var(--color-canvas-subtle);
+    font-size: var(--font-size-sm);
     font-weight: 600;
-    color: #333;
-    padding: 12px 16px;
+    font-family: var(--font-family-base);
+    color: var(--color-fg-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--color-border-default);
+    white-space: nowrap;
   }
-  
+
   td {
-    padding: 12px 16px;
+    font-size: var(--font-size-md);
+    font-family: var(--font-family-base);
+    color: var(--color-fg-default);
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--color-border-muted);
+    vertical-align: middle;
   }
-  
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+
+  // ── Description ──
   .description-cell {
     min-width: 200px;
   }
-  
+
+  // ── Numbers ──
   .number-header,
   .vat-header {
     text-align: right;
   }
-  
+
   .number-cell,
   .vat-cell,
   .total-cell {
     text-align: right;
   }
-  
+
   .total-cell {
     font-weight: 600;
-    color: #2e7d32;
+    font-family: var(--font-family-mono);
+    color: var(--color-fg-default);
+    font-variant-numeric: tabular-nums;
   }
-  
+
+  // ── Actions ──
   .actions-header {
     text-align: center;
-    width: 80px;
+    width: 60px;
   }
-  
+
   .actions-cell {
-    text-align: center;
-  }
-  
-  .line-item-row {
-    &:hover {
-      background-color: #f9f9f9;
+    button[mat-icon-button] {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+
+      width: 30px;
+      height: 30px;
+      padding: 0;
+
+      margin: 0 2px;
+      border-radius: var(--radius-md);
+      border: 1px solid transparent;
+
+      transition: background 0.12s ease, border-color 0.12s ease;
+
+      mat-icon {
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+        line-height: 16px;
+      }
+    }
+
+      &:hover {
+        background: var(--color-danger-subtle);
+        border-color: rgba(209, 36, 47, 0.3);
+
+        mat-icon {
+          color: var(--color-danger-fg);
+        }
+      }
     }
   }
-}
 
-// Editable Cells
+  // ── Row hover ──
+  .line-item-row {
+    transition: background 0.1s ease;
+
+    &:hover td {
+      background: var(--color-canvas-subtle);
+    }
+  }
+
+
+// ─── Editable Cells ───────────────────────────────────────────────────────────
+
 .editable-cell {
   cursor: pointer;
   padding: 4px 8px;
-  border: 2px solid transparent;
-  border-radius: 4px;
-  min-height: 24px;
-  
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  transition: background 0.12s ease, border-color 0.12s ease;
+
   &:hover {
-    background-color: #f5f5f5;
-    border-color: #e0e0e0;
+    background: var(--color-canvas-inset);
+    border-color: var(--color-border-default);
   }
 }
 
@@ -71,66 +134,83 @@
 .edit-select {
   width: 100%;
   padding: 4px 8px;
-  border: 2px solid #3f51b5;
-  border-radius: 4px;
-  font-size: 14px;
-  font-family: inherit;
+  border: 1px solid var(--color-accent-fg);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-md);
+  font-family: var(--font-family-base);
+  color: var(--color-fg-default);
+  background: var(--color-canvas-default);
   outline: none;
-  
+  box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.12);
+
   &:focus {
-    border-color: #3f51b5;
-    box-shadow: 0 0 0 3px rgba(63, 81, 181, 0.1);
+    border-color: var(--color-accent-fg);
   }
 }
 
 .number-input {
   text-align: right;
+  font-family: var(--font-family-mono);
 }
 
 .edit-select {
   cursor: pointer;
-  background-color: white;
 }
 
-// VAT Chip
+// ─── VAT Chip ─────────────────────────────────────────────────────────────────
+
 .vat-cell {
   mat-chip {
-    background-color: #e3f2fd;
-    color: #1976d2;
-    font-size: 12px;
-    min-height: 24px;
+    font-family: var(--font-family-base);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    min-height: 22px;
+    padding: 2px 10px;
+    border-radius: 20px;
     cursor: pointer;
-    
+    background: var(--color-accent-subtle) !important;
+    color: var(--color-accent-fg) !important;
+    border: 1px solid rgba(9, 105, 218, 0.18);
+
     &.vat-zero {
-      background-color: #fff3e0;
-      color: #f57c00;
+      background: var(--color-attention-subtle) !important;
+      color: var(--color-attention-fg) !important;
+      border-color: rgba(154, 103, 0, 0.2);
     }
   }
 }
 
-// Add Item Section
+// ─── Add Item Section ─────────────────────────────────────────────────────────
+
 .add-item-section {
-  padding: 16px;
-  text-align: center;
-  
-  button {
-    mat-icon {
-      margin-right: 8px;
-    }
-  }
-}
+  padding: 12px 16px;
+  border-top: 1px solid var(--color-border-muted);
 
-// Responsive
-@media (max-width: 767px) {
-  .line-items-table {
-    font-size: 13px;
-    
-    th, td {
-      padding: 8px 4px;
+  button[mat-stroked-button] {
+    height: 30px;
+    padding: 0 12px;
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    font-family: var(--font-family-base);
+    color: var(--color-fg-muted);
+    border-color: var(--color-border-default);
+    border-radius: var(--radius-md);
+    transition: background 0.15s ease, color 0.15s ease;
+    line-height: 30px;
+
+    mat-icon {
+      font-size: 16px;
+      height: 16px;
+      width: 16px;
+      margin-right: 4px;
+      vertical-align: middle;
     }
-    
-    .description-cell {
-      min-width: 120px;
+
+    &:hover {
+      background: var(--color-canvas-subtle);
+      color: var(--color-fg-default);
+      border-color: var(--color-border-default);
     }
   }
 }

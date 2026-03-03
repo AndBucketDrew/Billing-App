@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { ElectronService } from './electron.service';
-import type { Tour, VatRate } from '../models/domain.models';
+import type { Tour } from '../models/domain.models';
 
 @Injectable({
   providedIn: 'root'
@@ -35,10 +35,18 @@ export class TourService {
   }
 
   /**
+   * Get current tours synchronously (from BehaviorSubject value)
+   * Used for meeting point auto-fill logic
+   */
+  getToursSync(): Tour[] {
+    return this.toursSubject.value;
+  }
+
+  /**
    * Get tour by ID
    */
   getTourById(id: string): Tour | undefined {
-    return this.toursSubject.value.find(t => t.id === id);
+    return this.toursSubject.value.find((t: Tour) => t.id === id);
   }
 
   /**

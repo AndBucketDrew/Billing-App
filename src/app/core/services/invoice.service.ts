@@ -51,8 +51,10 @@ export class InvoiceService {
     companyAddress?: string | null;
     companyCityCountry?: string | null;
     tourDate?: string | null;
+    meetingPoint?: string | null;
     pax?: number | null;
     guide?: string | null;
+    civitatisId?: string | null;  
     language: 'de' | 'en';
     lineItems: InvoiceLineItem[];
   }): Promise<Invoice> {
@@ -78,6 +80,7 @@ export class InvoiceService {
       throw error;
     }
   }
+
 
   async updateInvoice(id: string, updates: Partial<Invoice>): Promise<Invoice | null> {
     try {
@@ -159,14 +162,14 @@ export class InvoiceService {
     const pad = (n: number, length = 2): string =>
       String(n).padStart(length, '0');
 
-    const yy  = String(now.getFullYear()).slice(-2);
-    const mm  = pad(now.getMonth() + 1);
-    const dd  = pad(now.getDate());
-    const hh  = pad(now.getHours());
+    const yy = String(now.getFullYear()).slice(-2);
+    const mm = pad(now.getMonth() + 1);
+    const dd = pad(now.getDate());
+    const hh = pad(now.getHours());
     const min = pad(now.getMinutes());
-    const ss  = pad(now.getSeconds());
-    const ms  = String(now.getMilliseconds())[0];
+    const ss = pad(now.getSeconds());
+    const ms = String(now.getMilliseconds())[0];
 
-    return `${yy}${mm}${dd}-${hh}${min}${ss}-${ms}`;
+    return `${yy}${mm}${dd}-${hh}${min}${ss}${ms}`;
   }
 }

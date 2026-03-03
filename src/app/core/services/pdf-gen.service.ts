@@ -21,7 +21,7 @@ export class PdfGeneratorService {
     private translate: TranslateService,
     private electron: ElectronService,
     private calculation: CalculationService
-  ) {}
+  ) { }
 
   /**
    * Generate and save PDF invoice
@@ -194,10 +194,10 @@ export class PdfGeneratorService {
       // Header row
       [
         { text: t('INVOICE.DESCRIPTION'), style: 'tableHeader', color: HEADER_FG },
-        { text: t('INVOICE.QUANTITY'),    style: 'tableHeader', color: HEADER_FG, alignment: 'right' },
-        { text: t('TOUR.UNIT_PRICE'),     style: 'tableHeader', color: HEADER_FG, alignment: 'right' },
-        { text: t('INVOICE.VAT'),         style: 'tableHeader', color: HEADER_FG, alignment: 'right' },
-        { text: t('TOUR.TOTAL'),          style: 'tableHeader', color: HEADER_FG, alignment: 'right' }
+        { text: t('INVOICE.QUANTITY'), style: 'tableHeader', color: HEADER_FG, alignment: 'right' },
+        { text: t('TOUR.UNIT_PRICE'), style: 'tableHeader', color: HEADER_FG, alignment: 'right' },
+        { text: t('INVOICE.VAT'), style: 'tableHeader', color: HEADER_FG, alignment: 'right' },
+        { text: t('TOUR.TOTAL'), style: 'tableHeader', color: HEADER_FG, alignment: 'right' }
       ]
     ];
 
@@ -211,7 +211,7 @@ export class PdfGeneratorService {
     }
     // Treffpunkt always shown as '-'
     tourDetailLines.push({
-      text: [{ text: '· Treffpunkt: ', bold: true }, { text: '-' }],
+      text: [{ text: '· Treffpunkt: ', bold: true }, { text: invoice.meetingPoint }],
       fontSize: 9, color: '#555555', margin: [0, 1, 0, 0]
     });
     if (invoice.pax != null) {
@@ -227,14 +227,21 @@ export class PdfGeneratorService {
       });
     }
 
+    if (invoice.civitatisId) {
+      tourDetailLines.push({
+        text: [{ text: '· Civitatis ID: ', bold: true }, { text: invoice.civitatisId }],
+        fontSize: 9, color: '#555555', margin: [0, 1, 0, 0]
+      });
+    }
+
     // Line item rows — numbered, no tour details here
     invoice.lineItems.forEach((item, index) => {
       tableBody.push([
         { text: `${index + 1}. ${item.description}`, style: 'tableCell' },
-        { text: item.quantity.toString(),                         style: 'tableCell', alignment: 'right' },
-        { text: this.formatCurrency(item.unitPriceNet, lang),     style: 'tableCell', alignment: 'right' },
-        { text: this.formatVat(item.vatPercentage, lang),         style: 'tableCell', alignment: 'right' },
-        { text: this.formatCurrency(item.lineTotalGross, lang),   style: 'tableCell', alignment: 'right' }
+        { text: item.quantity.toString(), style: 'tableCell', alignment: 'right' },
+        { text: this.formatCurrency(item.unitPriceNet, lang), style: 'tableCell', alignment: 'right' },
+        { text: this.formatVat(item.vatPercentage, lang), style: 'tableCell', alignment: 'right' },
+        { text: this.formatCurrency(item.lineTotalGross, lang), style: 'tableCell', alignment: 'right' }
       ]);
     });
 
@@ -318,22 +325,22 @@ export class PdfGeneratorService {
 
     // Column 1 — Company address
     const col1: any[] = [];
-    if (settings.companyName)   col1.push({ text: settings.companyName, ...footerTextStyle });
+    if (settings.companyName) col1.push({ text: settings.companyName, ...footerTextStyle });
     if (settings.companyAddress) col1.push({ text: settings.companyAddress, ...footerTextStyle });
-    if (settings.cityCountry)   col1.push({ text: settings.cityCountry, ...footerTextStyle });
+    if (settings.cityCountry) col1.push({ text: settings.cityCountry, ...footerTextStyle });
 
     // Column 2 — Bank details
     const col2: any[] = [];
-    if (settings.bankName)      col2.push(footerLine('Bankverbindung', settings.bankName));
+    if (settings.bankName) col2.push(footerLine('Bankverbindung', settings.bankName));
     if (settings.accountHolder) col2.push(footerLine('Kontoinhaber', settings.accountHolder));
-    if (settings.iban)          col2.push(footerLine('IBAN', settings.iban));
-    if (settings.bic)           col2.push(footerLine('BIC', settings.bic));
+    if (settings.iban) col2.push(footerLine('IBAN', settings.iban));
+    if (settings.bic) col2.push(footerLine('BIC', settings.bic));
 
     // Column 3 — Legal details
     const col3: any[] = [];
-    if (settings.legalForm)          col3.push(footerLine('Firma & Rechtsform', settings.legalForm));
-    if (settings.headquarters)       col3.push(footerLine('Firmensitz', settings.headquarters));
-    if (settings.courtRegistry)      col3.push(footerLine('FB-Gericht', settings.courtRegistry));
+    if (settings.legalForm) col3.push(footerLine('Firma & Rechtsform', settings.legalForm));
+    if (settings.headquarters) col3.push(footerLine('Firmensitz', settings.headquarters));
+    if (settings.courtRegistry) col3.push(footerLine('FB-Gericht', settings.courtRegistry));
     if (settings.registrationNumber) col3.push(footerLine('FB-Nummer', settings.registrationNumber));
 
     // Thin separator line above footer

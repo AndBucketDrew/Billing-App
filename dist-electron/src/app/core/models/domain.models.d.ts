@@ -38,8 +38,10 @@ export interface Invoice {
     companyAddress?: string | null;
     companyCityCountry?: string | null;
     tourDate?: string | null;
+    meetingPoint?: string | null;
     pax?: number | null;
     guide?: string | null;
+    civitatisId?: string | null;
     language: 'de' | 'en';
     status: 'draft' | 'finalized';
     lineItems: InvoiceLineItem[];

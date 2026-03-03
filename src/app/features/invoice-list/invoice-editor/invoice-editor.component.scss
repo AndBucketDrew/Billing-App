@@ -1,15 +1,27 @@
+// ─── Layout ───────────────────────────────────────────────────────────────────
+
 .invoice-editor-container {
-  max-width: 1200px;
+  max-width: 1280px;
   margin: 0 auto;
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
   position: relative;
 }
 
-// Header Card
+// ─── Header Card ──────────────────────────────────────────────────────────────
+
 .header-card {
-  margin-bottom: 24px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  
+  background: var(--color-canvas-default);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+
+  ::ng-deep .mat-mdc-card-content {
+    padding: 20px 24px !important;
+  }
+
   .header-content {
     display: flex;
     justify-content: space-between;
@@ -17,206 +29,432 @@
     flex-wrap: wrap;
     gap: 16px;
   }
-  
+
   .title-section {
     flex: 1;
+    min-width: 180px;
   }
-  
+
   .page-title {
-    font-size: 28px;
-    font-weight: 500;
+    font-size: var(--font-size-2xl);
+    font-weight: 600;
+    font-family: var(--font-family-base);
+    color: var(--color-fg-default);
+    letter-spacing: -0.3px;
     margin: 0;
+    line-height: 1.25;
   }
-  
+
   .header-actions {
     display: flex;
-    gap: 12px;
+    gap: 8px;
     flex-wrap: wrap;
-    
-    button {
-      background-color: rgba(255, 255, 255, 0.2);
-      color: white;
-      border-color: rgba(255, 255, 255, 0.3);
-      
-      &:hover {
-        background-color: rgba(255, 255, 255, 0.3);
-      }
-      
-      &[color="primary"] {
-        background-color: rgba(255, 255, 255, 0.3);
-      }
-      
-      &[color="accent"] {
-        background-color: #4caf50;
-        
-        &:hover {
-          background-color: #45a049;
-        }
-      }
-      
+    align-items: center;
+
+    button[mat-stroked-button] {
+      height: 32px;
+      padding: 0 14px;
+      font-size: var(--font-size-sm);
+      font-weight: 500;
+      font-family: var(--font-family-base);
+      color: var(--color-fg-muted);
+      border-color: var(--color-border-default);
+      border-radius: var(--radius-md);
+      background: var(--color-canvas-default);
+      transition: background 0.15s ease, color 0.15s ease;
+      line-height: 32px;
+
       mat-icon {
-        margin-right: 8px;
+        font-size: 16px;
+        height: 16px;
+        width: 16px;
+        margin-right: 6px;
+        vertical-align: middle;
       }
+
+      &:hover {
+        background: var(--color-canvas-subtle);
+        color: var(--color-fg-default);
+      }
+    }
+
+    button[mat-raised-button][color='primary'] {
+      height: 32px;
+      padding: 0 14px;
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+      font-family: var(--font-family-base);
+      background: var(--color-accent-fg) !important;
+      color: #fff !important;
+      border-radius: var(--radius-md);
+      box-shadow: 0 1px 0 rgba(31, 35, 40, 0.1);
+      transition: background 0.15s ease;
+      line-height: 32px;
+
+      mat-icon {
+        font-size: 16px;
+        height: 16px;
+        width: 16px;
+        margin-right: 6px;
+        vertical-align: middle;
+      }
+
+      &:hover:not([disabled]) { background: var(--color-accent-emphasis) !important; }
+      &[disabled] { opacity: 0.5; }
+    }
+
+    button[mat-raised-button][color='accent'] {
+      height: 32px;
+      padding: 0 14px;
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+      font-family: var(--font-family-base);
+      background: var(--color-success-fg) !important;
+      color: #fff !important;
+      border-radius: var(--radius-md);
+      box-shadow: 0 1px 0 rgba(31, 35, 40, 0.1);
+      transition: background 0.15s ease;
+      line-height: 32px;
+
+      mat-icon {
+        font-size: 16px;
+        height: 16px;
+        width: 16px;
+        margin-right: 6px;
+        vertical-align: middle;
+      }
+
+      &:hover:not([disabled]) { background: #156d30 !important; }
+      &[disabled] { opacity: 0.5; }
     }
   }
 }
 
-// Form
+// ─── Form ─────────────────────────────────────────────────────────────────────
+
 .invoice-form {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 16px;
 }
 
+// ─── Section Cards ────────────────────────────────────────────────────────────
+
 mat-card {
-  mat-card-header {
-    margin-bottom: 16px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+  background: var(--color-canvas-default);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+
+  ::ng-deep .mat-mdc-card-content {
+    padding: 20px 24px !important;
   }
-  
+
+  // ✅ FIX: Use overflow:visible + pointer-events:none on the header shell,
+  // then restore pointer-events on actual content inside it.
+  // The MDC card header creates a full-width absolutely-ish positioned wrapper
+  // that was sitting over the card body and eating all clicks.
+  ::ng-deep .mat-mdc-card-header {
+    padding: 16px 24px 0 !important;
+    display: flex;
+    align-items: center;
+    // ✅ FIX: The MDC header shell was expanding to full card height and
+    // blocking clicks on all form fields below it.
+    // pointer-events:none on the shell, restored on children, means the
+    // header visually works but never intercepts clicks on the card body.
+    pointer-events: none;
+    > * { pointer-events: auto; }
+  }
+
+  ::ng-deep .mat-mdc-card-header-text {
+    flex: 0 0 auto;
+  }
+
   mat-card-title {
     display: flex;
     align-items: center;
-    gap: 12px;
-    font-size: 20px;
-    font-weight: 500;
-    color: #333;
-    
+    gap: 8px;
+    font-size: var(--font-size-md) !important;
+    font-weight: 600 !important;
+    font-family: var(--font-family-base) !important;
+    color: var(--color-fg-default);
+    margin: 0 !important;
+
     mat-icon {
-      color: #667eea;
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+      color: var(--color-fg-muted);
     }
   }
-  
+
   .header-actions-inline {
     margin-left: auto;
+    // ✅ FIX: position this relative to the card header row, not the card
+    position: relative;
+    z-index: 1;
+
+    button[mat-raised-button] {
+      height: 28px;
+      padding: 0 12px;
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+      font-family: var(--font-family-base);
+      background: var(--color-accent-fg) !important;
+      color: #fff !important;
+      border-radius: var(--radius-md);
+      line-height: 28px;
+
+      mat-icon {
+        font-size: 14px;
+        height: 14px;
+        width: 14px;
+        margin-right: 4px;
+        vertical-align: middle;
+      }
+
+      &:hover { background: var(--color-accent-emphasis) !important; }
+    }
   }
 }
 
-// Form Fields
+// ─── Section Divider ─────────────────────────────────────────────────────────
+
+.section-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0 16px;
+
+  &::before,
+  &::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--color-border-muted);
+  }
+
+  .section-label {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    font-family: var(--font-family-base);
+    color: var(--color-fg-subtle);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+  }
+}
+
+// ─── Form Fields ──────────────────────────────────────────────────────────────
+
 .form-field-full {
   width: 100%;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
 }
 
 .form-row {
   display: flex;
   gap: 16px;
-  
-  @media (max-width: 767px) {
-    flex-direction: column;
-    gap: 0;
-  }
+  margin-bottom: 0;
 }
 
 .form-field-half {
   flex: 1;
-  margin-bottom: 16px;
-  
-  @media (max-width: 767px) {
-    width: 100%;
-  }
+  margin-bottom: 8px;
+  min-width: 0;
 }
 
 mat-icon[matPrefix] {
-  margin-right: 12px;
-  color: rgba(0, 0, 0, 0.54);
+  margin-right: 8px;
+  font-size: 18px;
+  color: var(--color-fg-subtle);
 }
 
-// Empty Line Items
+// ─── Empty Line Items ─────────────────────────────────────────────────────────
+
 .empty-line-items {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 40px 20px;
-  background-color: #f5f5f5;
-  border-radius: 8px;
-  border: 2px dashed #ccc;
-  
+  padding: 40px 24px;
+  background: var(--color-canvas-subtle);
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--color-border-default);
+  margin-top: 8px;
+
   .empty-icon {
-    font-size: 60px;
-    width: 60px;
-    height: 60px;
-    color: #ccc;
-    margin-bottom: 16px;
+    font-size: 40px;
+    width: 40px;
+    height: 40px;
+    color: var(--color-fg-subtle);
+    margin-bottom: 12px;
   }
-  
+
   p {
-    color: #999;
-    margin: 0 0 20px 0;
-    font-size: 16px;
+    font-size: var(--font-size-md);
+    font-family: var(--font-family-base);
+    color: var(--color-fg-muted);
+    margin: 0 0 16px 0;
   }
-  
-  button mat-icon {
-    margin-right: 8px;
+
+  button[mat-raised-button] {
+    height: 32px;
+    padding: 0 14px;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    font-family: var(--font-family-base);
+    background: var(--color-accent-fg) !important;
+    color: #fff !important;
+    border-radius: var(--radius-md);
+    line-height: 32px;
+
+    mat-icon {
+      font-size: 16px;
+      height: 16px;
+      width: 16px;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
   }
 }
 
-// Action Buttons
+// ─── Bottom Action Buttons ────────────────────────────────────────────────────
+
 .action-buttons {
   display: flex;
   justify-content: flex-end;
-  gap: 12px;
-  margin-top: 8px;
+  gap: 8px;
+  padding: 8px 0 4px;
   flex-wrap: wrap;
-  
-  @media (max-width: 767px) {
-    flex-direction: column;
-    
-    button {
-      width: 100%;
+
+  button[mat-stroked-button] {
+    height: 32px;
+    padding: 0 14px;
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    font-family: var(--font-family-base);
+    color: var(--color-fg-muted);
+    border-color: var(--color-border-default);
+    border-radius: var(--radius-md);
+    background: var(--color-canvas-default);
+    line-height: 32px;
+
+    &:hover {
+      background: var(--color-canvas-subtle);
+      color: var(--color-fg-default);
     }
   }
-  
-  button mat-icon {
-    margin-right: 8px;
+
+  button[mat-raised-button][color='primary'] {
+    height: 32px;
+    padding: 0 14px;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    font-family: var(--font-family-base);
+    background: var(--color-accent-fg) !important;
+    color: #fff !important;
+    border-radius: var(--radius-md);
+    line-height: 32px;
+
+    mat-icon {
+      font-size: 16px;
+      height: 16px;
+      width: 16px;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+
+    &:hover:not([disabled]) { background: var(--color-accent-emphasis) !important; }
+    &[disabled] { opacity: 0.5; }
+  }
+
+  button[mat-raised-button][color='accent'] {
+    height: 32px;
+    padding: 0 14px;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    font-family: var(--font-family-base);
+    background: var(--color-success-fg) !important;
+    color: #fff !important;
+    border-radius: var(--radius-md);
+    line-height: 32px;
+
+    mat-icon {
+      font-size: 16px;
+      height: 16px;
+      width: 16px;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+
+    &:hover:not([disabled]) { background: #156d30 !important; }
+    &[disabled] { opacity: 0.5; }
   }
 }
 
-// Loading Overlay
+// ─── Loading Overlay ──────────────────────────────────────────────────────────
+
 .loading-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.3);
+  inset: 0;
+  background: rgba(31, 35, 40, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 9999;
 }
 
-// Initial Loading
+// ─── Initial Loading ──────────────────────────────────────────────────────────
+
 .initial-loading {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   min-height: 400px;
-  
+
   p {
-    margin-top: 20px;
-    color: #666;
-    font-size: 16px;
+    margin-top: 16px;
+    font-size: var(--font-size-md);
+    font-family: var(--font-family-base);
+    color: var(--color-fg-muted);
   }
 }
 
-// Responsive
+// ─── Responsive ───────────────────────────────────────────────────────────────
+
 @media (max-width: 767px) {
-  .header-card .header-content {
-    flex-direction: column;
-    align-items: flex-start;
+  .invoice-editor-container {
+    padding: 16px 12px;
   }
-  
-  .header-actions {
-    width: 100%;
-    flex-direction: column;
-    
-    button {
-      width: 100%;
+
+  .header-card {
+    .page-title {
+      font-size: var(--font-size-xl);
     }
+
+    .header-content {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .header-actions {
+      width: 100%;
+      flex-direction: column;
+
+      button { width: 100%; }
+    }
+  }
+
+  .form-row {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .action-buttons {
+    flex-direction: column;
+
+    button { width: 100%; }
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "billing-app",
-  "version": "0.0.0",
+  "version": "0.1.1",
   "main": "dist-electron/electron/main.js",
   "private": true,
   "scripts": {
@@ -9,6 +9,7 @@
     "build": "ng build --base-href ./",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
+    "ele:builder": "electron-builder --win",
     "serve:ssr:billing-app": "node dist/billing-app/server/server.mjs",
     "electron:serve": "npm run build && npm run build:electron && electron .",
     "electron:dev": "concurrently \"ng serve\" \"npm run electron:watch\"",

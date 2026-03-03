@@ -5,7 +5,8 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatDialog } from '@angular/material/dialog';
 import { InvoiceService } from '../../../core/services/invoice.service';
 import { SettingsService } from '../../../core/services/settings.service';
-import { Invoice, InvoiceLineItem, VatRate } from '../../../core/models/domain.models';
+import { TourService } from '../../../core/services/tour.service';
+import { Invoice, InvoiceLineItem, VatRate, Tour } from '../../../core/models/domain.models';
 import { TourSelectorDialogComponent } from '../../components/tour-selector-dialog/tour-selector-dialog.component';
 import { TranslateService } from '@ngx-translate/core';
 
@@ -29,6 +30,7 @@ export class InvoiceEditorComponent implements OnInit {
     private router: Router,
     private invoiceService: InvoiceService,
     private settingsService: SettingsService,
+    private tourService: TourService,
     private dialog: MatDialog,
     private snackBar: MatSnackBar,
     private translate: TranslateService
@@ -52,8 +54,10 @@ export class InvoiceEditorComponent implements OnInit {
 
       // Tour details
       tourDate: [''],   // Am – optional
+      meetingPoint: [''],  // Treffpunkt - can be auto-filled from tours
       pax: [null, [Validators.min(1)]], // optional
       guide: [''],      // optional
+      civitatisId: [''],
     });
   }
 
@@ -95,8 +99,10 @@ export class InvoiceEditorComponent implements OnInit {
           companyAddress: invoice.companyAddress ?? '',
           companyCityCountry: invoice.companyCityCountry ?? '',
           tourDate: invoice.tourDate ?? '',
+          meetingPoint: invoice.meetingPoint ?? '',
           pax: invoice.pax ?? null,
           guide: invoice.guide ?? '',
+          civitatisId: invoice.civitatisId ?? '',
         });
 
         this.lineItems = [...invoice.lineItems];
@@ -141,7 +147,8 @@ export class InvoiceEditorComponent implements OnInit {
       sortOrder: this.lineItems.length
     });
 
-    this.lineItems.push(lineItem);
+    this.lineItems = [...this.lineItems, lineItem];  // Create new array reference
+    this.updateMeetingPointFromLineItems();
   }
 
   /**
@@ -149,6 +156,54 @@ export class InvoiceEditorComponent implements OnInit {
    */
   onLineItemsUpdate(updatedItems: InvoiceLineItem[]): void {
     this.lineItems = updatedItems;
+    this.updateMeetingPointFromLineItems();
+  }
+
+  /**
+   * Update MeetingPoint field based on line items
+   * Auto-fills only if field is currently empty and all tours have same meeting point
+   */
+  private updateMeetingPointFromLineItems(): void {
+    // Get unique tour IDs from line items
+    const tourIds = [...new Set(this.lineItems
+      .filter(item => item.tourId)
+      .map(item => item.tourId as string))];
+
+    if (tourIds.length === 0) {
+      // No tours - don't auto-clear if user manually entered something
+      return;
+    }
+
+    // Only auto-fill if the field is currently empty
+    const currentMeetingPoint = this.invoiceForm.get('meetingPoint')?.value;
+    if (currentMeetingPoint && currentMeetingPoint.trim() !== '') {
+      // User has already entered something manually - don't override
+      return;
+    }
+
+    try {
+      // Get all tours synchronously
+      const tours = this.tourService.getToursSync();
+      const relevantTours = tours.filter((t: Tour) => tourIds.includes(t.id));
+
+      if (relevantTours.length === 0) {
+        return;
+      }
+
+      // Get unique meeting points
+      const meetingPoints = [...new Set(relevantTours
+        .map((t: Tour) => t.meetingPoint)
+        .filter((mp: string) => mp && mp.trim() !== ''))];
+
+      if (meetingPoints.length === 1) {
+        // All tours have the same meeting point - auto-fill
+        this.invoiceForm.patchValue({ meetingPoint: meetingPoints[0] });
+      }
+      // If multiple different meeting points or no meeting points, 
+      // leave field empty for user to fill
+    } catch (error) {
+      console.error('Error updating meeting point:', error);
+    }
   }
 
   /**
@@ -165,8 +220,10 @@ export class InvoiceEditorComponent implements OnInit {
       companyAddress: v.companyAddress || null,
       companyCityCountry: v.companyCityCountry || null,
       tourDate: v.tourDate || null,
+      meetingPoint: v.meetingPoint || null,
       pax: v.pax ?? null,
       guide: v.guide || null,
+      civitatisId: v.civitatisId || null,
       lineItems: this.lineItems,
     };
   }
@@ -194,17 +251,17 @@ export class InvoiceEditorComponent implements OnInit {
       if (this.isEditMode && this.invoiceId) {
         await this.invoiceService.updateInvoice(this.invoiceId, payload);
         this.showMessage(this.translate.instant('MESSAGES.SAVE_SUCCESS'));
+
+        this.router.navigate(['/invoices']);
       } else {
         const created = await this.invoiceService.createInvoice({
           ...payload,
           customerAddress: '', // legacy field kept for compatibility
         });
-        this.invoiceId = created.id; // store for potential finalize step
+        this.invoiceId = created.id;
         this.showMessage(this.translate.instant('MESSAGES.SAVE_SUCCESS'));
-        if (!this.isEditMode) {
-          // Only navigate away if not chained into finalize
-          // Navigation is handled by the caller when finalizing
-        }
+
+        this.router.navigate(['/invoices']);
       }
     } catch (error) {
       this.showMessage(this.translate.instant('MESSAGES.ERROR'), 'error');
@@ -218,7 +275,6 @@ export class InvoiceEditorComponent implements OnInit {
    * Save and finalize invoice
    */
   async saveAndFinalize(): Promise<void> {
-    // We need to save first and get the ID
     if (this.invoiceForm.invalid) {
       this.invoiceForm.markAllAsTouched();
       this.showMessage(this.translate.instant('MESSAGES.REQUIRED_FIELD'), 'error');

@@ -19,12 +19,12 @@ import { TranslateModule } from '@ngx-translate/core';
 })
 export class AppComponent implements OnInit {
   title = 'Tour Billing';
+  logoUrl: string | null = null;
 
   constructor(
     private settingsService: SettingsService,
     private router: Router
   ) {
-    // Debug routing
     this.router.events.subscribe(event => {
       if (event instanceof NavigationEnd) {
         console.log('Navigated to:', event.url);
@@ -32,10 +32,32 @@ export class AppComponent implements OnInit {
     });
   }
 
-  ngOnInit(): void {
+  async ngOnInit(): Promise<void> {
     console.log('App initialized');
     console.log('Current route:', this.router.url);
-    // Settings service will automatically load and apply language
+    await this.loadLogo();
+  }
+
+  private async loadLogo(): Promise<void> {
+    const settings = this.settingsService.getSettings();
+
+    if (!settings.logoPath) return;
+
+    try {
+      const resp = await fetch(settings.logoPath);
+      if (!resp.ok) return;
+
+      const blob = await resp.blob();
+      this.logoUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (err) {
+      console.warn('Could not load logo:', err);
+      this.logoUrl = null;
+    }
   }
 
   onNavigate(path: string): void {

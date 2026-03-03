@@ -1,14 +1,24 @@
-<mat-toolbar color="primary" class="app-toolbar">
-  <mat-toolbar-row>
-    <button mat-icon-button class="menu-icon" [matMenuTriggerFor]="menu">
-      <mat-icon>menu</mat-icon>
-    </button>
-    
-    <span class="app-title">{{ 'APP.TITLE' | translate }}</span>
-    
+<!-- Toolbar -->
+<header class="app-toolbar">
+  <div class="toolbar-inner">
+
+    <!-- Logo -->
+    <a routerLink="/" class="app-logo">
+      <img
+        *ngIf="logoUrl"
+        [src]="logoUrl"
+        alt="Logo"
+        class="logo-img"
+      />
+      <span *ngIf="!logoUrl" class="logo-fallback">
+        <mat-icon>receipt_long</mat-icon>
+        <span class="logo-text">{{ 'APP.TITLE' | translate }}</span>
+      </span>
+    </a>
+
     <span class="spacer"></span>
-    
-    <!-- Navigation Links -->
+
+    <!-- Navigation -->
     <nav class="nav-links">
       <a mat-button routerLink="/tours" routerLinkActive="active" (click)="onNavigate('/tours')">
         <mat-icon>tour</mat-icon>
@@ -23,29 +33,14 @@
         {{ 'NAV.SETTINGS' | translate }}
       </a>
     </nav>
-    
+
     <!-- Language Switcher -->
     <app-language-switcher></app-language-switcher>
-  </mat-toolbar-row>
-</mat-toolbar>
 
-<!-- Mobile Menu -->
-<mat-menu #menu="matMenu">
-  <a mat-menu-item routerLink="/tours" (click)="onNavigate('/tours')">
-    <mat-icon>tour</mat-icon>
-    <span>{{ 'NAV.TOURS' | translate }}</span>
-  </a>
-  <a mat-menu-item routerLink="/invoices" (click)="onNavigate('/invoices')">
-    <mat-icon>receipt_long</mat-icon>
-    <span>{{ 'NAV.INVOICES' | translate }}</span>
-  </a>
-  <a mat-menu-item routerLink="/settings" (click)="onNavigate('/settings')">
-    <mat-icon>settings</mat-icon>
-    <span>{{ 'NAV.SETTINGS' | translate }}</span>
-  </a>
-</mat-menu>
+  </div>
+</header>
 
-<!-- Main Content Area -->
+<!-- Main Content -->
 <div class="app-container">
   <router-outlet></router-outlet>
 </div>

@@ -12,17 +12,11 @@
             <mat-icon>close</mat-icon>
             {{ 'COMMON.CANCEL' | translate }}
           </button>
-          <button mat-raised-button
-                  color="primary"
-                  (click)="saveDraft()"
-                  [disabled]="isSaving">
+          <button mat-raised-button color="primary" (click)="saveDraft()" [disabled]="isSaving">
             <mat-icon>save</mat-icon>
             {{ 'COMMON.SAVE' | translate }}
           </button>
-          <button mat-raised-button
-                  color="accent"
-                  (click)="saveAndFinalize()"
-                  [disabled]="isSaving">
+          <button mat-raised-button color="accent" (click)="saveAndFinalize()" [disabled]="isSaving">
             <mat-icon>check_circle</mat-icon>
             {{ 'INVOICE.FINALIZE' | translate }}
           </button>
@@ -96,7 +90,7 @@
           <mat-form-field appearance="outline" class="form-field-half">
             <mat-label>{{ 'INVOICE.CUSTOMER_EMAIL' | translate }} ({{ 'COMMON.OPTIONAL' | translate }})</mat-label>
             <input matInput type="email" formControlName="customerEmail"
-                   [placeholder]="'INVOICE.CUSTOMER_EMAIL' | translate">
+              [placeholder]="'INVOICE.CUSTOMER_EMAIL' | translate">
             <mat-icon matPrefix>email</mat-icon>
             <mat-error *ngIf="invoiceForm.get('customerEmail')?.hasError('email')">
               {{ 'MESSAGES.INVALID_NUMBER' | translate }}
@@ -112,8 +106,7 @@
         <!-- Company Name -->
         <mat-form-field appearance="outline" class="form-field-full">
           <mat-label>{{ 'INVOICE.COMPANY_NAME' | translate }} ({{ 'COMMON.OPTIONAL' | translate }})</mat-label>
-          <input matInput formControlName="companyName"
-                 [placeholder]="'INVOICE.COMPANY_NAME' | translate">
+          <input matInput formControlName="companyName" [placeholder]="'INVOICE.COMPANY_NAME' | translate">
           <mat-icon matPrefix>business</mat-icon>
         </mat-form-field>
 
@@ -121,8 +114,7 @@
           <!-- Company Address -->
           <mat-form-field appearance="outline" class="form-field-half">
             <mat-label>{{ 'INVOICE.COMPANY_ADDRESS' | translate }}</mat-label>
-            <input matInput formControlName="companyAddress"
-                   [placeholder]="'INVOICE.COMPANY_ADDRESS' | translate">
+            <input matInput formControlName="companyAddress" [placeholder]="'INVOICE.COMPANY_ADDRESS' | translate">
             <mat-icon matPrefix>home</mat-icon>
           </mat-form-field>
 
@@ -130,7 +122,7 @@
           <mat-form-field appearance="outline" class="form-field-half">
             <mat-label>{{ 'INVOICE.COMPANY_CITY_COUNTRY' | translate }}</mat-label>
             <input matInput formControlName="companyCityCountry"
-                   [placeholder]="'INVOICE.COMPANY_CITY_COUNTRY' | translate">
+              [placeholder]="'INVOICE.COMPANY_CITY_COUNTRY' | translate">
             <mat-icon matPrefix>location_city</mat-icon>
           </mat-form-field>
         </div>
@@ -159,8 +151,7 @@
           <!-- Pax -->
           <mat-form-field appearance="outline" class="form-field-half">
             <mat-label>{{ 'INVOICE.PAX' | translate }} ({{ 'COMMON.OPTIONAL' | translate }})</mat-label>
-            <input matInput type="number" min="1" formControlName="pax"
-                   [placeholder]="'INVOICE.PAX' | translate">
+            <input matInput type="number" min="1" formControlName="pax" [placeholder]="'INVOICE.PAX' | translate">
             <mat-icon matPrefix>group</mat-icon>
             <mat-error *ngIf="invoiceForm.get('pax')?.hasError('min')">
               {{ 'MESSAGES.MIN_VALUE' | translate: { min: 1 } }}
@@ -168,11 +159,25 @@
           </mat-form-field>
         </div>
 
+        <!-- Meeting Point (Treffpunkt) -->
+        <mat-form-field appearance="outline" class="form-field-full">
+          <mat-label>{{ 'INVOICE.MEETING_POINT' | translate }} ({{ 'COMMON.OPTIONAL' | translate }})</mat-label>
+          <input matInput formControlName="meetingPoint" [placeholder]="'INVOICE.MEETING_POINT' | translate">
+          <mat-icon matPrefix>place</mat-icon>
+          <mat-hint>{{ 'INVOICE.MEETING_POINT_HINT' | translate }}</mat-hint>
+        </mat-form-field>
+
+        <!-- Civitatis ID  -->
+        <mat-form-field appearance="outline" class="form-field-half">
+          <mat-label>{{ 'INVOICE.CIVITATIS_ID' | translate }} ({{ 'COMMON.OPTIONAL' | translate }})</mat-label>
+          <input matInput formControlName="civitatisId" [placeholder]="'INVOICE.CIVITATIS_ID' | translate">
+          <mat-icon matPrefix>confirmation_number</mat-icon>
+        </mat-form-field>
+
         <!-- Guide -->
         <mat-form-field appearance="outline" class="form-field-full">
           <mat-label>{{ 'INVOICE.GUIDE' | translate }} ({{ 'COMMON.OPTIONAL' | translate }})</mat-label>
-          <input matInput formControlName="guide"
-                 [placeholder]="'INVOICE.GUIDE' | translate">
+          <input matInput formControlName="guide" [placeholder]="'INVOICE.GUIDE' | translate">
           <mat-icon matPrefix>badge</mat-icon>
         </mat-form-field>
 
@@ -195,9 +200,7 @@
       </mat-card-header>
       <mat-card-content>
 
-        <app-line-items-table
-          [lineItems]="lineItems"
-          (lineItemsChange)="onLineItemsUpdate($event)">
+        <app-line-items-table [lineItems]="lineItems" (lineItemsChange)="onLineItemsUpdate($event)">
         </app-line-items-table>
 
         <div class="empty-line-items" *ngIf="lineItems.length === 0">
@@ -221,9 +224,7 @@
         </mat-card-title>
       </mat-card-header>
       <mat-card-content>
-        <app-vat-summary
-          [lineItems]="lineItems"
-          [language]="invoiceForm.get('language')?.value">
+        <app-vat-summary [lineItems]="lineItems" [language]="invoiceForm.get('language')?.value">
         </app-vat-summary>
       </mat-card-content>
     </mat-card>
@@ -233,13 +234,11 @@
       <button mat-stroked-button type="button" (click)="cancel()">
         {{ 'COMMON.CANCEL' | translate }}
       </button>
-      <button mat-raised-button type="button" color="primary"
-              (click)="saveDraft()" [disabled]="isSaving">
+      <button mat-raised-button type="button" color="primary" (click)="saveDraft()" [disabled]="isSaving">
         <mat-icon>save</mat-icon>
         {{ 'COMMON.SAVE' | translate }}
       </button>
-      <button mat-raised-button type="button" color="accent"
-              (click)="saveAndFinalize()" [disabled]="isSaving">
+      <button mat-raised-button type="button" color="accent" (click)="saveAndFinalize()" [disabled]="isSaving">
         <mat-icon>check_circle</mat-icon>
         {{ 'INVOICE.FINALIZE' | translate }}
       </button>

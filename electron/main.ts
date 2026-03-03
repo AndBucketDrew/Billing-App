@@ -12,7 +12,7 @@ import type {
 } from '../src/app/core/models/domain.models';
 
 const USER_DATA_PATH = app.getPath('userData');
-const TOURS_FILE    = path.join(USER_DATA_PATH, 'tours.json');
+const TOURS_FILE = path.join(USER_DATA_PATH, 'tours.json');
 const INVOICES_FILE = path.join(USER_DATA_PATH, 'invoices.json');
 const SETTINGS_FILE = path.join(USER_DATA_PATH, 'settings.json');
 
@@ -80,6 +80,7 @@ function createWindow(): void {
     height: 900,
     minWidth: 1200,
     minHeight: 700,
+    icon: path.join(__dirname, '/../src/assets/icon.ico'),
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
@@ -88,7 +89,7 @@ function createWindow(): void {
     title: 'Tour Billing Application',
     backgroundColor: '#ffffff'
   });
-  
+
 
   if (process.env.NODE_ENV === 'development') {
     mainWindow.loadURL('http://localhost:4200');
@@ -101,6 +102,13 @@ function createWindow(): void {
 
     mainWindow.loadFile(indexPath);
   }
+
+  // Toggle DevTools with F12
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (input.key === 'F12') {
+      mainWindow?.webContents.toggleDevTools();
+    }
+  });
 
   mainWindow.on('closed', () => {
     mainWindow = null;
