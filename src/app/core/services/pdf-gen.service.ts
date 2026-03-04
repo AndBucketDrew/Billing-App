@@ -209,11 +209,14 @@ export class PdfGeneratorService {
         fontSize: 9, color: '#555555', margin: [0, 1, 0, 0]
       });
     }
-    // Treffpunkt always shown as '-'
-    tourDetailLines.push({
-      text: [{ text: '· Treffpunkt: ', bold: true }, { text: invoice.meetingPoint }],
-      fontSize: 9, color: '#555555', margin: [0, 1, 0, 0]
-    });
+    
+    if (invoice.meetingPoint) {
+      tourDetailLines.push({
+        text: [{ text: `· ${t('INVOICE.MEETING_POINT')}: `, bold: true }, { text: invoice.meetingPoint }],
+        fontSize: 9, color: '#555555', margin: [0, 1, 0, 0]
+      });
+    }
+
     if (invoice.pax != null) {
       tourDetailLines.push({
         text: [{ text: '· Pax: ', bold: true }, { text: invoice.pax.toString() }],

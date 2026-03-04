@@ -31,7 +31,7 @@
     "NAME": "Name",
     "DESCRIPTION": "Description",
     "MEETING_POINT": "Meeting Point",
-    "BASE_PRICE_NET": "Base Price (Net)",
+    "BASE_PRICE_NET": "Base Price (Gross)",
     "VAT_PERCENTAGE": "VAT Rate",
     "VAT_SET_ON_INVOICE": "VAT will be set on invoice",
     "CREATED": "Created",

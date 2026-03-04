@@ -18,16 +18,17 @@ export interface InvoiceTotals {
 export class CalculationService {
 
   /**
-   * Calculate line item totals
+   * Calculate line item totals from gross price.
+   * Gross is the input; net and VAT are derived.
    */
   calculateLineItem(
     quantity: number, 
-    unitPriceNet: number, 
+    unitPriceGross: number,
     vatPercentage: VatRate
   ): Pick<InvoiceLineItem, 'lineTotalNet' | 'lineTotalVat' | 'lineTotalGross'> {
-    const lineTotalNet = this.round(quantity * unitPriceNet);
-    const lineTotalVat = this.round(lineTotalNet * (vatPercentage / 100));
-    const lineTotalGross = this.round(lineTotalNet + lineTotalVat);
+    const lineTotalGross = this.round(quantity * unitPriceGross);
+    const lineTotalNet = this.round(lineTotalGross / (1 + vatPercentage / 100));
+    const lineTotalVat = this.round(lineTotalGross - lineTotalNet);
 
     return {
       lineTotalNet,
@@ -53,13 +54,13 @@ export class CalculationService {
     const vatBreakdown: VatBreakdownItem[] = [];
     
     vatGroups.forEach((items, vatPercentage) => {
+      const grossTotal = this.round(
+        items.reduce((sum, item) => sum + item.lineTotalGross, 0)
+      );
       const netTotal = this.round(
         items.reduce((sum, item) => sum + item.lineTotalNet, 0)
       );
-      const vatAmount = this.round(
-        items.reduce((sum, item) => sum + item.lineTotalVat, 0)
-      );
-      const grossTotal = this.round(netTotal + vatAmount);
+      const vatAmount = this.round(grossTotal - netTotal);
 
       vatBreakdown.push({
         vatPercentage,
@@ -73,15 +74,13 @@ export class CalculationService {
     vatBreakdown.sort((a, b) => a.vatPercentage - b.vatPercentage);
 
     // Calculate totals
-    const totalNet = this.round(
-      vatBreakdown.reduce((sum, item) => sum + item.netTotal, 0)
-    );
-    const totalVat = this.round(
-      vatBreakdown.reduce((sum, item) => sum + item.vatAmount, 0)
-    );
     const totalGross = this.round(
       vatBreakdown.reduce((sum, item) => sum + item.grossTotal, 0)
     );
+    const totalNet = this.round(
+      vatBreakdown.reduce((sum, item) => sum + item.netTotal, 0)
+    );
+    const totalVat = this.round(totalGross - totalNet);
 
     return {
       vatBreakdown,

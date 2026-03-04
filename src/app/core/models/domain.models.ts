@@ -4,7 +4,7 @@ export interface Tour {
   id: string;
   name: string;
   description: string;
-  meetingPoint: string;  // ✅ Added
+  meetingPoint: string; 
   basePriceNet: number;
   vatPercentage?: VatRate; // Optional now, set per invoice
   createdAt: string;
@@ -47,11 +47,11 @@ export interface Invoice {
   companyCityCountry?: string | null;
 
   // Tour details
-  tourDate?: string | null;  // datetime-local ISO string (Am)
-  meetingPoint?: string | null;  // ✅ Changed from treffpunkt to meetingPoint
+  tourDate?: string | null;
+  meetingPoint?: string | null; 
   pax?: number | null;       // number of persons
   guide?: string | null;     // tour guide name
-  civitatisId?: string | null; //third party request id 
+  civitatisId?: string | null;
 
   language: 'de' | 'en';
   status: 'draft' | 'finalized';

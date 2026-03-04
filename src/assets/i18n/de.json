@@ -31,7 +31,7 @@
     "NAME": "Name",
     "DESCRIPTION": "Beschreibung",
     "MEETING_POINT": "Treffpunkt",
-    "BASE_PRICE_NET": "Grundpreis (Netto)",
+    "BASE_PRICE_NET": "Grundpreis (Brutto)",
     "VAT_PERCENTAGE": "MwSt. Satz",
     "VAT_SET_ON_INVOICE": "MwSt. wird bei Rechnung festgelegt",
     "CREATED": "Erstellt",
