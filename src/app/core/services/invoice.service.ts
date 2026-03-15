@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { ElectronService } from './electron.service';
 import { CalculationService } from './calculation.service';
-import type { Invoice, InvoiceLineItem, VatRate } from '../models/domain.models';
+import type { Invoice, InvoiceLineItem, PaymentMethod, VatRate } from '../models/domain.models';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable({
@@ -54,7 +54,8 @@ export class InvoiceService {
     meetingPoint?: string | null;
     pax?: number | null;
     guide?: string | null;
-    civitatisId?: string | null;  
+    civitatisId?: string | null;
+    paymentMethod?: PaymentMethod | null;
     language: 'de' | 'en';
     lineItems: InvoiceLineItem[];
   }): Promise<Invoice> {

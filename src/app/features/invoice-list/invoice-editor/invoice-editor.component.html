@@ -167,12 +167,27 @@
           <mat-hint>{{ 'INVOICE.MEETING_POINT_HINT' | translate }}</mat-hint>
         </mat-form-field>
 
-        <!-- Civitatis ID  -->
-        <mat-form-field appearance="outline" class="form-field-half">
+        <div class="form-row">
+          <!-- Payment Method -->
+          <mat-form-field appearance="outline" class="form-field-half">
+            <mat-label>{{ 'INVOICE.PAYMENT_METHOD' | translate }}</mat-label>
+            <mat-select formControlName="paymentMethod">
+              <mat-option value="bank"> {{ 'INVOICE.PAYMENT_BANK' | translate }}</mat-option>
+              <mat-option value="paypal"> {{ 'INVOICE.PAYMENT_PAYPAL' | translate }}</mat-option>
+              <mat-option value="cash"> {{ 'INVOICE.PAYMENT_CASH' | translate }}</mat-option>
+              <mat-option value="civitatis"> {{ 'INVOICE.PAYMENT_CIVITATIS' | translate }}</mat-option>
+            </mat-select>
+            <mat-icon matPrefix>payment</mat-icon>
+          </mat-form-field>
+  
+          <!-- Civitatis ID  -->
+          <mat-form-field appearance="outline" class="form-field-half"
+            *ngIf="invoiceForm.get('paymentMethod')?.value === 'civitatis'">
           <mat-label>{{ 'INVOICE.CIVITATIS_ID' | translate }} ({{ 'COMMON.OPTIONAL' | translate }})</mat-label>
           <input matInput formControlName="civitatisId" [placeholder]="'INVOICE.CIVITATIS_ID' | translate">
           <mat-icon matPrefix>confirmation_number</mat-icon>
-        </mat-form-field>
+          </mat-form-field>
+        </div>
 
         <!-- Guide -->
         <mat-form-field appearance="outline" class="form-field-full">

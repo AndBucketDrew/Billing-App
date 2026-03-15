@@ -44,6 +44,11 @@
   },
   "INVOICE": {
     "TITLE": "Rechnungen",
+    "PAYMENT_METHOD": "Zahlungsart",
+    "PAYMENT_BANK": "Banküberweisung",
+    "PAYMENT_PAYPAL": "PayPal",
+    "PAYMENT_CASH": "Bar",
+    "PAYMENT_CIVITATIS": "Civitatis",
     "SEARCH_PLACEHOLDER": "Suchen",
     "CREATE": "Rechnung erstellen",
     "EDIT": "Rechnung bearbeiten",

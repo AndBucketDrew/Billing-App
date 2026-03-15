@@ -58,10 +58,27 @@ export class InvoiceEditorComponent implements OnInit {
       pax: [null, [Validators.min(1)]], // optional
       guide: [''],      // optional
       civitatisId: [''],
+      paymentMethod: [null],
     });
   }
 
   ngOnInit(): void {
+    this.invoiceForm.get('civitatisId')?.valueChanges.subscribe(value => {
+      if (value && value.trim() !== '') {
+        const current = this.invoiceForm.get('paymentMethod')?.value;
+        if (current !== 'civitatis') {
+          this.invoiceForm.patchValue({ paymentMethod: 'civitatis' }, { emitEvent: false });
+        }
+      }
+    });
+
+    // Clear Civitatis ID when switching away from Civitatis payment
+    this.invoiceForm.get('paymentMethod')?.valueChanges.subscribe(value => {
+      if (value !== 'civitatis') {
+        this.invoiceForm.patchValue({ civitatisId: '' }, { emitEvent: false });
+      }
+    });
+
     this.route.params.subscribe(params => {
       if (params['id']) {
         this.isEditMode = true;
@@ -103,6 +120,7 @@ export class InvoiceEditorComponent implements OnInit {
           pax: invoice.pax ?? null,
           guide: invoice.guide ?? '',
           civitatisId: invoice.civitatisId ?? '',
+          paymentMethod: invoice.paymentMethod ?? null,
         });
 
         this.lineItems = [...invoice.lineItems];
@@ -225,6 +243,7 @@ export class InvoiceEditorComponent implements OnInit {
       guide: v.guide || null,
       civitatisId: v.civitatisId || null,
       lineItems: this.lineItems,
+      paymentMethod: v.paymentMethod || null,
     };
   }
 

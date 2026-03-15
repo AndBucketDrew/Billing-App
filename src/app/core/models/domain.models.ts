@@ -33,6 +33,9 @@ export interface VatBreakdownItem {
   grossTotal: number;
 }
 
+// Add this new type
+export type PaymentMethod = 'bank' | 'paypal' | 'cash' | 'civitatis';
+
 export interface Invoice {
   id: string;
   invoiceNumber: string;
@@ -52,6 +55,7 @@ export interface Invoice {
   pax?: number | null;       // number of persons
   guide?: string | null;     // tour guide name
   civitatisId?: string | null;
+  paymentMethod?: PaymentMethod | null;
 
   language: 'de' | 'en';
   status: 'draft' | 'finalized';

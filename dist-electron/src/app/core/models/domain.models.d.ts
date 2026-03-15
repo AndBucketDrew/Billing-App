@@ -27,6 +27,7 @@ export interface VatBreakdownItem {
     vatAmount: number;
     grossTotal: number;
 }
+export type PaymentMethod = 'bank' | 'paypal' | 'cash' | 'civitatis';
 export interface Invoice {
     id: string;
     invoiceNumber: string;
@@ -42,6 +43,7 @@ export interface Invoice {
     pax?: number | null;
     guide?: string | null;
     civitatisId?: string | null;
+    paymentMethod?: PaymentMethod | null;
     language: 'de' | 'en';
     status: 'draft' | 'finalized';
     lineItems: InvoiceLineItem[];

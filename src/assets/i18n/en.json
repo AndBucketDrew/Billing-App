@@ -44,6 +44,11 @@
   },
   "INVOICE": {
     "TITLE": "Invoices",
+    "PAYMENT_METHOD": "Payment Method",
+    "PAYMENT_BANK": "Bank Transfer",
+    "PAYMENT_PAYPAL": "PayPal",
+    "PAYMENT_CASH": "Cash",
+    "PAYMENT_CIVITATIS": "Civitatis",
     "CREATE": "Create Invoice",
     "SEARCH_PLACEHOLDER": "Search",
     "EDIT": "Edit Invoice",

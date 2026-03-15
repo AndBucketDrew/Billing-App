@@ -209,7 +209,7 @@ export class PdfGeneratorService {
         fontSize: 9, color: '#555555', margin: [0, 1, 0, 0]
       });
     }
-    
+
     if (invoice.meetingPoint) {
       tourDetailLines.push({
         text: [{ text: `· ${t('INVOICE.MEETING_POINT')}: `, bold: true }, { text: invoice.meetingPoint }],
@@ -303,6 +303,27 @@ export class PdfGeneratorService {
       layout: 'noBorders',
       margin: [300, 0, 0, 20]
     });
+
+    // ── 5b. PAYMENT METHOD ────────────────────────────────────────────────────
+    if (invoice.paymentMethod) {
+      const pmLabels: Record<string, string> = {
+        bank: lang === 'de' ? 'Überweisung' : 'Bank Transfer',
+        paypal: 'PayPal',
+        cash: lang === 'de' ? 'Bar' : 'Cash',
+        civitatis: 'Civitatis',
+      };
+      const pmLabel = pmLabels[invoice.paymentMethod] ?? invoice.paymentMethod;
+      const pmText = lang === 'de'
+        ? `Zahlungsart: ${pmLabel}`
+        : `Payment Method: ${pmLabel}`;
+
+      content.push({
+        text: pmText,
+        fontSize: 10,
+        margin: [0, 0, 0, 20], 
+        alignment: 'left'
+      });
+    }
 
     // ── 6. CUSTOM FOOTER TEXT ─────────────────────────────────────────────────
     if (settings.invoiceFooterText) {
