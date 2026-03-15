@@ -43,6 +43,23 @@ const INVOICES_FILE = path.join(USER_DATA_PATH, 'invoices.json');
 const SETTINGS_FILE = path.join(USER_DATA_PATH, 'settings.json');
 let mainWindow = null;
 // ============================================
+// SINGLE INSTANCE LOCK
+// ============================================
+const gotTheLock = electron_1.app.requestSingleInstanceLock();
+if (!gotTheLock) {
+    electron_1.app.quit();
+}
+else {
+    electron_1.app.on('second-instance', () => {
+        // Someone tried to run a second instance — focus our window instead
+        if (mainWindow) {
+            if (mainWindow.isMinimized())
+                mainWindow.restore();
+            mainWindow.focus();
+        }
+    });
+}
+// ============================================
 // FILE SYSTEM HELPERS
 // ============================================
 function ensureDataFiles() {
@@ -60,6 +77,7 @@ function ensureDataFiles() {
     if (!fs.existsSync(SETTINGS_FILE)) {
         const initialSettings = {
             language: 'de',
+            invoiceCounter: 1,
             companyName: '',
             companyAddress: '',
             cityCountry: '',

@@ -18,6 +18,24 @@ const SETTINGS_FILE = path.join(USER_DATA_PATH, 'settings.json');
 
 let mainWindow: BrowserWindow | null = null;
 
+// ============================================
+// SINGLE INSTANCE LOCK
+// ============================================
+
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    // Someone tried to run a second instance — focus our window instead
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
+}
+
 
 // ============================================
 // FILE SYSTEM HELPERS
@@ -41,6 +59,7 @@ function ensureDataFiles(): void {
   if (!fs.existsSync(SETTINGS_FILE)) {
     const initialSettings: CompanySettings = {
       language: 'de',
+      invoiceCounter: 1,
       companyName: '',
       companyAddress: '',
       cityCountry: '',

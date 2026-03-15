@@ -128,9 +128,20 @@ export class PdfGeneratorService {
     });
 
     // ── 2. CUSTOMER SECTION ───────────────────────────────────────────────────
-    const customerStack: any[] = [
-      { text: invoice.customerName, style: 'customerInfo' }
-    ];
+    const customerStack: any[] = [];
+
+    if (invoice.salutation) {
+      const salutationMap: Record<string, Record<string, string>> = {
+        frau: { de: 'Frau', en: 'Ms.' },
+        herr: { de: 'Herr', en: 'Mr.' },
+        divers: { de: 'Divers', en: 'Other' }
+      };
+      const salutationLabel = salutationMap[invoice.salutation]?.[lang] ?? '';
+      customerStack.push({ text: `${salutationLabel} ${invoice.customerName}`, style: 'customerInfo' });
+    } else {
+      customerStack.push({ text: invoice.customerName, style: 'customerInfo' });
+    }
+
     if (invoice.customerEmail) {
       customerStack.push({ text: invoice.customerEmail, style: 'customerInfo' });
     }
@@ -307,10 +318,11 @@ export class PdfGeneratorService {
     // ── 5b. PAYMENT METHOD ────────────────────────────────────────────────────
     if (invoice.paymentMethod) {
       const pmLabels: Record<string, string> = {
-        bank: lang === 'de' ? 'Überweisung' : 'Bank Transfer',
+        bank: lang === 'de' ? 'Bank Überweisung' : 'Bank Transfer',
         paypal: 'PayPal',
         cash: lang === 'de' ? 'Bar' : 'Cash',
         civitatis: 'Civitatis',
+        mypos: lang === 'de' ? 'MyPos - Kreditkarte' : 'MyPos - Credit Card'
       };
       const pmLabel = pmLabels[invoice.paymentMethod] ?? invoice.paymentMethod;
       const pmText = lang === 'de'
@@ -320,7 +332,7 @@ export class PdfGeneratorService {
       content.push({
         text: pmText,
         fontSize: 10,
-        margin: [0, 0, 0, 20], 
+        margin: [0, 0, 0, 20],
         alignment: 'left'
       });
     }

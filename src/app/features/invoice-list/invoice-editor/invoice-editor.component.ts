@@ -44,6 +44,7 @@ export class InvoiceEditorComponent implements OnInit {
       language: [settings.language, [Validators.required]],
 
       // Customer
+      salutation: [null],
       customerName: ['', [Validators.required, Validators.minLength(2)]],
       customerEmail: ['', [Validators.email]], // optional
 
@@ -110,6 +111,7 @@ export class InvoiceEditorComponent implements OnInit {
         this.invoiceForm.patchValue({
           invoiceDate: invoice.invoiceDate,
           language: invoice.language,
+          salutation: invoice.salutation ?? null,
           customerName: invoice.customerName,
           customerEmail: invoice.customerEmail ?? '',
           companyName: invoice.companyName ?? '',
@@ -232,6 +234,7 @@ export class InvoiceEditorComponent implements OnInit {
     return {
       invoiceDate: v.invoiceDate,
       language: v.language,
+      salutation: v.salutation || null,
       customerName: v.customerName,
       customerEmail: v.customerEmail || null,
       companyName: v.companyName || null,

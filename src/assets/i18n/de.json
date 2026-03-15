@@ -43,10 +43,15 @@
     "TOTAL": "Gesamt"
   },
   "INVOICE": {
-    "TITLE": "Rechnungen",
+    "TITLE": "Rechnung",
+    "SALUTATION": "Anrede",
+    "SALUTATION_FRAU": "Frau",
+    "SALUTATION_HERR": "Herr",
+    "SALUTATION_DIVERS": "Divers",
     "PAYMENT_METHOD": "Zahlungsart",
     "PAYMENT_BANK": "Banküberweisung",
     "PAYMENT_PAYPAL": "PayPal",
+    "PAYMENT_MYPOS": "MyPos - Kreditkarte",
     "PAYMENT_CASH": "Bar",
     "PAYMENT_CIVITATIS": "Civitatis",
     "SEARCH_PLACEHOLDER": "Suchen",
@@ -97,6 +102,8 @@
   },
   "SETTINGS": {
     "TITLE": "Einstellungen",
+    "INVOICE_COUNTER": "Rechnungszähler",
+    "INVOICE_COUNTER_HINT": "Nächste Rechnungsnummer beginnt ab diesem Wert",
     "COMPANY": "Firmendaten",
     "COMPANY_NAME": "Firmenname",
     "COMPANY_ADDRESS": "Firmenadresse",

@@ -20,8 +20,8 @@ export class SettingsComponent implements OnInit {
   settingsForm: FormGroup;
   currentLogoPath: string = '';
   isLoading: boolean = false;
-  
- vatOptions: VatOption[] = [
+
+  vatOptions: VatOption[] = [
     { value: 0, label: 'VAT.RATE_0' },
     { value: 10, label: 'VAT.RATE_10' },
     { value: 13, label: 'VAT.RATE_13' },
@@ -41,24 +41,27 @@ export class SettingsComponent implements OnInit {
   ) {
     // Initialize form with all fields
     this.settingsForm = this.fb.group({
+      //Invoice index counter
+      invoiceCounter: [1, [Validators.required, Validators.min(1)]],
+
       // Basic company info
       companyName: ['', [Validators.required, Validators.minLength(2)]],
       companyAddress: ['', [Validators.required]],
       cityCountry: ['', [Validators.required]],
       vatNumber: ['', [Validators.required]],
-      
+
       // Bank details
       bankName: [''],
       accountHolder: [''],
       iban: [''],
       bic: [''],
-      
+
       // Legal details
       legalForm: [''],
       headquarters: [''],
       courtRegistry: [''],
       registrationNumber: [''],
-      
+
       // Invoice settings
       invoiceFooterText: [''],
       defaultVatPercentage: [13, [Validators.required]],
@@ -75,12 +78,13 @@ export class SettingsComponent implements OnInit {
    */
   async loadSettings(): Promise<void> {
     this.isLoading = true;
-    
+
     try {
       await this.settingsService.loadSettings();
-      
+
       this.settingsService.settings$.subscribe((settings: CompanySettings) => {
         this.settingsForm.patchValue({
+          invoiceCounter: settings.invoiceCounter ?? 1,
           companyName: settings.companyName,
           companyAddress: settings.companyAddress,
           cityCountry: settings.cityCountry,
@@ -97,7 +101,7 @@ export class SettingsComponent implements OnInit {
           defaultVatPercentage: settings.defaultVatPercentage,
           language: settings.language
         });
-        
+
         this.currentLogoPath = settings.logoPath || '';
       });
     } catch (error) {
@@ -121,8 +125,9 @@ export class SettingsComponent implements OnInit {
 
     try {
       const formValue = this.settingsForm.value;
-      
+
       await this.settingsService.updateSettings({
+        invoiceCounter: formValue.invoiceCounter,
         companyName: formValue.companyName,
         companyAddress: formValue.companyAddress,
         cityCountry: formValue.cityCountry,
@@ -155,7 +160,7 @@ export class SettingsComponent implements OnInit {
   async onSelectLogo(): Promise<void> {
     try {
       const logoPath = await this.settingsService.selectLogo();
-      
+
       if (logoPath) {
         this.currentLogoPath = logoPath;
         this.showMessage(this.translate.instant('MESSAGES.SAVE_SUCCESS'));
@@ -171,7 +176,7 @@ export class SettingsComponent implements OnInit {
    */
   async onRemoveLogo(): Promise<void> {
     const confirmed = confirm(this.translate.instant('SETTINGS.LOGO_REMOVE') + '?');
-    
+
     if (confirmed) {
       try {
         await this.settingsService.removeLogo();
@@ -216,16 +221,16 @@ export class SettingsComponent implements OnInit {
    */
   getErrorMessage(fieldName: string): string {
     const field = this.settingsForm.get(fieldName);
-    
+
     if (field?.hasError('required')) {
       return this.translate.instant('MESSAGES.REQUIRED_FIELD');
     }
-    
+
     if (field?.hasError('minLength')) {
       const minLength = field.errors?.['minLength'].requiredLength;
       return this.translate.instant('MESSAGES.MIN_VALUE', { min: minLength });
     }
-    
+
     return '';
   }
 

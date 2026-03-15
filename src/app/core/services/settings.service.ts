@@ -10,6 +10,7 @@ import type { CompanySettings } from '../models/domain.models';
 export class SettingsService {
   private settingsSubject = new BehaviorSubject<CompanySettings>({
     language: 'de',
+    invoiceCounter: 1,
     companyName: '',
     companyAddress: '',
     cityCountry: '',

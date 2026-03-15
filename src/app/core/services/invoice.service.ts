@@ -4,6 +4,7 @@ import { ElectronService } from './electron.service';
 import { CalculationService } from './calculation.service';
 import type { Invoice, InvoiceLineItem, PaymentMethod, VatRate } from '../models/domain.models';
 import { v4 as uuidv4 } from 'uuid';
+import { SettingsService } from './settings.service';
 
 @Injectable({
   providedIn: 'root'
@@ -14,7 +15,8 @@ export class InvoiceService {
 
   constructor(
     private electron: ElectronService,
-    private calculation: CalculationService
+    private calculation: CalculationService,
+    private settings: SettingsService,
   ) {
     this.loadInvoices();
   }
@@ -44,6 +46,7 @@ export class InvoiceService {
 
   async createInvoice(invoiceData: {
     invoiceDate: string;
+    salutation?: 'herr' | 'frau' | 'divers' | null;
     customerName: string;
     customerAddress: string;
     customerEmail?: string | null;
@@ -64,7 +67,10 @@ export class InvoiceService {
 
       const payload: Omit<Invoice, 'id' | 'createdAt' | 'updatedAt'> = {
         ...invoiceData,
-        invoiceNumber: this.generateInvoiceNumber(),
+
+        //after the spread overrides the undefined from ...invoiceData and satisfies the 'herr' | 'frau' | 'divers' | null type.
+        salutation: invoiceData.salutation ?? null,
+        invoiceNumber: await this.generateInvoiceNumber(),
         status: 'draft',
         vatBreakdown: totals.vatBreakdown,
         totalNet: totals.totalNet,
@@ -157,7 +163,7 @@ export class InvoiceService {
     return { ...item, ...totals };
   }
 
-  private generateInvoiceNumber(): string {
+  private async generateInvoiceNumber(): Promise<string> {
     const now = new Date();
 
     const pad = (n: number, length = 2): string =>
@@ -168,9 +174,13 @@ export class InvoiceService {
     const dd = pad(now.getDate());
     const hh = pad(now.getHours());
     const min = pad(now.getMinutes());
-    const ss = pad(now.getSeconds());
-    const ms = String(now.getMilliseconds())[0];
 
-    return `${yy}${mm}${dd}-${hh}${min}${ss}${ms}`;
+    const settings = this.settings.getSettings();
+    const index = settings.invoiceCounter ?? 1;
+
+    // Increment counter and save
+    await this.settings.updateSettings({ invoiceCounter: index + 1 });
+
+    return `${yy}${mm}${dd}-${hh}${min}-${pad(index, 3)}`;
   }
 }

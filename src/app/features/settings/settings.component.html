@@ -1,5 +1,5 @@
 <div class="settings-container">
-  
+
   <!-- Header Card -->
   <mat-card class="header-card">
     <mat-card-content>
@@ -8,10 +8,7 @@
           <h1 class="page-title">{{ 'SETTINGS.TITLE' | translate }}</h1>
           <p class="page-subtitle">{{ 'SETTINGS.COMPANY' | translate }}</p>
         </div>
-        <button mat-raised-button 
-                color="primary" 
-                (click)="onSave()"
-                [disabled]="settingsForm.invalid || isLoading">
+        <button mat-raised-button color="primary" (click)="onSave()" [disabled]="settingsForm.invalid || isLoading">
           <mat-icon>save</mat-icon>
           {{ 'COMMON.SAVE' | translate }}
         </button>
@@ -20,7 +17,18 @@
   </mat-card>
 
   <form [formGroup]="settingsForm" class="settings-form">
-    
+
+    <!-- Invoice Counter -->
+    <mat-form-field appearance="outline" class="form-field-half">
+      <mat-label>{{ 'SETTINGS.INVOICE_COUNTER' | translate }}</mat-label>
+      <input matInput type="number" min="1" formControlName="invoiceCounter">
+      <mat-icon matPrefix>tag</mat-icon>
+      <mat-hint>{{ 'SETTINGS.INVOICE_COUNTER_HINT' | translate }}</mat-hint>
+      <mat-error *ngIf="settingsForm.get('invoiceCounter')?.invalid">
+        {{ getErrorMessage('invoiceCounter') }}
+      </mat-error>
+    </mat-form-field>
+
     <!-- Company Information Card -->
     <mat-card>
       <mat-card-header>
@@ -30,14 +38,11 @@
         </mat-card-title>
       </mat-card-header>
       <mat-card-content>
-        
+
         <!-- Company Name -->
         <mat-form-field appearance="outline" class="form-field-full">
           <mat-label>{{ 'SETTINGS.COMPANY_NAME' | translate }}</mat-label>
-          <input matInput 
-                 formControlName="companyName"
-                 [placeholder]="'SETTINGS.COMPANY_NAME' | translate"
-                 required>
+          <input matInput formControlName="companyName" [placeholder]="'SETTINGS.COMPANY_NAME' | translate" required>
           <mat-icon matPrefix>domain</mat-icon>
           <mat-error *ngIf="settingsForm.get('companyName')?.invalid">
             {{ getErrorMessage('companyName') }}
@@ -47,11 +52,8 @@
         <!-- Company Address -->
         <mat-form-field appearance="outline" class="form-field-full">
           <mat-label>{{ 'SETTINGS.COMPANY_ADDRESS' | translate }}</mat-label>
-          <textarea matInput 
-                    formControlName="companyAddress"
-                    [placeholder]="'SETTINGS.COMPANY_ADDRESS' | translate"
-                    rows="2"
-                    required></textarea>
+          <textarea matInput formControlName="companyAddress" [placeholder]="'SETTINGS.COMPANY_ADDRESS' | translate"
+            rows="2" required></textarea>
           <mat-icon matPrefix>location_on</mat-icon>
           <mat-error *ngIf="settingsForm.get('companyAddress')?.invalid">
             {{ getErrorMessage('companyAddress') }}
@@ -61,10 +63,7 @@
         <!-- City/Country -->
         <mat-form-field appearance="outline" class="form-field-full">
           <mat-label>{{ 'SETTINGS.CITY_COUNTRY' | translate }}</mat-label>
-          <input matInput 
-                 formControlName="cityCountry"
-                 [placeholder]="'1010 Wien, Österreich'"
-                 required>
+          <input matInput formControlName="cityCountry" [placeholder]="'1010 Wien, Österreich'" required>
           <mat-icon matPrefix>public</mat-icon>
           <mat-error *ngIf="settingsForm.get('cityCountry')?.invalid">
             {{ getErrorMessage('cityCountry') }}
@@ -74,10 +73,7 @@
         <!-- VAT Number -->
         <mat-form-field appearance="outline" class="form-field-full">
           <mat-label>{{ 'SETTINGS.VAT_NUMBER' | translate }}</mat-label>
-          <input matInput 
-                 formControlName="vatNumber"
-                 [placeholder]="'ATU12345678'"
-                 required>
+          <input matInput formControlName="vatNumber" [placeholder]="'ATU12345678'" required>
           <mat-icon matPrefix>receipt</mat-icon>
           <mat-error *ngIf="settingsForm.get('vatNumber')?.invalid">
             {{ getErrorMessage('vatNumber') }}
@@ -96,22 +92,18 @@
         </mat-card-title>
       </mat-card-header>
       <mat-card-content>
-        
+
         <!-- Bank Name -->
         <mat-form-field appearance="outline" class="form-field-full">
           <mat-label>{{ 'SETTINGS.BANK_NAME' | translate }}</mat-label>
-          <input matInput 
-                 formControlName="bankName"
-                 [placeholder]="'SETTINGS.BANK_NAME' | translate">
+          <input matInput formControlName="bankName" [placeholder]="'SETTINGS.BANK_NAME' | translate">
           <mat-icon matPrefix>account_balance</mat-icon>
         </mat-form-field>
 
         <!-- Account Holder -->
         <mat-form-field appearance="outline" class="form-field-full">
           <mat-label>{{ 'SETTINGS.ACCOUNT_HOLDER' | translate }}</mat-label>
-          <input matInput 
-                 formControlName="accountHolder"
-                 [placeholder]="'SETTINGS.ACCOUNT_HOLDER' | translate">
+          <input matInput formControlName="accountHolder" [placeholder]="'SETTINGS.ACCOUNT_HOLDER' | translate">
           <mat-icon matPrefix>person</mat-icon>
         </mat-form-field>
 
@@ -119,18 +111,14 @@
           <!-- IBAN -->
           <mat-form-field appearance="outline" class="form-field-half">
             <mat-label>IBAN</mat-label>
-            <input matInput 
-                   formControlName="iban"
-                   placeholder="AT00 0000 0000 0000 0000">
+            <input matInput formControlName="iban" placeholder="AT00 0000 0000 0000 0000">
             <mat-icon matPrefix>credit_card</mat-icon>
           </mat-form-field>
 
           <!-- BIC -->
           <mat-form-field appearance="outline" class="form-field-half">
             <mat-label>BIC</mat-label>
-            <input matInput 
-                   formControlName="bic"
-                   placeholder="ABCDEFGH">
+            <input matInput formControlName="bic" placeholder="ABCDEFGH">
             <mat-icon matPrefix>tag</mat-icon>
           </mat-form-field>
         </div>
@@ -147,23 +135,19 @@
         </mat-card-title>
       </mat-card-header>
       <mat-card-content>
-        
+
         <div class="form-row">
           <!-- Legal Form -->
           <mat-form-field appearance="outline" class="form-field-half">
             <mat-label>{{ 'SETTINGS.LEGAL_FORM' | translate }}</mat-label>
-            <input matInput 
-                   formControlName="legalForm"
-                   [placeholder]="'GmbH'">
+            <input matInput formControlName="legalForm" [placeholder]="'GmbH'">
             <mat-icon matPrefix>business_center</mat-icon>
           </mat-form-field>
 
           <!-- Headquarters -->
           <mat-form-field appearance="outline" class="form-field-half">
             <mat-label>{{ 'SETTINGS.HEADQUARTERS' | translate }}</mat-label>
-            <input matInput 
-                   formControlName="headquarters"
-                   [placeholder]="'Wien'">
+            <input matInput formControlName="headquarters" [placeholder]="'Wien'">
             <mat-icon matPrefix>location_city</mat-icon>
           </mat-form-field>
         </div>
@@ -172,18 +156,14 @@
           <!-- Court Registry -->
           <mat-form-field appearance="outline" class="form-field-half">
             <mat-label>{{ 'SETTINGS.COURT_REGISTRY' | translate }}</mat-label>
-            <input matInput 
-                   formControlName="courtRegistry"
-                   [placeholder]="'Handelsgericht Wien'">
+            <input matInput formControlName="courtRegistry" [placeholder]="'Handelsgericht Wien'">
             <mat-icon matPrefix>account_balance</mat-icon>
           </mat-form-field>
 
           <!-- Registration Number -->
           <mat-form-field appearance="outline" class="form-field-half">
             <mat-label>{{ 'SETTINGS.REGISTRATION_NUMBER' | translate }}</mat-label>
-            <input matInput 
-                   formControlName="registrationNumber"
-                   [placeholder]="'FN 123456a'">
+            <input matInput formControlName="registrationNumber" [placeholder]="'FN 123456a'">
             <mat-icon matPrefix>confirmation_number</mat-icon>
           </mat-form-field>
         </div>
@@ -200,14 +180,12 @@
         </mat-card-title>
       </mat-card-header>
       <mat-card-content>
-        
+
         <!-- Invoice Footer Text -->
         <mat-form-field appearance="outline" class="form-field-full">
           <mat-label>{{ 'SETTINGS.INVOICE_FOOTER_TEXT' | translate }}</mat-label>
-          <textarea matInput 
-                    formControlName="invoiceFooterText"
-                    [placeholder]="'SETTINGS.INVOICE_FOOTER_PLACEHOLDER' | translate"
-                    rows="4"></textarea>
+          <textarea matInput formControlName="invoiceFooterText"
+            [placeholder]="'SETTINGS.INVOICE_FOOTER_PLACEHOLDER' | translate" rows="4"></textarea>
           <mat-icon matPrefix>notes</mat-icon>
           <mat-hint>{{ 'SETTINGS.INVOICE_FOOTER_HINT' | translate }}</mat-hint>
         </mat-form-field>
@@ -224,14 +202,12 @@
         </mat-card-title>
       </mat-card-header>
       <mat-card-content>
-        
+
         <div class="logo-section">
-          
+
           <!-- Logo Preview -->
           <div class="logo-preview" *ngIf="hasLogo()">
-            <img [src]="getLogoPreview()" 
-                 alt="Company Logo"
-                 class="logo-image">
+            <img [src]="getLogoPreview()" alt="Company Logo" class="logo-image">
             <div class="logo-path">
               <mat-icon>insert_drive_file</mat-icon>
               <span>{{ currentLogoPath }}</span>
@@ -246,18 +222,12 @@
 
           <!-- Logo Actions -->
           <div class="logo-actions">
-            <button mat-raised-button 
-                    type="button"
-                    (click)="onSelectLogo()">
+            <button mat-raised-button type="button" (click)="onSelectLogo()">
               <mat-icon>upload_file</mat-icon>
               {{ 'SETTINGS.LOGO_SELECT' | translate }}
             </button>
-            
-            <button mat-stroked-button 
-                    type="button"
-                    color="warn"
-                    (click)="onRemoveLogo()"
-                    *ngIf="hasLogo()">
+
+            <button mat-stroked-button type="button" color="warn" (click)="onRemoveLogo()" *ngIf="hasLogo()">
               <mat-icon>delete</mat-icon>
               {{ 'SETTINGS.LOGO_REMOVE' | translate }}
             </button>
@@ -277,9 +247,9 @@
         </mat-card-title>
       </mat-card-header>
       <mat-card-content>
-        
+
         <div class="form-row">
-          
+
           <!-- Default VAT -->
           <mat-form-field appearance="outline" class="form-field-half">
             <mat-label>{{ 'SETTINGS.DEFAULT_VAT' | translate }}</mat-label>
@@ -295,9 +265,7 @@
           <!-- Language -->
           <mat-form-field appearance="outline" class="form-field-half">
             <mat-label>{{ 'SETTINGS.LANGUAGE' | translate }}</mat-label>
-            <mat-select formControlName="language" 
-                        (selectionChange)="onLanguageChange($event.value)"
-                        required>
+            <mat-select formControlName="language" (selectionChange)="onLanguageChange($event.value)" required>
               <mat-option *ngFor="let lang of languageOptions" [value]="lang.value">
                 <span class="language-option">
                   <span class="flag">{{ lang.flag }}</span>
@@ -316,11 +284,8 @@
 
     <!-- Save Button (Bottom) -->
     <div class="action-buttons">
-      <button mat-raised-button 
-              color="primary" 
-              type="button"
-              (click)="onSave()"
-              [disabled]="settingsForm.invalid || isLoading">
+      <button mat-raised-button color="primary" type="button" (click)="onSave()"
+        [disabled]="settingsForm.invalid || isLoading">
         <mat-icon>save</mat-icon>
         {{ 'COMMON.SAVE' | translate }}
       </button>

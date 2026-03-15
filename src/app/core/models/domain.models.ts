@@ -4,7 +4,7 @@ export interface Tour {
   id: string;
   name: string;
   description: string;
-  meetingPoint: string; 
+  meetingPoint: string;
   basePriceNet: number;
   vatPercentage?: VatRate; // Optional now, set per invoice
   createdAt: string;
@@ -34,12 +34,13 @@ export interface VatBreakdownItem {
 }
 
 // Add this new type
-export type PaymentMethod = 'bank' | 'paypal' | 'cash' | 'civitatis';
+export type PaymentMethod = 'bank' | 'paypal' | 'cash' | 'civitatis' | 'mypos';
 
 export interface Invoice {
   id: string;
   invoiceNumber: string;
   invoiceDate: string;
+  salutation: 'herr' | 'frau' | 'divers' | null;
   customerName: string;
   customerAddress: string;   // kept for backward compatibility
   customerEmail?: string | null;
@@ -51,7 +52,7 @@ export interface Invoice {
 
   // Tour details
   tourDate?: string | null;
-  meetingPoint?: string | null; 
+  meetingPoint?: string | null;
   pax?: number | null;       // number of persons
   guide?: string | null;     // tour guide name
   civitatisId?: string | null;
@@ -70,6 +71,7 @@ export interface Invoice {
 
 export interface CompanySettings {
   language: 'de' | 'en';
+  invoiceCounter: number;
   companyName: string;
   companyAddress: string;
   cityCountry: string;

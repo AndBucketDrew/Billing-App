@@ -27,11 +27,12 @@ export interface VatBreakdownItem {
     vatAmount: number;
     grossTotal: number;
 }
-export type PaymentMethod = 'bank' | 'paypal' | 'cash' | 'civitatis';
+export type PaymentMethod = 'bank' | 'paypal' | 'cash' | 'civitatis' | 'mypos';
 export interface Invoice {
     id: string;
     invoiceNumber: string;
     invoiceDate: string;
+    salutation: 'herr' | 'frau' | 'divers' | null;
     customerName: string;
     customerAddress: string;
     customerEmail?: string | null;
@@ -56,6 +57,7 @@ export interface Invoice {
 }
 export interface CompanySettings {
     language: 'de' | 'en';
+    invoiceCounter: number;
     companyName: string;
     companyAddress: string;
     cityCountry: string;

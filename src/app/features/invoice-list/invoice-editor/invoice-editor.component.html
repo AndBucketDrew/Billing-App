@@ -76,6 +76,18 @@
       <mat-card-content>
 
         <div class="form-row">
+          <!-- Salutation -->
+          <mat-form-field appearance="outline" class="form-field-half">
+            <mat-label>{{ 'INVOICE.SALUTATION' | translate }}</mat-label>
+            <mat-select formControlName="salutation">
+              <mat-option [value]="null"></mat-option>
+              <mat-option value="frau">{{ 'INVOICE.SALUTATION_FRAU' | translate }}</mat-option>
+              <mat-option value="herr">{{ 'INVOICE.SALUTATION_HERR' | translate }}</mat-option>
+              <mat-option value="divers">{{ 'INVOICE.SALUTATION_DIVERS' | translate }}</mat-option>
+            </mat-select>
+            <mat-icon matPrefix>wc</mat-icon>
+          </mat-form-field>
+
           <!-- Customer Name (required) -->
           <mat-form-field appearance="outline" class="form-field-half">
             <mat-label>{{ 'INVOICE.CUSTOMER_NAME' | translate }}</mat-label>
@@ -176,16 +188,17 @@
               <mat-option value="paypal"> {{ 'INVOICE.PAYMENT_PAYPAL' | translate }}</mat-option>
               <mat-option value="cash"> {{ 'INVOICE.PAYMENT_CASH' | translate }}</mat-option>
               <mat-option value="civitatis"> {{ 'INVOICE.PAYMENT_CIVITATIS' | translate }}</mat-option>
+              <mat-option value="mypos"> {{ 'INVOICE.PAYMENT_MYPOS' | translate }}</mat-option>
             </mat-select>
             <mat-icon matPrefix>payment</mat-icon>
           </mat-form-field>
-  
+
           <!-- Civitatis ID  -->
           <mat-form-field appearance="outline" class="form-field-half"
             *ngIf="invoiceForm.get('paymentMethod')?.value === 'civitatis'">
-          <mat-label>{{ 'INVOICE.CIVITATIS_ID' | translate }} ({{ 'COMMON.OPTIONAL' | translate }})</mat-label>
-          <input matInput formControlName="civitatisId" [placeholder]="'INVOICE.CIVITATIS_ID' | translate">
-          <mat-icon matPrefix>confirmation_number</mat-icon>
+            <mat-label>{{ 'INVOICE.CIVITATIS_ID' | translate }} ({{ 'COMMON.OPTIONAL' | translate }})</mat-label>
+            <input matInput formControlName="civitatisId" [placeholder]="'INVOICE.CIVITATIS_ID' | translate">
+            <mat-icon matPrefix>confirmation_number</mat-icon>
           </mat-form-field>
         </div>
 

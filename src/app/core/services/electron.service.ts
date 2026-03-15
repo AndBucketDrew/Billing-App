@@ -50,6 +50,7 @@ export class ElectronService {
       settings: {
         get: async () => ({
           language: 'de',
+          invoiceCounter: 1,
           companyName: '',
           companyAddress: '',
           cityCountry: '',
@@ -68,6 +69,7 @@ export class ElectronService {
         }),
         update: async (updates) => ({
           language: 'de',
+          invoiceCounter: 1,
           companyName: '',
           companyAddress: '',
           cityCountry: '',
