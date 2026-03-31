@@ -139,6 +139,33 @@
           </mat-form-field>
         </div>
 
+        <div class="form-row">
+          <!-- Tax ID -->
+          <mat-form-field appearance="outline" class="form-field-half">
+            <mat-label>{{ 'INVOICE.COMPANY_TAX_ID' | translate }} ({{ 'COMMON.OPTIONAL' | translate }})</mat-label>
+            <input matInput formControlName="companyTaxId" placeholder="AT12345678">
+            <mat-icon matPrefix>tag</mat-icon>
+          </mat-form-field>
+
+          <!-- Purchase Order Number -->
+          <mat-form-field appearance="outline" class="form-field-half">
+            <mat-label>{{ 'INVOICE.PURCHASE_ORDER_NUMBER' | translate }} ({{ 'COMMON.OPTIONAL' | translate
+              }})</mat-label>
+            <input matInput formControlName="purchaseOrderNumber"
+              [placeholder]="'INVOICE.PURCHASE_ORDER_NUMBER' | translate">
+            <mat-icon matPrefix>receipt_long</mat-icon>
+          </mat-form-field>
+        </div>
+
+        <!-- Company Customer Name -->
+        <mat-form-field appearance="outline" class="form-field-full">
+          <mat-label>{{ 'INVOICE.COMPANY_CUSTOMER_NAME' | translate }} ({{ 'COMMON.OPTIONAL' | translate }})</mat-label>
+          <input matInput formControlName="companyCustomerName"
+            [placeholder]="'INVOICE.COMPANY_CUSTOMER_NAME' | translate">
+          <mat-icon matPrefix>person_pin</mat-icon>
+          <mat-hint>{{ 'INVOICE.COMPANY_CUSTOMER_NAME_HINT' | translate }}</mat-hint>
+        </mat-form-field>
+
       </mat-card-content>
     </mat-card>
 

@@ -52,7 +52,6 @@ export class PdfGeneratorService {
       });
     } catch (error: any) {
       const message = error?.message ?? JSON.stringify(error);
-      // Show a visible alert so you can debug without DevTools
       alert(`PDF Error: ${message}`);
       console.error('Error generating PDF:', error);
       throw error;
@@ -94,7 +93,7 @@ export class PdfGeneratorService {
           logoColumn = { width: 120, image: dataUrl, fit: [120, 80] };
         }
       } catch {
-        // Logo load failed — skip it silently, don't break the whole PDF
+        // Logo load failed — skip silently
       }
     }
 
@@ -130,6 +129,7 @@ export class PdfGeneratorService {
     // ── 2. CUSTOMER SECTION ───────────────────────────────────────────────────
     const customerStack: any[] = [];
 
+    // Salutation + name
     if (invoice.salutation) {
       const salutationMap: Record<string, Record<string, string>> = {
         frau: { de: 'Frau', en: 'Ms.' },
@@ -146,9 +146,17 @@ export class PdfGeneratorService {
       customerStack.push({ text: invoice.customerEmail, style: 'customerInfo' });
     }
 
-    const hasCompanyDetails = invoice.companyName || invoice.companyAddress || invoice.companyCityCountry;
+    // Company billing block
+    const hasCompanyDetails =
+      invoice.companyName ||
+      invoice.companyAddress ||
+      invoice.companyCityCountry ||
+      invoice.companyTaxId ||
+      invoice.companyCustomerName;
+
     if (hasCompanyDetails) {
       customerStack.push({ text: ' ', margin: [0, 4, 0, 0] });
+
       if (invoice.companyName) {
         customerStack.push({ text: invoice.companyName, style: 'customerInfo' });
       }
@@ -158,6 +166,37 @@ export class PdfGeneratorService {
       if (invoice.companyCityCountry) {
         customerStack.push({ text: invoice.companyCityCountry, style: 'customerInfo' });
       }
+      if (invoice.companyTaxId) {
+        customerStack.push({
+          text: [
+            // { text: (lang === 'de' ? 'St.-Nr.: ' : 'Tax ID: '), bold: true, fontSize: 10 },
+            { text: invoice.companyTaxId, style: 'customerInfo' }
+          ],
+          margin: [0, 2, 0, 0]
+        });
+      }
+      if (invoice.companyCustomerName) {
+        const label = lang === 'de' ? 'z.Hd.: ' : 'Attn.: ';
+        customerStack.push({
+          text: [
+            //{ text: label, bold: true, fontSize: 10 },
+            { text: invoice.companyCustomerName, style: 'customerInfo' }
+          ],
+          margin: [0, 2, 0, 0]
+        });
+      }
+    }
+
+    // Purchase order number (shown prominently, outside the company sub-block)
+    if (invoice.purchaseOrderNumber) {
+      const poLabel = lang === 'de' ? 'Bestellnummer: ' : 'PO Number: ';
+      customerStack.push({
+        text: [
+          // { text: poLabel, bold: true, fontSize: 10 },
+          { text: invoice.purchaseOrderNumber, style: 'customerInfo' }
+        ],
+        margin: [0, 6, 0, 0]
+      });
     }
 
     content.push({ stack: customerStack, margin: [0, 0, 0, 20] });
@@ -174,13 +213,11 @@ export class PdfGeneratorService {
       margin: [0, 0, 0, 20]
     });
 
-    // ── Line items table + tour details (unified) ─────────────────────────────
-    // Olive-toned header color
+    // ── 4. LINE ITEMS TABLE ───────────────────────────────────────────────────
     const HEADER_BG = '#8a9a6a';
     const HEADER_FG = '#ffffff';
     const OUTER_BORDER_COLOR = '#888888';
 
-    // Custom layout: outer border only, header gets its own full border
     const outerOnlyLayout = {
       hLineWidth: (i: number, node: any) => {
         // top of table (i===0), bottom of header (i===1), bottom of table (i===last)
@@ -188,7 +225,6 @@ export class PdfGeneratorService {
         return 0;
       },
       vLineWidth: (i: number, node: any) => {
-        // only leftmost and rightmost vertical lines
         if (i === 0 || i === node.table.widths.length) return 1;
         return 0;
       },
@@ -202,7 +238,6 @@ export class PdfGeneratorService {
     };
 
     const tableBody: any[] = [
-      // Header row
       [
         { text: t('INVOICE.DESCRIPTION'), style: 'tableHeader', color: HEADER_FG },
         { text: t('INVOICE.QUANTITY'), style: 'tableHeader', color: HEADER_FG, alignment: 'right' },
@@ -220,14 +255,12 @@ export class PdfGeneratorService {
         fontSize: 9, color: '#555555', margin: [0, 1, 0, 0]
       });
     }
-
     if (invoice.meetingPoint) {
       tourDetailLines.push({
         text: [{ text: `· ${t('INVOICE.MEETING_POINT')}: `, bold: true }, { text: invoice.meetingPoint }],
         fontSize: 9, color: '#555555', margin: [0, 1, 0, 0]
       });
     }
-
     if (invoice.pax != null) {
       tourDetailLines.push({
         text: [{ text: '· Pax: ', bold: true }, { text: invoice.pax.toString() }],
@@ -240,7 +273,6 @@ export class PdfGeneratorService {
         fontSize: 9, color: '#555555', margin: [0, 1, 0, 0]
       });
     }
-
     if (invoice.civitatisId) {
       tourDetailLines.push({
         text: [{ text: '· Civitatis ID: ', bold: true }, { text: invoice.civitatisId }],
@@ -351,7 +383,6 @@ export class PdfGeneratorService {
     const footerTextStyle = { fontSize: 8, color: '#666666' };
     const footerLabelStyle = { fontSize: 8, color: '#666666', bold: true };
 
-    // Helper to build a stack line: "Label: value" where label is bold
     const footerLine = (label: string, value: string) => ({
       text: [
         { text: `${label}: `, ...footerLabelStyle },
@@ -359,27 +390,23 @@ export class PdfGeneratorService {
       ]
     });
 
-    // Column 1 — Company address
     const col1: any[] = [];
     if (settings.companyName) col1.push({ text: settings.companyName, ...footerTextStyle });
     if (settings.companyAddress) col1.push({ text: settings.companyAddress, ...footerTextStyle });
     if (settings.cityCountry) col1.push({ text: settings.cityCountry, ...footerTextStyle });
 
-    // Column 2 — Bank details
     const col2: any[] = [];
     if (settings.bankName) col2.push(footerLine('Bankverbindung', settings.bankName));
     if (settings.accountHolder) col2.push(footerLine('Kontoinhaber', settings.accountHolder));
     if (settings.iban) col2.push(footerLine('IBAN', settings.iban));
     if (settings.bic) col2.push(footerLine('BIC', settings.bic));
 
-    // Column 3 — Legal details
     const col3: any[] = [];
     if (settings.legalForm) col3.push(footerLine('Firma & Rechtsform', settings.legalForm));
     if (settings.headquarters) col3.push(footerLine('Firmensitz', settings.headquarters));
     if (settings.courtRegistry) col3.push(footerLine('FB-Gericht', settings.courtRegistry));
     if (settings.registrationNumber) col3.push(footerLine('FB-Nummer', settings.registrationNumber));
 
-    // Thin separator line above footer
     content.push({
       canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: '#cccccc' }],
       margin: [0, 20, 0, 8]

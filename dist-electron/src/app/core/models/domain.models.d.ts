@@ -39,6 +39,9 @@ export interface Invoice {
     companyName?: string | null;
     companyAddress?: string | null;
     companyCityCountry?: string | null;
+    companyTaxId?: string | null;
+    companyCustomerName?: string | null;
+    purchaseOrderNumber?: string | null;
     tourDate?: string | null;
     meetingPoint?: string | null;
     pax?: number | null;

@@ -52,6 +52,9 @@ export class InvoiceEditorComponent implements OnInit {
       companyName: [''],
       companyAddress: [''],
       companyCityCountry: [''],
+      companyTaxId: [''],
+      companyCustomerName: [''],
+      purchaseOrderNumber: [''],
 
       // Tour details
       tourDate: [''],   // Am – optional
@@ -117,6 +120,9 @@ export class InvoiceEditorComponent implements OnInit {
           companyName: invoice.companyName ?? '',
           companyAddress: invoice.companyAddress ?? '',
           companyCityCountry: invoice.companyCityCountry ?? '',
+          companyTaxId: invoice.companyTaxId ?? '',
+          companyCustomerName: invoice.companyCustomerName ?? '',
+          purchaseOrderNumber: invoice.purchaseOrderNumber ?? '',
           tourDate: invoice.tourDate ?? '',
           meetingPoint: invoice.meetingPoint ?? '',
           pax: invoice.pax ?? null,
@@ -240,6 +246,9 @@ export class InvoiceEditorComponent implements OnInit {
       companyName: v.companyName || null,
       companyAddress: v.companyAddress || null,
       companyCityCountry: v.companyCityCountry || null,
+      companyTaxId: v.companyTaxId || null,
+      companyCustomerName: v.companyCustomerName || null,
+      purchaseOrderNumber: v.purchaseOrderNumber || null,
       tourDate: v.tourDate || null,
       meetingPoint: v.meetingPoint || null,
       pax: v.pax ?? null,

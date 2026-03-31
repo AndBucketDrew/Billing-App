@@ -1,6 +1,6 @@
 {
   "name": "billing-app",
-  "version": "0.1.4",
+  "version": "0.1.6",
   "main": "dist-electron/electron/main.js",
   "private": true,
   "scripts": {

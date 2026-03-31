@@ -99,8 +99,13 @@
         vertical-align: middle;
       }
 
-      &:hover:not([disabled]) { background: var(--color-accent-emphasis) !important; }
-      &[disabled] { opacity: 0.5; }
+      &:hover:not([disabled]) {
+        background: var(--color-accent-emphasis) !important;
+      }
+
+      &[disabled] {
+        opacity: 0.5;
+      }
     }
 
     button[mat-raised-button][color='accent'] {
@@ -124,8 +129,13 @@
         vertical-align: middle;
       }
 
-      &:hover:not([disabled]) { background: #156d30 !important; }
-      &[disabled] { opacity: 0.5; }
+      &:hover:not([disabled]) {
+        background: #156d30 !important;
+      }
+
+      &[disabled] {
+        opacity: 0.5;
+      }
     }
   }
 }
@@ -158,12 +168,9 @@ mat-card {
     padding: 16px 24px 0 !important;
     display: flex;
     align-items: center;
-    // ✅ FIX: The MDC header shell was expanding to full card height and
-    // blocking clicks on all form fields below it.
-    // pointer-events:none on the shell, restored on children, means the
-    // header visually works but never intercepts clicks on the card body.
-    pointer-events: none;
-    > * { pointer-events: auto; }
+    height: auto !important;
+    overflow: visible;
+    // No pointer-events tricks needed — height:auto keeps it in flow
   }
 
   ::ng-deep .mat-mdc-card-header-text {
@@ -213,7 +220,9 @@ mat-card {
         vertical-align: middle;
       }
 
-      &:hover { background: var(--color-accent-emphasis) !important; }
+      &:hover {
+        background: var(--color-accent-emphasis) !important;
+      }
     }
   }
 }
@@ -365,8 +374,13 @@ mat-icon[matPrefix] {
       vertical-align: middle;
     }
 
-    &:hover:not([disabled]) { background: var(--color-accent-emphasis) !important; }
-    &[disabled] { opacity: 0.5; }
+    &:hover:not([disabled]) {
+      background: var(--color-accent-emphasis) !important;
+    }
+
+    &[disabled] {
+      opacity: 0.5;
+    }
   }
 
   button[mat-raised-button][color='accent'] {
@@ -388,8 +402,13 @@ mat-icon[matPrefix] {
       vertical-align: middle;
     }
 
-    &:hover:not([disabled]) { background: #156d30 !important; }
-    &[disabled] { opacity: 0.5; }
+    &:hover:not([disabled]) {
+      background: #156d30 !important;
+    }
+
+    &[disabled] {
+      opacity: 0.5;
+    }
   }
 }
 
@@ -443,7 +462,9 @@ mat-icon[matPrefix] {
       width: 100%;
       flex-direction: column;
 
-      button { width: 100%; }
+      button {
+        width: 100%;
+      }
     }
   }
 
@@ -455,6 +476,8 @@ mat-icon[matPrefix] {
   .action-buttons {
     flex-direction: column;
 
-    button { width: 100%; }
+    button {
+      width: 100%;
+    }
   }
 }
