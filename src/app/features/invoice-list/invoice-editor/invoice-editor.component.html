@@ -81,9 +81,9 @@
             <mat-label>{{ 'INVOICE.SALUTATION' | translate }}</mat-label>
             <mat-select formControlName="salutation">
               <mat-option [value]="null"></mat-option>
-              <mat-option value="frau">{{ 'INVOICE.SALUTATION_FRAU' | translate }}</mat-option>
-              <mat-option value="herr">{{ 'INVOICE.SALUTATION_HERR' | translate }}</mat-option>
-              <mat-option value="divers">{{ 'INVOICE.SALUTATION_DIVERS' | translate }}</mat-option>
+              <mat-option *ngFor="let option of salutationOptions" [value]="option.value">
+                {{ option.key | translate }}
+              </mat-option>
             </mat-select>
             <mat-icon matPrefix>wc</mat-icon>
           </mat-form-field>

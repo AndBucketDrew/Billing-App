@@ -132,12 +132,20 @@ export class PdfGeneratorService {
     // Salutation + name
     if (invoice.salutation) {
       const salutationMap: Record<string, Record<string, string>> = {
+        // German salutations (stored when form language was DE)
         frau: { de: 'Frau', en: 'Ms.' },
         herr: { de: 'Herr', en: 'Mr.' },
-        divers: { de: 'Divers', en: 'Other' }
+        divers: { de: 'Divers', en: 'Other' },
+        // English salutations (stored when form language was EN)
+        ms: { de: 'Frau', en: 'Ms.' },
+        mrs: { de: 'Frau', en: 'Mrs.' },
+        miss: { de: 'Frau', en: 'Miss' },
+        mr: { de: 'Herr', en: 'Mr.' },
+        diverse: { de: 'Divers', en: 'Other' },
       };
       const salutationLabel = salutationMap[invoice.salutation]?.[lang] ?? '';
-      customerStack.push({ text: `${salutationLabel} ${invoice.customerName}`, style: 'customerInfo' });
+      const nameText = salutationLabel ? `${salutationLabel} ${invoice.customerName}` : invoice.customerName;
+      customerStack.push({ text: nameText, style: 'customerInfo' });
     } else {
       customerStack.push({ text: invoice.customerName, style: 'customerInfo' });
     }

@@ -1,0 +1,166 @@
+<div class="text-import-wrapper">
+
+  <div class="import-trigger-section">
+    <button mat-stroked-button (click)="isExpanded = !isExpanded">
+      <mat-icon>content_paste</mat-icon>
+      {{ 'INVOICE.IMPORT_FROM_TEXT' | translate }}
+    </button>
+  </div>
+
+  <div class="import-panel" *ngIf="isExpanded">
+
+    <textarea class="import-textarea" rows="7" [(ngModel)]="pasteText"
+      [placeholder]="'INVOICE.PASTE_TEXT_PLACEHOLDER' | translate" autofocus>
+    </textarea>
+
+    <div class="import-actions">
+      <button mat-stroked-button (click)="isExpanded = false; clear()">
+        <mat-icon>close</mat-icon>
+        {{ 'COMMON.CANCEL' | translate }}
+      </button>
+      <button mat-stroked-button [disabled]="!pasteText.trim()" (click)="preview()">
+        <mat-icon>auto_fix_high</mat-icon>
+        {{ 'INVOICE.PARSE_LINES' | translate }}
+      </button>
+    </div>
+
+    <ng-container *ngIf="previewResult">
+
+      <!-- ── Parsed items (editable) ── -->
+      <div class="preview-block" *ngIf="hasItems">
+        <p class="preview-label success">
+          <mat-icon>check_circle</mat-icon>
+          {{ previewResult.items.length }} {{ 'INVOICE.ITEMS_READY' | translate }}
+        </p>
+
+        <table mat-table [dataSource]="previewResult.items" class="preview-table">
+
+          <!-- Description -->
+          <ng-container matColumnDef="description">
+            <th mat-header-cell *matHeaderCellDef>{{ 'INVOICE.DESCRIPTION' | translate }}</th>
+            <td mat-cell *matCellDef="let row; let i = index" class="description-cell">
+              <div *ngIf="!isEditing(i, 'description')" class="editable-cell"
+                (click)="startEdit(i, 'description', row.description)">
+                {{ row.description }}
+              </div>
+              <input *ngIf="isEditing(i, 'description')" #inlineInput type="text" class="edit-input"
+                [value]="editingValue" (input)="editingValue = $any($event.target).value"
+                (blur)="commitEdit(i, 'description')" (keydown)="onKeydown($event, i, 'description')">
+            </td>
+          </ng-container>
+
+          <!-- Quantity -->
+          <ng-container matColumnDef="quantity">
+            <th mat-header-cell *matHeaderCellDef class="number-header">{{ 'INVOICE.QUANTITY' | translate }}</th>
+            <td mat-cell *matCellDef="let row; let i = index" class="number-cell">
+              <div *ngIf="!isEditing(i, 'quantity')" class="editable-cell editable-cell--right"
+                (click)="startEdit(i, 'quantity', row.quantity)">
+                {{ row.quantity }}
+              </div>
+              <input *ngIf="isEditing(i, 'quantity')" #inlineInput type="number" class="edit-input number-input" min="1"
+                [value]="editingValue" (input)="editingValue = $any($event.target).value"
+                (blur)="commitEdit(i, 'quantity')" (keydown)="onKeydown($event, i, 'quantity')">
+            </td>
+          </ng-container>
+
+          <!-- Unit Price -->
+          <ng-container matColumnDef="unitPriceNet">
+            <th mat-header-cell *matHeaderCellDef class="number-header">{{ 'TOUR.UNIT_PRICE' | translate }}</th>
+            <td mat-cell *matCellDef="let row; let i = index" class="number-cell">
+              <div *ngIf="!isEditing(i, 'unitPriceNet')" class="editable-cell editable-cell--right"
+                (click)="startEdit(i, 'unitPriceNet', row.unitPriceNet)">
+                {{ row.unitPriceNet | currency:'EUR' }}
+              </div>
+              <input *ngIf="isEditing(i, 'unitPriceNet')" #inlineInput type="number" class="edit-input number-input"
+                min="0" step="0.01" [value]="editingValue" (input)="editingValue = $any($event.target).value"
+                (blur)="commitEdit(i, 'unitPriceNet')" (keydown)="onKeydown($event, i, 'unitPriceNet')">
+            </td>
+          </ng-container>
+
+          <!-- VAT -->
+          <ng-container matColumnDef="vatPercentage">
+            <th mat-header-cell *matHeaderCellDef class="number-header">{{ 'INVOICE.VAT' | translate }} %</th>
+            <td mat-cell *matCellDef="let row; let i = index" class="number-cell">
+              <div *ngIf="!isEditing(i, 'vatPercentage')" class="editable-cell editable-cell--right"
+                (click)="startEdit(i, 'vatPercentage', row.vatPercentage)">
+                <mat-chip [class.vat-zero]="row.vatPercentage === 0">
+                  {{ row.vatPercentage }}%
+                </mat-chip>
+              </div>
+              <select *ngIf="isEditing(i, 'vatPercentage')" #inlineInput class="edit-select"
+                (change)="commitVat(i, $event)" (blur)="cancelEdit()" (keydown.escape)="cancelEdit()">
+                <option *ngFor="let rate of vatOptions" [value]="rate" [selected]="rate === row.vatPercentage">
+                  {{ rate }}%
+                </option>
+              </select>
+            </td>
+          </ng-container>
+
+          <!-- Delete -->
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef class="actions-header"></th>
+            <td mat-cell *matCellDef="let row; let i = index" class="actions-cell">
+              <button mat-icon-button color="warn" [matTooltip]="'COMMON.DELETE' | translate"
+                (click)="deletePreviewItem(i)">
+                <mat-icon>delete</mat-icon>
+              </button>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="['description','quantity','unitPriceNet','vatPercentage','actions']">
+          </tr>
+          <tr mat-row
+            *matRowDef="let row; columns: ['description','quantity','unitPriceNet','vatPercentage','actions']"></tr>
+        </table>
+
+        <div class="confirm-actions">
+          <button mat-stroked-button color="primary" (click)="confirm()">
+            <mat-icon>add_circle</mat-icon>
+            {{ 'INVOICE.ADD_ITEMS' | translate }} ({{ previewResult.items.length }})
+          </button>
+          <button mat-stroked-button (click)="clear()">
+            {{ 'INVOICE.PARSE_AGAIN' | translate }}
+          </button>
+        </div>
+      </div>
+
+      <!-- ── Skipped lines ── -->
+      <div class="preview-block skipped-block" *ngIf="hasSkipped">
+        <p class="preview-label warn">
+          <mat-icon>warning</mat-icon>
+          {{ previewResult!.skipped.length }} {{ 'INVOICE.LINES_SKIPPED' | translate }}
+        </p>
+
+        <div class="skipped-list">
+          <div class="skipped-row" *ngFor="let s of previewResult!.skipped; let i = index">
+
+            <div class="skipped-content">
+              <span class="skipped-line">{{ s.line }}</span>
+              <span class="skipped-reason">{{ s.reason }}</span>
+            </div>
+
+            <div class="skipped-actions">
+              <button mat-stroked-button class="skipped-btn skipped-btn--add"
+                [matTooltip]="'INVOICE.SKIPPED_ADD_TOOLTIP' | translate" (click)="acknowledgeSkipped(i)">
+                <mat-icon>playlist_add</mat-icon>
+                {{ 'INVOICE.SKIPPED_ADD' | translate }}
+              </button>
+              <button mat-icon-button class="skipped-btn--dismiss" [matTooltip]="'INVOICE.SKIPPED_DISMISS' | translate"
+                (click)="dismissSkipped(i)">
+                <mat-icon>close</mat-icon>
+              </button>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <p class="preview-label warn" *ngIf="!hasItems && !hasSkipped">
+        <mat-icon>info</mat-icon>
+        {{ 'INVOICE.NO_ITEMS_PARSED' | translate }}
+      </p>
+
+    </ng-container>
+  </div>
+
+</div>

@@ -23,6 +23,7 @@ export class InvoiceEditorComponent implements OnInit {
   invoiceId?: string;
   isLoading: boolean = false;
   isSaving: boolean = false;
+  salutationOptions: { value: string; key: string }[] = [];
 
   constructor(
     private fb: FormBuilder,
@@ -64,6 +65,8 @@ export class InvoiceEditorComponent implements OnInit {
       civitatisId: [''],
       paymentMethod: [null],
     });
+
+    this.updateSalutationOptions(settings.language);
   }
 
   ngOnInit(): void {
@@ -81,6 +84,11 @@ export class InvoiceEditorComponent implements OnInit {
       if (value !== 'civitatis') {
         this.invoiceForm.patchValue({ civitatisId: '' }, { emitEvent: false });
       }
+    });
+
+    this.invoiceForm.get('language')?.valueChanges.subscribe(lang => {
+      this.updateSalutationOptions(lang);
+      this.invoiceForm.patchValue({ salutation: null }, { emitEvent: false });
     });
 
     this.route.params.subscribe(params => {
@@ -131,6 +139,7 @@ export class InvoiceEditorComponent implements OnInit {
           paymentMethod: invoice.paymentMethod ?? null,
         });
 
+        this.updateSalutationOptions(invoice.language);
         this.lineItems = [...invoice.lineItems];
       }
     } catch (error) {
@@ -141,6 +150,26 @@ export class InvoiceEditorComponent implements OnInit {
       this.isLoading = false;
     }
   }
+
+  private updateSalutationOptions(lang: string): void {
+    if (lang === 'de') {
+      this.salutationOptions = [
+        { value: 'frau', key: 'INVOICE.SALUTATION_FRAU' },
+        { value: 'herr', key: 'INVOICE.SALUTATION_HERR' },
+        { value: 'divers', key: 'INVOICE.SALUTATION_DIVERSE' },
+      ];
+    } else {
+      this.salutationOptions = [
+        { value: 'ms', key: 'INVOICE.SALUTATION_MS' },
+        { value: 'mrs', key: 'INVOICE.SALUTATION_MRS' },
+        { value: 'miss', key: 'INVOICE.SALUTATION_MISS' },
+        { value: 'mr', key: 'INVOICE.SALUTATION_MR' },
+        { value: 'diverse', key: 'INVOICE.SALUTATION_DIVERSE' },
+      ];
+    }
+  }
+
+
 
   /**
    * Open tour selector dialog

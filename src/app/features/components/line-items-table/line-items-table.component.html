@@ -6,19 +6,13 @@
     <ng-container matColumnDef="description">
       <th mat-header-cell *matHeaderCellDef class="left-header">{{ 'INVOICE.DESCRIPTION' | translate }}</th>
       <td mat-cell *matCellDef="let item" class="description-cell">
-        <div *ngIf="!isEditing(item.id, 'description')"
-             (click)="startEdit(item.id, 'description', item.description)"
-             class="editable-cell">
+        <div *ngIf="!isEditing(item.id, 'description')" (click)="startEdit(item.id, 'description', item.description)"
+          class="editable-cell">
           {{ item.description ?? '' }}
         </div>
-        <input *ngIf="isEditing(item.id, 'description')"
-               #editInput
-               type="text"
-               [value]="editingValue"
-               (input)="onEditInput($any($event.target).value)"
-               (blur)="commitEdit(item, 'description')"
-               (keydown)="onKeydown($event, item, 'description')"
-               class="edit-input">
+        <input *ngIf="isEditing(item.id, 'description')" #editInput type="text" [value]="editingValue"
+          (input)="onEditInput($any($event.target).value)" (blur)="commitEdit(item, 'description')"
+          (keydown)="onKeydown($event, item, 'description')" class="edit-input">
       </td>
     </ng-container>
 
@@ -28,20 +22,13 @@
         {{ 'INVOICE.QUANTITY' | translate }}
       </th>
       <td mat-cell *matCellDef="let item" class="number-cell">
-        <div *ngIf="!isEditing(item.id, 'quantity')"
-             (click)="startEdit(item.id, 'quantity', item.quantity)"
-             class="editable-cell">
+        <div *ngIf="!isEditing(item.id, 'quantity')" (click)="startEdit(item.id, 'quantity', item.quantity)"
+          class="editable-cell">
           {{ item.quantity }}
         </div>
-        <input *ngIf="isEditing(item.id, 'quantity')"
-               #editInput
-               type="number"
-               [value]="editingValue"
-               (input)="onEditInput($any($event.target).value)"
-               (blur)="commitEdit(item, 'quantity')"
-               (keydown)="onKeydown($event, item, 'quantity')"
-               class="edit-input number-input"
-               min="1">
+        <input *ngIf="isEditing(item.id, 'quantity')" #editInput type="number" [value]="editingValue"
+          (input)="onEditInput($any($event.target).value)" (blur)="commitEdit(item, 'quantity')"
+          (keydown)="onKeydown($event, item, 'quantity')" class="edit-input number-input" min="1">
       </td>
     </ng-container>
 
@@ -51,21 +38,13 @@
         {{ 'TOUR.UNIT_PRICE' | translate }}
       </th>
       <td mat-cell *matCellDef="let item" class="number-cell">
-        <div *ngIf="!isEditing(item.id, 'unitPriceNet')"
-             (click)="startEdit(item.id, 'unitPriceNet', item.unitPriceNet)"
-             class="editable-cell">
+        <div *ngIf="!isEditing(item.id, 'unitPriceNet')" (click)="startEdit(item.id, 'unitPriceNet', item.unitPriceNet)"
+          class="editable-cell">
           {{ formatCurrency(item.unitPriceNet) }}
         </div>
-        <input *ngIf="isEditing(item.id, 'unitPriceNet')"
-               #editInput
-               type="number"
-               [value]="editingValue"
-               (input)="onEditInput($any($event.target).value)"
-               (blur)="commitEdit(item, 'unitPriceNet')"
-               (keydown)="onKeydown($event, item, 'unitPriceNet')"
-               class="edit-input number-input"
-               step="0.01"
-               min="0">
+        <input *ngIf="isEditing(item.id, 'unitPriceNet')" #editInput type="number" [value]="editingValue"
+          (input)="onEditInput($any($event.target).value)" (blur)="commitEdit(item, 'unitPriceNet')"
+          (keydown)="onKeydown($event, item, 'unitPriceNet')" class="edit-input number-input" step="0.01" min="0">
       </td>
     </ng-container>
 
@@ -76,19 +55,15 @@
       </th>
       <td mat-cell *matCellDef="let item" class="vat-cell">
         <div *ngIf="!isEditing(item.id, 'vatPercentage')"
-             (click)="startEdit(item.id, 'vatPercentage', item.vatPercentage)"
-             class="editable-cell">
+          (click)="startEdit(item.id, 'vatPercentage', item.vatPercentage)" class="editable-cell">
           <mat-chip [class.vat-zero]="item.vatPercentage === 0">
             {{ item.vatPercentage }}%
           </mat-chip>
         </div>
-        <select *ngIf="isEditing(item.id, 'vatPercentage')"
-                #editSelect
-                (change)="commitVat($event, item)"
-                class="edit-select">
-          <option *ngFor="let option of vatOptions"
-                  [value]="option.value"
-                  [selected]="option.value === item.vatPercentage">
+        <select *ngIf="isEditing(item.id, 'vatPercentage')" #editSelect (change)="commitVat($event, item)"
+          class="edit-select">
+          <option *ngFor="let option of vatOptions" [value]="option.value"
+            [selected]="option.value === item.vatPercentage">
             {{ option.label | translate }}
           </option>
         </select>
@@ -111,10 +86,7 @@
         {{ 'COMMON.ACTIONS' | translate }}
       </th>
       <td mat-cell *matCellDef="let item" class="actions-cell">
-        <button mat-icon-button
-                color="warn"
-                [matTooltip]="'COMMON.DELETE' | translate"
-                (click)="deleteItem(item)">
+        <button mat-icon-button color="warn" [matTooltip]="'COMMON.DELETE' | translate" (click)="deleteItem(item)">
           <mat-icon>delete</mat-icon>
         </button>
       </td>
@@ -132,5 +104,10 @@
       {{ 'INVOICE.ADD_LINE_ITEM' | translate }}
     </button>
   </div>
+
+  <app-text-import 
+  [existingItemCount]="lineItems.length" 
+  (itemsConfirmed)="onImportedItems($event)">
+  </app-text-import>
 
 </div>

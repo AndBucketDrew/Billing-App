@@ -32,7 +32,7 @@ export interface Invoice {
     id: string;
     invoiceNumber: string;
     invoiceDate: string;
-    salutation: 'herr' | 'frau' | 'divers' | null;
+    salutation: string | null;
     customerName: string;
     customerAddress: string;
     customerEmail?: string | null;

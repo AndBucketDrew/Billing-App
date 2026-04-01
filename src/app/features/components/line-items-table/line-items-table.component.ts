@@ -74,6 +74,11 @@ export class LineItemsTableComponent implements AfterViewChecked {
     this.editingValue = value;
   }
 
+  onImportedItems(newItems: InvoiceLineItem[]): void {
+    this.lineItems = [...this.lineItems, ...newItems];
+    this.lineItemsChange.emit([...this.lineItems]);
+  }
+
   commitEdit(item: InvoiceLineItem, field: string): void {
     if (this.editingItemId !== item.id || this.editingField !== field) return;
     if (this.editingValue === null || this.editingValue === undefined) return;
