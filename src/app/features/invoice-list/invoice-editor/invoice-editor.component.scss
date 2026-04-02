@@ -160,7 +160,7 @@ mat-card {
     padding: 20px 24px !important;
   }
 
-  // ✅ FIX: Use overflow:visible + pointer-events:none on the header shell,
+  // FIX: Use overflow:visible + pointer-events:none on the header shell,
   // then restore pointer-events on actual content inside it.
   // The MDC card header creates a full-width absolutely-ish positioned wrapper
   // that was sitting over the card body and eating all clicks.
@@ -170,7 +170,12 @@ mat-card {
     align-items: center;
     height: auto !important;
     overflow: visible;
-    // No pointer-events tricks needed — height:auto keeps it in flow
+    pointer-events: none; // stop header shell from eating clicks
+
+    // Restore pointer-events on actual interactive children
+    * {
+      pointer-events: auto;
+    }
   }
 
   ::ng-deep .mat-mdc-card-header-text {
