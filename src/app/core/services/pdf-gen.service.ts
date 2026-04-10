@@ -7,6 +7,7 @@ import type { Invoice, CompanySettings, VatRate } from '../models/domain.models'
 import pdfMake from 'pdfmake/build/pdfmake';
 // @ts-ignore
 import pdfFonts from 'pdfmake/build/vfs_fonts';
+import QRCode from 'qrcode';
 
 if (pdfMake.vfs === undefined) {
   pdfMake.vfs = pdfFonts.pdfMake ? pdfFonts.pdfMake.vfs : pdfFonts;
@@ -317,7 +318,7 @@ export class PdfGeneratorService {
       margin: [0, 0, 0, 20]
     });
 
-    // ── 5. VAT SUMMARY ────────────────────────────────────────────────────────
+    // ── 5. VAT SUMMARY (with optional EPC QR code on the left) ──────────────
     const summaryTable: any[] = [];
 
     invoice.vatBreakdown.forEach(vat => {
@@ -349,11 +350,45 @@ export class PdfGeneratorService {
       { text: this.formatCurrency(invoice.totalGross, lang), style: 'grandTotal', alignment: 'right' }
     ]);
 
-    content.push({
+    const summaryTableBlock = {
       table: { widths: ['*', 'auto'], body: summaryTable },
-      layout: 'noBorders',
-      margin: [300, 0, 0, 20]
-    });
+      layout: 'noBorders'
+    };
+
+    // Generate QR code when payment method is bank and bank details are available
+    let qrDataUrl: string | null = null;
+    if (invoice.paymentMethod === 'bank' && settings.iban && settings.bic && settings.accountHolder) {
+      qrDataUrl = await this.generateEpcQrCode(
+        settings.bic,
+        settings.accountHolder,
+        settings.iban,
+        invoice.totalGross,
+        invoice.invoiceNumber
+      );
+    }
+
+    if (qrDataUrl) {
+      const qrCaption = lang === 'de'
+        ? 'QR-Code scannen\nzum Bezahlen'
+        : 'Scan QR code\nto pay';
+
+      content.push({
+        columns: [
+          {
+            width: 'auto',
+            stack: [
+              { image: qrDataUrl, fit: [90, 90] },
+              { text: qrCaption, fontSize: 7, color: '#666666', alignment: 'center', margin: [0, 2, 0, 0] }
+            ]
+          },
+          { width: '*', text: '' },
+          { width: 'auto', ...summaryTableBlock }
+        ],
+        margin: [0, 0, 0, 20]
+      });
+    } else {
+      content.push({ ...summaryTableBlock, margin: [300, 0, 0, 20] } as any);
+    }
 
     // ── 5b. PAYMENT METHOD ────────────────────────────────────────────────────
     if (invoice.paymentMethod) {
@@ -369,12 +404,7 @@ export class PdfGeneratorService {
         ? `Zahlungsart: ${pmLabel}`
         : `Payment Method: ${pmLabel}`;
 
-      content.push({
-        text: pmText,
-        fontSize: 10,
-        margin: [0, 0, 0, 20],
-        alignment: 'left'
-      });
+      content.push({ text: pmText, fontSize: 10, margin: [0, 0, 0, 20], alignment: 'left' });
     }
 
     // ── 6. CUSTOM FOOTER TEXT ─────────────────────────────────────────────────
@@ -452,6 +482,47 @@ export class PdfGeneratorService {
       defaultStyle: { font: 'Roboto' },
       pageMargins: [40, 40, 40, 40]
     };
+  }
+
+  // ── EPC QR code (GiroCode / SEPA Credit Transfer) ──────────────────────────
+
+  /**
+   * Generates an EPC QR code (GiroCode) as a base64 PNG data URL.
+   * The format is the European Payments Council standard that all SEPA-compatible
+   * mobile banking apps can scan to pre-fill a bank transfer.
+   */
+  private async generateEpcQrCode(
+    bic: string,
+    accountHolder: string,
+    iban: string,
+    amount: number,
+    reference: string
+  ): Promise<string | null> {
+    try {
+      // EPC QR code v002, encoding UTF-8, SEPA Credit Transfer
+      const amountFormatted = `EUR${amount.toFixed(2)}`;
+      const epcString = [
+        'BCD',           // Service Tag
+        '002',           // Version
+        '1',             // Character set: UTF-8
+        'SCT',           // Identification: SEPA Credit Transfer
+        bic.trim(),      // BIC
+        accountHolder.trim().substring(0, 70),  // Beneficiary name (max 70 chars)
+        iban.replace(/\s/g, ''),  // IBAN (no spaces)
+        amountFormatted, // Amount
+        '',              // Purpose (optional)
+        '',              // Creditor reference (optional)
+        reference.trim().substring(0, 140),  // Remittance info (invoice number)
+      ].join('\n');
+
+      return await QRCode.toDataURL(epcString, {
+        errorCorrectionLevel: 'M',
+        margin: 1,
+        width: 200
+      });
+    } catch {
+      return null;
+    }
   }
 
   // ── Formatting helpers ──────────────────────────────────────────────────────

@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.8]
+
+### Added
+
+* QR Code on Invoice 
+
+---
+
 ## [0.1.7]
 
 ### Added
