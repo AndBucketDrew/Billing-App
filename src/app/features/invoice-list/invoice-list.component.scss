@@ -1,25 +1,16 @@
+@use 'mixins' as m;
+
 // ─── Layout ───────────────────────────────────────────────────────────────────
 
 .invoices-container {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 24px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  @include m.page-container;
 }
 
 // ─── Header Card ──────────────────────────────────────────────────────────────
 
 .header-card {
-  background: var(--color-canvas-default);
-  border: 1px solid var(--color-border-default);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-
-  ::ng-deep .mat-mdc-card-content {
-    padding: 20px 24px !important;
-  }
+  @include m.content-card;
+  @include m.card-content-padding;
 
   .header-content {
     display: flex;
@@ -29,26 +20,9 @@
     gap: 16px;
   }
 
-  .title-section {
-    flex: 1;
-    min-width: 180px;
-  }
-
-  .page-title {
-    font-size: var(--font-size-2xl);
-    font-weight: 600;
-    color: var(--color-fg-default);
-    letter-spacing: -0.3px;
-    margin: 0;
-    line-height: 1.2;
-  }
-
-  .page-subtitle {
-    font-size: var(--font-size-md);
-    font-weight: 400;
-    color: var(--color-fg-muted);
-    margin: 0;
-  }
+  .title-section  { flex: 1; min-width: 180px; }
+  .page-title     { @include m.page-title; }
+  .page-subtitle  { @include m.page-subtitle; }
 
   .header-actions {
     display: flex;
@@ -57,13 +31,16 @@
     flex-wrap: wrap;
   }
 
+  button[mat-raised-button] { @include m.btn-primary; }
+
+  // ── Status filter toggle ──────────────────────────────────────────────────
+
   .status-filter {
     display: inline-flex;
     align-items: center;
     height: 32px;
 
     ::ng-deep {
-
       .mat-button-toggle {
         display: flex;
         align-items: center;
@@ -79,41 +56,69 @@
         font-family: var(--font-family-base);
         color: var(--color-fg-muted);
         height: 32px;
-        line-height: normal; // 🔥 important
+        line-height: normal;
       }
 
       .mat-button-toggle-label-content {
         display: flex;
         align-items: center;
-        line-height: normal; // 🔥 removes baseline shift
+        line-height: normal;
       }
     }
   }
 
-  button[mat-raised-button] {
-    background: var(--color-accent-fg) !important;
-    color: #fff !important;
-    height: 32px;
-    padding: 0 16px;
-    font-size: var(--font-size-sm);
-    font-weight: 600;
-    font-family: var(--font-family-base);
-    border-radius: var(--radius-md);
-    box-shadow: 0 1px 0 rgba(31, 35, 40, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-    transition: background 0.15s ease, box-shadow 0.15s ease;
-    line-height: 32px;
+  // ── Search field ─────────────────────────────────────────────────────────
 
-    mat-icon {
-      font-size: 16px;
-      height: 16px;
-      width: 16px;
-      margin-right: 6px;
-      vertical-align: middle;
-    }
+  .search-field {
+    width: 260px;
+    flex-shrink: 0;
+    @include m.compact-form-field;
 
-    &:hover {
-      background: var(--color-accent-emphasis) !important;
-      box-shadow: 0 1px 0 rgba(31, 35, 40, 0.1) !important;
+    ::ng-deep {
+      // Prefix icon wrapper
+      .mat-mdc-form-field-icon-prefix {
+        display: flex;
+        align-items: center;
+        padding: 0 4px 0 0;
+
+        mat-icon {
+          font-size: 16px;
+          width: 16px;
+          height: 16px;
+          line-height: 16px;
+          color: var(--color-fg-subtle);
+        }
+      }
+
+      // Suffix icon wrapper
+      .mat-mdc-form-field-icon-suffix {
+        display: flex;
+        align-items: center;
+        padding: 0 0 0 4px;
+
+        mat-icon {
+          font-size: 16px;
+          width: 16px;
+          height: 16px;
+          line-height: 16px;
+          color: var(--color-fg-subtle);
+        }
+
+        button[mat-icon-button] {
+          width: 22px;
+          height: 22px;
+          line-height: 22px;
+          border-radius: var(--radius-sm);
+          transition: background 0.12s ease;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+
+          &:hover { background: var(--color-canvas-inset); }
+
+          mat-icon { font-size: 14px; width: 14px; height: 14px; }
+        }
+      }
     }
   }
 }
@@ -121,197 +126,20 @@
 // ─── Table Card ───────────────────────────────────────────────────────────────
 
 .table-card {
-  background: var(--color-canvas-default);
-  border: 1px solid var(--color-border-default);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-  overflow: hidden;
-
-  ::ng-deep .mat-mdc-card-content {
-    padding: 0 !important;
-  }
+  @include m.table-card;
 }
 
 .table-container {
   overflow-x: auto;
 }
 
-// ─── Search Field ─────────────────────────────────────────────────────────────
-
-.header-card .search-field {
-  width: 260px;
-  flex-shrink: 0;
-
-  ::ng-deep {
-    // Kill the hint/error reserved space entirely
-    .mat-mdc-form-field-subscript-wrapper {
-      display: none;
-    }
-
-    // Outer wrapper — set explicit height, kill default padding
-    .mat-mdc-text-field-wrapper {
-      height: 32px;
-      padding: 0 8px;
-      background: var(--color-canvas-default);
-    }
-
-    // The flex row that holds prefix + infix + suffix
-    .mat-mdc-form-field-flex {
-      height: 32px;
-      align-items: center;
-    }
-
-    // Infix: the slot that contains the actual <input>
-    .mat-mdc-form-field-infix {
-      padding: 0 !important;
-      min-height: unset !important;
-      height: 32px;
-      display: flex;
-      align-items: center;
-    }
-
-    // Hide the floating label entirely — we use placeholder text instead
-    .mat-mdc-floating-label,
-    .mdc-floating-label {
-      display: none !important;
-    }
-
-    // Notch needs to be collapsed so there's no gap in the border
-    .mdc-notched-outline__notch {
-      border-top: 1px solid var(--color-border-default) !important;
-      width: 0 !important;
-      padding: 0 !important;
-    }
-
-    // Border — default
-    .mdc-notched-outline__leading,
-    .mdc-notched-outline__notch,
-    .mdc-notched-outline__trailing {
-      border-color: var(--color-border-default) !important;
-      border-width: 1px !important;
-    }
-
-    // Border — focused
-    &.mat-focused {
-      .mdc-notched-outline__leading,
-      .mdc-notched-outline__notch,
-      .mdc-notched-outline__trailing {
-        border-color: var(--color-accent-fg) !important;
-        border-width: 1px !important;
-      }
-
-      .mdc-notched-outline {
-        box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.12);
-        border-radius: var(--radius-md);
-      }
-    }
-
-    // Input element
-    input.mat-mdc-input-element {
-      font-size: var(--font-size-sm);
-      font-family: var(--font-family-base);
-      color: var(--color-fg-default);
-      line-height: 32px;
-      height: 32px;
-      padding: 0;
-      box-sizing: border-box;
-
-      &::placeholder {
-        font-size: var(--font-size-sm);
-        color: var(--color-fg-subtle);
-        opacity: 1;
-      }
-    }
-
-    // Prefix icon wrapper — center it
-    .mat-mdc-form-field-icon-prefix {
-      display: flex;
-      align-items: center;
-      padding: 0 4px 0 0;
-
-      mat-icon {
-        font-size: 16px;
-        width: 16px;
-        height: 16px;
-        line-height: 16px;
-        color: var(--color-fg-subtle);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-    }
-
-    // Suffix icon wrapper
-    .mat-mdc-form-field-icon-suffix {
-      display: flex;
-      align-items: center;
-      padding: 0 0 0 4px;
-
-      mat-icon {
-        font-size: 16px;
-        width: 16px;
-        height: 16px;
-        line-height: 16px;
-        color: var(--color-fg-subtle);
-      }
-
-      // Clear button
-      button[mat-icon-button] {
-        width: 22px;
-        height: 22px;
-        line-height: 22px;
-        border-radius: var(--radius-sm);
-        transition: background 0.12s ease;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-
-        &:hover {
-          background: var(--color-canvas-inset);
-        }
-
-        mat-icon {
-          font-size: 14px;
-          width: 14px;
-          height: 14px;
-        }
-      }
-    }
-  }
-}
 // ─── Table ────────────────────────────────────────────────────────────────────
 
 .invoices-table {
-  width: 100%;
-  border-collapse: collapse;
+  @include m.table-base;
 
-  th {
-    background: var(--color-canvas-subtle);
-    font-size: var(--font-size-sm);
-    font-weight: 600;
-    font-family: var(--font-family-base);
-    color: var(--color-fg-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    padding: 10px 16px;
-    border-bottom: 1px solid var(--color-border-default);
-    white-space: nowrap;
-  }
+  // ── Invoice number pill ───────────────────────────────────────────────────
 
-  td {
-    font-size: var(--font-size-md);
-    font-family: var(--font-family-base);
-    color: var(--color-fg-default);
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--color-border-muted);
-    vertical-align: middle;
-  }
-
-  tr:last-child td {
-    border-bottom: none;
-  }
-
-  // ── Invoice Number ──
   .invoice-number-cell strong {
     font-family: var(--font-family-mono);
     font-size: var(--font-size-sm);
@@ -324,150 +152,64 @@
     letter-spacing: 0.02em;
   }
 
-  // ── Customer ──
   .customer-cell {
     font-weight: 500;
-    color: var(--color-fg-default);
     max-width: 220px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
-  // ── Total ──
-  .total-header {
-    text-align: right;
-  }
+  .total-header { text-align: right; }
 
   .total-cell {
     text-align: right;
     font-weight: 600;
-    font-size: var(--font-size-md);
-    color: var(--color-fg-default);
     font-variant-numeric: tabular-nums;
   }
 
-  // ── Status ──
-  .status-header {
-    text-align: center;
-  }
+  .status-header { text-align: center; }
 
   .status-cell {
     text-align: center;
 
     mat-chip {
-      font-family: var(--font-family-base);
-      font-size: var(--font-size-xs);
-      font-weight: 600;
-      letter-spacing: 0.02em;
-      min-height: 22px;
-      padding: 2px 10px;
-      border-radius: 20px;
-      line-height: 18px;
-
       &.status-draft {
-        background: var(--color-attention-subtle) !important;
-        color: var(--color-attention-fg) !important;
-        border: 1px solid rgba(154, 103, 0, 0.2);
+        @include m.badge(
+          var(--color-attention-subtle),
+          var(--color-attention-fg),
+          rgba(154, 103, 0, 0.2)
+        );
       }
 
       &.status-finalized {
-        background: var(--color-success-subtle) !important;
-        color: var(--color-success-fg) !important;
-        border: 1px solid rgba(26, 127, 55, 0.2);
+        @include m.badge(
+          var(--color-success-subtle),
+          var(--color-success-fg),
+          rgba(26, 127, 55, 0.2)
+        );
       }
     }
   }
 
-  // ── Actions ──
   .actions-header {
     text-align: center;
     width: 160px;
   }
 
   .actions-cell {
-    button[mat-icon-button] {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-
-      width: 30px;
-      height: 30px;
-      padding: 0;
-
-      margin: 0 2px;
-      border-radius: var(--radius-md);
-      border: 1px solid transparent;
-
-      transition: background 0.12s ease, border-color 0.12s ease;
-
-      mat-icon {
-        font-size: 16px;
-        width: 16px;
-        height: 16px;
-        line-height: 16px;
-      }
-    }
-
-    &:hover {
-      background: var(--color-canvas-subtle);
-      border-color: var(--color-border-default);
-
-      mat-icon {
-        color: var(--color-fg-default);
-      }
-    }
-
-    &[color='warn']:not([disabled]):hover {
-      background: var(--color-danger-subtle);
-      border-color: rgba(209, 36, 47, 0.3);
-
-      mat-icon {
-        color: var(--color-danger-fg);
-      }
-    }
-
-    &[color='accent']:not([disabled]):hover {
-      background: var(--color-success-subtle);
-      border-color: rgba(26, 127, 55, 0.3);
-
-      mat-icon {
-        color: var(--color-success-fg);
-      }
-    }
-
-    &[color='primary']:not([disabled]):hover {
-      background: var(--color-accent-subtle);
-      border-color: rgba(9, 105, 218, 0.3);
-
-      mat-icon {
-        color: var(--color-accent-fg);
-      }
-    }
-
-    &[disabled] {
-      opacity: 0.35;
-      cursor: not-allowed;
-    }
+    button[mat-icon-button] { @include m.icon-btn; }
   }
 }
 
-// ── Row hover ──
 .invoice-row {
-  transition: background 0.1s ease;
-
-  &:hover td {
-    background: var(--color-canvas-subtle);
-  }
+  @include m.table-row-hover;
 }
-
 
 // ─── Empty State ──────────────────────────────────────────────────────────────
 
 .empty-state {
-  padding: 64px 24px !important;
-  text-align: center;
-  border: none !important;
+  @include m.empty-state;
 
   .empty-content {
     display: flex;
@@ -485,35 +227,17 @@
     h3 {
       font-size: var(--font-size-lg);
       font-weight: 600;
-      font-family: var(--font-family-base);
       color: var(--color-fg-default);
       margin: 0 0 6px 0;
     }
 
     p {
       font-size: var(--font-size-md);
-      font-family: var(--font-family-base);
       color: var(--color-fg-muted);
       margin: 0 0 20px 0;
     }
 
-    button[mat-raised-button] {
-      background: var(--color-accent-fg) !important;
-      color: #fff !important;
-      font-size: var(--font-size-sm);
-      font-weight: 600;
-      font-family: var(--font-family-base);
-      height: 32px;
-      padding: 0 16px;
-      border-radius: var(--radius-md);
-
-      mat-icon {
-        font-size: 16px;
-        height: 16px;
-        width: 16px;
-        margin-right: 6px;
-      }
-    }
+    button[mat-raised-button] { @include m.btn-primary; }
   }
 }
 
@@ -533,28 +257,18 @@
 }
 
 @media (max-width: 767px) {
-  .invoices-container {
-    padding: 16px 12px;
-  }
+  .invoices-container { padding: 16px 12px; }
 
   .header-card {
-    .page-title {
-      font-size: var(--font-size-xl);
-    }
+    .page-title { font-size: var(--font-size-xl); }
 
     .header-actions {
       flex-direction: column;
 
       .status-filter,
-      button[mat-raised-button] {
-        width: 100%;
-      }
+      button[mat-raised-button] { width: 100%; }
     }
   }
 
-  .invoices-table {
-    .customer-cell {
-      max-width: 120px;
-    }
-  }
+  .invoices-table .customer-cell { max-width: 120px; }
 }

@@ -13,6 +13,8 @@ yarn-error.log
 
 # Electron Builder 
 
+*.map
+*.d.ts
 /release
 
 # IDEs and editors

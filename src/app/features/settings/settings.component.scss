@@ -1,26 +1,17 @@
+@use 'mixins' as m;
+
 // ─── Layout ───────────────────────────────────────────────────────────────────
 
 .settings-container {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 24px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  @include m.page-container(900px);
   position: relative;
 }
 
 // ─── Header Card ──────────────────────────────────────────────────────────────
 
 .header-card {
-  background: var(--color-canvas-default);
-  border: 1px solid var(--color-border-default);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-
-  ::ng-deep .mat-mdc-card-content {
-    padding: 20px 24px !important;
-  }
+  @include m.content-card;
+  @include m.card-content-padding;
 
   .header-content {
     display: flex;
@@ -29,58 +20,11 @@
     gap: 16px;
   }
 
-  .title-section {
-    flex: 1;
-    min-width: 180px;
-  }
+  .title-section  { flex: 1; min-width: 180px; }
+  .page-title     { @include m.page-title; }
+  .page-subtitle  { @include m.page-subtitle; }
 
-  .page-title {
-    font-size: var(--font-size-2xl);
-    font-weight: 600;
-    font-family: var(--font-family-base);
-    color: var(--color-fg-default);
-    letter-spacing: -0.3px;
-    margin: 0 0 2px 0;
-    line-height: 1.25;
-  }
-
-  .page-subtitle {
-    font-size: var(--font-size-md);
-    font-weight: 400;
-    font-family: var(--font-family-base);
-    color: var(--color-fg-muted);
-    margin: 0;
-  }
-
-  button[mat-raised-button] {
-    height: 32px;
-    padding: 0 16px;
-    font-size: var(--font-size-sm);
-    font-weight: 600;
-    font-family: var(--font-family-base);
-    background: var(--color-accent-fg) !important;
-    color: #fff !important;
-    border-radius: var(--radius-md);
-    box-shadow: 0 1px 0 rgba(31, 35, 40, 0.1);
-    transition: background 0.15s ease;
-    line-height: 32px;
-
-    mat-icon {
-      font-size: 16px;
-      height: 16px;
-      width: 16px;
-      margin-right: 6px;
-      vertical-align: middle;
-    }
-
-    &:hover:not([disabled]) {
-      background: var(--color-accent-emphasis) !important;
-    }
-
-    &[disabled] {
-      opacity: 0.5;
-    }
-  }
+  button[mat-raised-button] { @include m.btn-primary; }
 }
 
 // ─── Form ─────────────────────────────────────────────────────────────────────
@@ -94,54 +38,22 @@
 // ─── Section Cards ────────────────────────────────────────────────────────────
 
 mat-card {
-  background: var(--color-canvas-default);
-  border: 1px solid var(--color-border-default);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
+  @include m.content-card;
 
-  ::ng-deep .mat-mdc-card-content {
-    padding: 20px 24px !important;
-  }
+  ::ng-deep .mat-mdc-card-content  { padding: 20px 24px !important; }
+  ::ng-deep .mat-mdc-card-header   { padding: 16px 24px 0 !important; }
 
-  ::ng-deep .mat-mdc-card-header {
-    padding: 16px 24px 0 !important;
-  }
-
-  mat-card-title {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: var(--font-size-md) !important;
-    font-weight: 600 !important;
-    font-family: var(--font-family-base) !important;
-    color: var(--color-fg-default);
-    margin: 0 !important;
-
-    mat-icon {
-      font-size: 16px;
-      width: 16px;
-      height: 16px;
-      color: var(--color-fg-muted);
-    }
-  }
+  mat-card-title { @include m.card-section-title; }
 }
 
 // ─── Form Fields ──────────────────────────────────────────────────────────────
 
-.form-field-full {
-  width: 100%;
-  margin-bottom: 8px;
-}
+.form-field-full  { width: 100%; margin-bottom: 8px; }
+.form-field-half  { flex: 1; margin-bottom: 8px; min-width: 0; }
 
 .form-row {
   display: flex;
   gap: 16px;
-}
-
-.form-field-half {
-  flex: 1;
-  margin-bottom: 8px;
-  min-width: 0;
 }
 
 mat-icon[matPrefix] {
@@ -157,10 +69,7 @@ mat-icon[matPrefix] {
   align-items: center;
   gap: 10px;
 
-  .flag {
-    font-size: 18px;
-    line-height: 1;
-  }
+  .flag { font-size: 18px; line-height: 1; }
 }
 
 // ─── Logo Section ─────────────────────────────────────────────────────────────
@@ -230,7 +139,6 @@ mat-icon[matPrefix] {
 
   p {
     font-size: var(--font-size-md);
-    font-family: var(--font-family-base);
     color: var(--color-fg-muted);
     margin: 0;
   }
@@ -241,99 +149,18 @@ mat-icon[matPrefix] {
   gap: 8px;
   flex-wrap: wrap;
 
-  // Upload button
-  button[mat-raised-button] {
-    height: 32px;
-    padding: 0 14px;
-    font-size: var(--font-size-sm);
-    font-weight: 600;
-    font-family: var(--font-family-base);
-    background: var(--color-canvas-default) !important;
-    color: var(--color-fg-default) !important;
-    border-radius: var(--radius-md);
-    box-shadow: none;
-    border: 1px solid var(--color-border-default);
-    transition: background 0.15s ease, border-color 0.15s ease;
-    line-height: 32px;
-
-    mat-icon {
-      font-size: 16px;
-      height: 16px;
-      width: 16px;
-      margin-right: 6px;
-      vertical-align: middle;
-    }
-
-    &:hover {
-      background: var(--color-canvas-subtle) !important;
-      border-color: var(--color-border-default);
-    }
-  }
-
-  // Remove button
-  button[mat-stroked-button][color='warn'] {
-    height: 32px;
-    padding: 0 14px;
-    font-size: var(--font-size-sm);
-    font-weight: 500;
-    font-family: var(--font-family-base);
-    color: var(--color-danger-fg);
-    border-color: rgba(209, 36, 47, 0.3);
-    border-radius: var(--radius-md);
-    transition: background 0.15s ease, border-color 0.15s ease;
-    line-height: 32px;
-
-    mat-icon {
-      font-size: 16px;
-      height: 16px;
-      width: 16px;
-      margin-right: 6px;
-      vertical-align: middle;
-    }
-
-    &:hover {
-      background: var(--color-danger-subtle);
-      border-color: rgba(209, 36, 47, 0.5);
-    }
-  }
+  button[mat-raised-button]              { @include m.btn-ghost; }
+  button[mat-stroked-button][color=warn] { @include m.btn-danger-ghost; }
 }
 
-// ─── Bottom Action Buttons ────────────────────────────────────────────────────
+// ─── Bottom Save Button ───────────────────────────────────────────────────────
 
 .action-buttons {
   display: flex;
   justify-content: flex-end;
   padding: 4px 0;
 
-  button[mat-raised-button] {
-    height: 32px;
-    padding: 0 16px;
-    font-size: var(--font-size-sm);
-    font-weight: 600;
-    font-family: var(--font-family-base);
-    background: var(--color-accent-fg) !important;
-    color: #fff !important;
-    border-radius: var(--radius-md);
-    box-shadow: 0 1px 0 rgba(31, 35, 40, 0.1);
-    transition: background 0.15s ease;
-    line-height: 32px;
-
-    mat-icon {
-      font-size: 16px;
-      height: 16px;
-      width: 16px;
-      margin-right: 6px;
-      vertical-align: middle;
-    }
-
-    &:hover:not([disabled]) {
-      background: var(--color-accent-emphasis) !important;
-    }
-
-    &[disabled] {
-      opacity: 0.5;
-    }
-  }
+  button[mat-raised-button] { @include m.btn-primary; }
 }
 
 // ─── Loading Overlay ──────────────────────────────────────────────────────────
