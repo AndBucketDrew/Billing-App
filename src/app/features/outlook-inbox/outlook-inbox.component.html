@@ -1,0 +1,262 @@
+<!-- ─── Outlook Invoice Inbox ──────────────────────────────────────────────── -->
+<div class="outlook-container">
+
+  <!-- ── Header Card ─────────────────────────────────────────────────────── -->
+  <mat-card class="header-card">
+    <mat-card-content>
+      <div class="header-content">
+
+        <div class="title-section">
+          <h1 class="page-title">Outlook Invoice Inbox</h1>
+          <p class="page-subtitle" *ngIf="account">
+            Connected as {{ account.username }}
+          </p>
+          <p class="page-subtitle" *ngIf="!account">
+            Connect your Microsoft account to detect invoice attachments automatically
+          </p>
+        </div>
+
+        <div class="header-actions">
+          <!-- Not connected -->
+          <ng-container *ngIf="!account">
+            <button mat-raised-button (click)="login()" [disabled]="isLoading">
+              <mat-icon>login</mat-icon>
+              Connect Outlook
+            </button>
+          </ng-container>
+
+          <!-- Connected -->
+          <ng-container *ngIf="account">
+            <button mat-stroked-button (click)="fetchNow()" [disabled]="isLoading">
+              <mat-icon>refresh</mat-icon>
+              Fetch Now
+            </button>
+            <button mat-stroked-button
+              [class.polling-active]="isPolling"
+              (click)="togglePolling()">
+              <mat-icon>{{ isPolling ? 'stop' : 'play_arrow' }}</mat-icon>
+              {{ isPolling ? 'Stop Polling' : 'Start Polling' }}
+            </button>
+            <button mat-stroked-button class="btn-danger" (click)="logout()">
+              <mat-icon>logout</mat-icon>
+              Sign Out
+            </button>
+          </ng-container>
+        </div>
+      </div>
+
+      <mat-progress-bar
+        *ngIf="isLoading"
+        mode="indeterminate"
+        class="card-progress">
+      </mat-progress-bar>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- ── Status bar ──────────────────────────────────────────────────────── -->
+  <div class="status-bar" *ngIf="account">
+    <span class="poll-status" [class.active]="isPolling">
+      <span class="poll-dot"></span>
+      {{ isPolling ? 'Polling active' : 'Polling stopped' }}
+    </span>
+    <span class="last-checked" *ngIf="lastChecked">
+      Last checked: {{ lastChecked | date:'HH:mm:ss' }}
+    </span>
+    <span class="bar-spacer"></span>
+    <span class="pending-count" *ngIf="pendingCount > 0">
+      {{ pendingCount }} pending
+    </span>
+  </div>
+
+  <!-- ── Config notice ───────────────────────────────────────────────────── -->
+  <div class="notice-bar" *ngIf="settings && !settings.clientId">
+    <mat-icon>warning</mat-icon>
+    <span>
+      <strong>Azure Client ID not configured.</strong>
+      Enter it in the Settings section below before connecting.
+    </span>
+  </div>
+
+  <!-- ── Invoice table ───────────────────────────────────────────────────── -->
+  <mat-card class="table-card" *ngIf="account">
+
+    <div class="table-card-header">
+      <span class="table-title">Detected Invoices</span>
+      <span class="table-hint">
+        High confidence is auto-suggested &middot; Medium requires confirmation
+      </span>
+    </div>
+
+    <!-- Empty state -->
+    <div class="empty-state" *ngIf="items.length === 0 && !isLoading">
+      <mat-icon class="empty-icon">inbox</mat-icon>
+      <h3>No invoices detected yet</h3>
+      <p>Click <strong>Fetch Now</strong> or start polling to scan your mailbox.</p>
+    </div>
+
+    <!-- Table -->
+    <div class="table-container" *ngIf="items.length > 0">
+      <mat-table
+        [dataSource]="items"
+        [trackBy]="trackByMessageId"
+        class="outlook-table">
+
+        <!-- Confidence -->
+        <ng-container matColumnDef="confidence">
+          <mat-header-cell *matHeaderCellDef>Confidence</mat-header-cell>
+          <mat-cell *matCellDef="let row">
+            <span
+              class="badge"
+              [class.badge-high]="row.invoice.confidence === 'high'"
+              [class.badge-medium]="row.invoice.confidence === 'medium'"
+              [matTooltip]="row.invoice.reasons.join(' · ')">
+              {{ confidenceLabel(row.invoice.confidence) }}
+              <span class="badge-score">({{ row.invoice.confidenceScore }})</span>
+            </span>
+          </mat-cell>
+        </ng-container>
+
+        <!-- Sender -->
+        <ng-container matColumnDef="sender">
+          <mat-header-cell *matHeaderCellDef>Sender</mat-header-cell>
+          <mat-cell *matCellDef="let row">
+            <span class="sender-name">{{ row.invoice.senderName }}</span>
+            <span class="sender-email">{{ row.invoice.senderEmail }}</span>
+          </mat-cell>
+        </ng-container>
+
+        <!-- Subject -->
+        <ng-container matColumnDef="subject">
+          <mat-header-cell *matHeaderCellDef>Subject</mat-header-cell>
+          <mat-cell *matCellDef="let row">
+            <span class="subject-text" [title]="row.invoice.subject">
+              {{ row.invoice.subject }}
+            </span>
+          </mat-cell>
+        </ng-container>
+
+        <!-- Attachment -->
+        <ng-container matColumnDef="attachment">
+          <mat-header-cell *matHeaderCellDef>Attachment</mat-header-cell>
+          <mat-cell *matCellDef="let row" class="attachment-cell">
+            <mat-icon class="file-icon">picture_as_pdf</mat-icon>
+            <span class="file-name">{{ row.invoice.attachmentName }}</span>
+          </mat-cell>
+        </ng-container>
+
+        <!-- Size -->
+        <ng-container matColumnDef="size">
+          <mat-header-cell *matHeaderCellDef>Size</mat-header-cell>
+          <mat-cell *matCellDef="let row" class="mono">
+            {{ formatBytes(row.invoice.attachmentSize) }}
+          </mat-cell>
+        </ng-container>
+
+        <!-- Received -->
+        <ng-container matColumnDef="receivedAt">
+          <mat-header-cell *matHeaderCellDef>Received</mat-header-cell>
+          <mat-cell *matCellDef="let row" class="mono">
+            {{ row.invoice.receivedAt | date:'dd.MM.yy HH:mm' }}
+          </mat-cell>
+        </ng-container>
+
+        <!-- Actions -->
+        <ng-container matColumnDef="actions">
+          <mat-header-cell *matHeaderCellDef class="actions-header">Actions</mat-header-cell>
+          <mat-cell *matCellDef="let row" class="actions-cell">
+
+            <!-- Pending -->
+            <ng-container *ngIf="row.status === 'pending'">
+              <button mat-icon-button color="primary"
+                (click)="confirm(row)"
+                [matTooltip]="'Save to: ' + (row.targetFolder || row.invoice.suggestedSubFolder)">
+                <mat-icon>check_circle_outline</mat-icon>
+              </button>
+              <button mat-icon-button color="warn"
+                (click)="reject(row)" matTooltip="Reject">
+                <mat-icon>cancel</mat-icon>
+              </button>
+              <button mat-icon-button
+                (click)="chooseFolder(row)" matTooltip="Choose folder">
+                <mat-icon>folder_open</mat-icon>
+              </button>
+            </ng-container>
+
+            <!-- Saving -->
+            <mat-spinner *ngIf="row.status === 'saving'" diameter="20"></mat-spinner>
+
+            <!-- Saved -->
+            <ng-container *ngIf="row.status === 'saved'">
+              <mat-icon class="status-icon saved" [matTooltip]="row.savedPath || ''">
+                check_circle
+              </mat-icon>
+              <span class="saved-path">{{ row.savedPath }}</span>
+            </ng-container>
+
+            <!-- Rejected -->
+            <ng-container *ngIf="row.status === 'rejected'">
+              <mat-icon class="status-icon rejected">block</mat-icon>
+              <span class="rejected-label">Rejected</span>
+            </ng-container>
+
+          </mat-cell>
+        </ng-container>
+
+        <mat-header-row *matHeaderRowDef="columns"></mat-header-row>
+        <mat-row *matRowDef="let row; columns: columns;"
+          class="outlook-row"
+          [class.row-saved]="row.status === 'saved'"
+          [class.row-rejected]="row.status === 'rejected'">
+        </mat-row>
+
+      </mat-table>
+    </div>
+  </mat-card>
+
+  <!-- ── Settings card ───────────────────────────────────────────────────── -->
+  <mat-card class="settings-card" *ngIf="settings">
+    <mat-card-header>
+      <mat-card-title>
+        <mat-icon>settings</mat-icon>
+        Outlook Settings
+      </mat-card-title>
+    </mat-card-header>
+
+    <mat-card-content>
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="form-field-full">
+          <mat-label>Azure Application (Client) ID</mat-label>
+          <input matInput [(ngModel)]="settings.clientId"
+            placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+          <mat-hint>
+            portal.azure.com → App Registrations → redirect URI: http://localhost
+          </mat-hint>
+        </mat-form-field>
+      </div>
+
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="form-field-full">
+          <mat-label>Inbox root folder</mat-label>
+          <input matInput [(ngModel)]="settings.inboxFolder"
+            placeholder="C:\Users\You\Documents\Tour Billing\Inbox">
+        </mat-form-field>
+      </div>
+
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="form-field-narrow">
+          <mat-label>Poll interval (minutes)</mat-label>
+          <input matInput type="number" [(ngModel)]="settings.pollIntervalMinutes"
+            min="1" max="60">
+        </mat-form-field>
+      </div>
+    </mat-card-content>
+
+    <mat-card-actions>
+      <button mat-raised-button (click)="saveSettings()">
+        <mat-icon>save</mat-icon>
+        Save Settings
+      </button>
+    </mat-card-actions>
+  </mat-card>
+
+</div>

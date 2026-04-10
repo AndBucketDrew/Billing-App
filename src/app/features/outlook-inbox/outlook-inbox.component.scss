@@ -1,0 +1,360 @@
+@use 'mixins' as m;
+
+// ─── Page Layout ──────────────────────────────────────────────────────────────
+
+.outlook-container {
+  @include m.page-container;
+}
+
+// ─── Header Card ──────────────────────────────────────────────────────────────
+
+.header-card {
+  @include m.content-card;
+  @include m.card-content-padding;
+
+  .header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .title-section {
+    flex: 1;
+    min-width: 180px;
+  }
+
+  .page-title    { @include m.page-title; }
+  .page-subtitle { @include m.page-subtitle; }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  button[mat-raised-button]  { @include m.btn-primary; }
+  button[mat-stroked-button] { @include m.btn-ghost; }
+
+  button.btn-danger { @include m.btn-danger-ghost; }
+
+  button.polling-active {
+    @include m.btn-ghost;
+    color: var(--color-success-fg) !important;
+    border-color: rgba(26, 127, 55, 0.35) !important;
+
+    &:hover:not([disabled]) {
+      background: var(--color-success-subtle) !important;
+    }
+  }
+
+  .card-progress {
+    margin-top: 16px;
+    border-radius: var(--radius-sm);
+  }
+}
+
+// ─── Status Bar ───────────────────────────────────────────────────────────────
+
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 4px;
+  font-size: var(--font-size-sm);
+  color: var(--color-fg-muted);
+  flex-wrap: wrap;
+
+  .bar-spacer { flex: 1; }
+
+  .poll-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    .poll-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--color-fg-subtle);
+      flex-shrink: 0;
+    }
+
+    &.active .poll-dot {
+      background: var(--color-success-fg);
+      box-shadow: 0 0 0 3px rgba(26, 127, 55, 0.15);
+    }
+  }
+
+  .last-checked {
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-xs);
+  }
+
+  .pending-count {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--color-attention-fg);
+    background: var(--color-attention-subtle);
+    border: 1px solid rgba(154, 103, 0, 0.2);
+    padding: 2px 10px;
+    border-radius: 20px;
+    line-height: 18px;
+  }
+}
+
+// ─── Notice Bar ───────────────────────────────────────────────────────────────
+
+.notice-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--color-attention-subtle);
+  border: 1px solid rgba(154, 103, 0, 0.25);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-attention-fg);
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+}
+
+// ─── Table Card ───────────────────────────────────────────────────────────────
+
+.table-card {
+  @include m.table-card;
+
+  .table-card-header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding: 14px 20px 12px;
+    border-bottom: 1px solid var(--color-border-default);
+
+    .table-title {
+      font-size: var(--font-size-md);
+      font-weight: 600;
+      color: var(--color-fg-default);
+    }
+
+    .table-hint {
+      font-size: var(--font-size-sm);
+      color: var(--color-fg-muted);
+    }
+  }
+}
+
+.table-container {
+  overflow-x: auto;
+}
+
+// ─── Table ────────────────────────────────────────────────────────────────────
+
+.outlook-table {
+  @include m.table-base;
+
+  // Column widths
+  .mat-column-confidence  { width: 130px; flex: 0 0 130px; }
+  .mat-column-sender      { width: 200px; flex: 0 0 200px; }
+  .mat-column-subject     { flex: 1; min-width: 160px; }
+  .mat-column-attachment  { width: 180px; flex: 0 0 180px; }
+  .mat-column-size        { width: 76px;  flex: 0 0 76px; }
+  .mat-column-receivedAt  { width: 120px; flex: 0 0 120px; }
+  .mat-column-actions     { width: 160px; flex: 0 0 160px; }
+
+  // Sender cell — stacked name + email
+  .mat-column-sender mat-cell,
+  .mat-column-sender .mat-mdc-cell {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+  }
+
+  .sender-name  {
+    font-weight: 500;
+    font-size: var(--font-size-sm);
+    color: var(--color-fg-default);
+  }
+
+  .sender-email {
+    font-size: var(--font-size-xs);
+    color: var(--color-fg-muted);
+  }
+
+  .subject-text {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 240px;
+    font-size: var(--font-size-sm);
+  }
+
+  .attachment-cell {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .file-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    color: var(--color-danger-fg);
+    flex-shrink: 0;
+  }
+
+  .file-name {
+    font-size: var(--font-size-sm);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 140px;
+  }
+
+  .mono {
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-xs);
+    color: var(--color-fg-muted);
+  }
+
+  .actions-header { text-align: right; }
+
+  .actions-cell {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+
+    button[mat-icon-button] { @include m.icon-btn; }
+  }
+
+  .status-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+
+    &.saved    { color: var(--color-success-fg); }
+    &.rejected { color: var(--color-fg-subtle); }
+  }
+
+  .saved-path {
+    font-size: var(--font-size-xs);
+    font-family: var(--font-family-mono);
+    color: var(--color-fg-muted);
+    max-width: 110px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .rejected-label {
+    font-size: var(--font-size-xs);
+    color: var(--color-fg-subtle);
+  }
+}
+
+// ── Row states ────────────────────────────────────────────────────────────────
+
+.outlook-row {
+  @include m.table-row-hover;
+
+  &.row-saved   { background: rgba(26, 127, 55, 0.03); opacity: 0.8; }
+  &.row-rejected { opacity: 0.4; }
+}
+
+// ─── Confidence Badge ─────────────────────────────────────────────────────────
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  font-family: var(--font-family-base);
+  padding: 2px 8px;
+  border-radius: 20px;
+  line-height: 18px;
+  white-space: nowrap;
+
+  &.badge-high {
+    @include m.badge(
+      var(--color-success-subtle),
+      var(--color-success-fg),
+      rgba(26, 127, 55, 0.2)
+    );
+  }
+
+  &.badge-medium {
+    @include m.badge(
+      var(--color-attention-subtle),
+      var(--color-attention-fg),
+      rgba(154, 103, 0, 0.2)
+    );
+  }
+
+  .badge-score {
+    font-weight: 400;
+    opacity: 0.7;
+  }
+}
+
+// ─── Empty State ──────────────────────────────────────────────────────────────
+
+.empty-state {
+  @include m.empty-state;
+}
+
+// ─── Settings Card ────────────────────────────────────────────────────────────
+
+.settings-card {
+  @include m.content-card;
+
+  ::ng-deep {
+    .mat-mdc-card-header   { padding: 16px 24px 0 !important; }
+    .mat-mdc-card-content  { padding: 16px 24px !important; }
+    .mat-mdc-card-actions  { padding: 8px 24px 16px !important; }
+  }
+
+  mat-card-title {
+    @include m.card-section-title;
+  }
+
+  .form-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 4px;
+  }
+
+  .form-field-full   { width: 100%; }
+  .form-field-narrow { width: 200px; }
+
+  button[mat-raised-button] { @include m.btn-primary; }
+}
+
+// ─── Responsive ───────────────────────────────────────────────────────────────
+
+@media (max-width: 1024px) {
+  .header-card .header-content {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 767px) {
+  .outlook-container { padding: 16px 12px; }
+
+  .header-card .page-title { font-size: var(--font-size-xl); }
+
+  .header-actions {
+    width: 100%;
+
+    button { flex: 1; }
+  }
+}
