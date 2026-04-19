@@ -417,6 +417,13 @@ mat-icon[matPrefix] {
   }
 }
 
+// ─── Customer Autocomplete ────────────────────────────────────────────────────
+
+.customer-option-hint {
+  font-size: var(--font-size-xs);
+  color: var(--color-fg-muted);
+}
+
 // ─── Loading Overlay ──────────────────────────────────────────────────────────
 
 .loading-overlay {

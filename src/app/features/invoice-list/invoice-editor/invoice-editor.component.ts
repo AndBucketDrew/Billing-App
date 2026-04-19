@@ -3,12 +3,26 @@ import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatDialog } from '@angular/material/dialog';
+import { Observable } from 'rxjs';
+import { startWith, map } from 'rxjs/operators';
 import { InvoiceService } from '../../../core/services/invoice.service';
 import { SettingsService } from '../../../core/services/settings.service';
 import { TourService } from '../../../core/services/tour.service';
-import { Invoice, InvoiceLineItem, VatRate, Tour } from '../../../core/models/domain.models';
+import { InvoiceLineItem, VatRate, Tour } from '../../../core/models/domain.models';
 import { TourSelectorDialogComponent } from '../../components/tour-selector-dialog/tour-selector-dialog.component';
 import { TranslateService } from '@ngx-translate/core';
+
+interface CustomerProfile {
+  customerName: string;
+  salutation: string | null;
+  customerEmail: string | null;
+  companyName: string | null;
+  companyAddress: string | null;
+  companyCityCountry: string | null;
+  companyTaxId: string | null;
+  companyCustomerName: string | null;
+  purchaseOrderNumber: string | null;
+}
 
 @Component({
   selector: 'app-invoice-editor',
@@ -24,6 +38,8 @@ export class InvoiceEditorComponent implements OnInit {
   isLoading: boolean = false;
   isSaving: boolean = false;
   salutationOptions: { value: string; key: string }[] = [];
+  knownCustomers: CustomerProfile[] = [];
+  filteredCustomers$!: Observable<CustomerProfile[]>;
 
   constructor(
     private fb: FormBuilder,
@@ -70,6 +86,12 @@ export class InvoiceEditorComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    this.knownCustomers = this.buildKnownCustomers();
+    this.filteredCustomers$ = this.invoiceForm.get('customerName')!.valueChanges.pipe(
+      startWith(''),
+      map(value => this.filterCustomers(value ?? ''))
+    );
+
     this.invoiceForm.get('civitatisId')?.valueChanges.subscribe(value => {
       if (value && value.trim() !== '') {
         const current = this.invoiceForm.get('paymentMethod')?.value;
@@ -149,6 +171,50 @@ export class InvoiceEditorComponent implements OnInit {
     } finally {
       this.isLoading = false;
     }
+  }
+
+  private buildKnownCustomers(): CustomerProfile[] {
+    const customerMap = new Map<string, CustomerProfile>();
+    [...this.invoiceService.getInvoices()]
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+      .forEach(inv => {
+        if (inv.customerName) {
+          customerMap.set(inv.customerName.toLowerCase(), {
+            customerName: inv.customerName,
+            salutation: inv.salutation ?? null,
+            customerEmail: inv.customerEmail ?? null,
+            companyName: inv.companyName ?? null,
+            companyAddress: inv.companyAddress ?? null,
+            companyCityCountry: inv.companyCityCountry ?? null,
+            companyTaxId: inv.companyTaxId ?? null,
+            companyCustomerName: inv.companyCustomerName ?? null,
+            purchaseOrderNumber: inv.purchaseOrderNumber ?? null,
+          });
+        }
+      });
+    return Array.from(customerMap.values()).sort((a, b) => a.customerName.localeCompare(b.customerName));
+  }
+
+  private filterCustomers(value: string): CustomerProfile[] {
+    if (!value) return this.knownCustomers;
+    const filter = value.toLowerCase();
+    return this.knownCustomers.filter(c => c.customerName.toLowerCase().includes(filter));
+  }
+
+  onCustomerSelected(customerName: string): void {
+    const customer = this.knownCustomers.find(c => c.customerName === customerName);
+    if (!customer) return;
+    this.invoiceForm.patchValue({
+      customerName: customer.customerName,
+      salutation: customer.salutation,
+      customerEmail: customer.customerEmail ?? '',
+      companyName: customer.companyName ?? '',
+      companyAddress: customer.companyAddress ?? '',
+      companyCityCountry: customer.companyCityCountry ?? '',
+      companyTaxId: customer.companyTaxId ?? '',
+      companyCustomerName: customer.companyCustomerName ?? '',
+      purchaseOrderNumber: customer.purchaseOrderNumber ?? '',
+    });
   }
 
   private updateSalutationOptions(lang: string): void {

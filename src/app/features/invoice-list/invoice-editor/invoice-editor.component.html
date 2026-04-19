@@ -91,12 +91,18 @@
           <!-- Customer Name (required) -->
           <mat-form-field appearance="outline" class="form-field-half">
             <mat-label>{{ 'INVOICE.CUSTOMER_NAME' | translate }}</mat-label>
-            <input matInput formControlName="customerName" required>
+            <input matInput formControlName="customerName" required [matAutocomplete]="customerAuto">
             <mat-icon matPrefix>person</mat-icon>
             <mat-error *ngIf="invoiceForm.get('customerName')?.invalid">
               {{ 'MESSAGES.REQUIRED_FIELD' | translate }}
             </mat-error>
           </mat-form-field>
+          <mat-autocomplete #customerAuto="matAutocomplete" (optionSelected)="onCustomerSelected($event.option.value)">
+            <mat-option *ngFor="let customer of filteredCustomers$ | async" [value]="customer.customerName">
+              <span>{{ customer.customerName }}</span>
+              <span *ngIf="customer.customerEmail" class="customer-option-hint"> — {{ customer.customerEmail }}</span>
+            </mat-option>
+          </mat-autocomplete>
 
           <!-- Email (optional) -->
           <mat-form-field appearance="outline" class="form-field-half">
