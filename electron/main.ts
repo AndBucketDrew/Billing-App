@@ -1,7 +1,8 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, Menu } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
+import { registerOutlookIpcHandlers } from './ipc/outlook-ipc';
 
 import type {
   Tour,
@@ -94,12 +95,14 @@ function writeJsonFile<T>(filePath: string, data: T): void {
 // ============================================
 
 function createWindow(): void {
+  Menu.setApplicationMenu(null);
+
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
     minWidth: 1200,
     minHeight: 700,
-    icon: path.join(__dirname, '/../src/assets/icon.ico'),
+    icon: path.join(__dirname, '../../src/assets/icon.ico'),
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
@@ -300,6 +303,12 @@ ipcMain.handle('pdf:save', async (_, pdfBase64: string, filename: string): Promi
 app.whenReady().then(() => {
   ensureDataFiles();
   createWindow();
+
+  // ── Outlook / MS Graph integration ──────────────────────────────────────
+  registerOutlookIpcHandlers(
+    USER_DATA_PATH,
+    () => mainWindow,
+  );
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

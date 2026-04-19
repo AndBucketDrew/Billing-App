@@ -4,11 +4,29 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [1.0.0 Beta !!]
+
+### Added
+
+* **Outlook Invoice Inbox** — new page (`/outlook`) that connects to a Microsoft 365 mailbox via the Microsoft Graph API
+* Microsoft authentication using MSAL (`@azure/msal-node`) with OAuth2 interactive login via the system browser
+* Heuristic invoice detection engine with confidence scoring (0–100 pts)
+* Review UI: per-attachment actions to confirm, reject, or choose a custom save folder
+* Confirmed invoices are saved to a configurable local folder structure (`year/month`)
+* Background mail poller with configurable interval (default 5 min), push notifications to the UI when new invoices are detected
+* Secure token storage — MSAL token cache encrypted with Electron `safeStorage` (OS keychain / DPAPI); tokens never exposed to the renderer process
+
+### Changed
+
+* All feature component stylesheets (`invoice-list`, `tour-list`, `settings`) refactored to use the shared SCSS mixins — eliminates ~1000 lines of duplicated CSS
+
+---
+
 ## [0.1.8]
 
 ### Added
 
-* QR Code on Invoice 
+* QR Code on Invoice
 
 ---
 

@@ -28,6 +28,10 @@
         <mat-icon>receipt_long</mat-icon>
         {{ 'NAV.INVOICES' | translate }}
       </a>
+      <a mat-button routerLink="/outlook" routerLinkActive="active" (click)="onNavigate('/outlook')">
+        <mat-icon>mail_outline</mat-icon>
+        Outlook
+      </a>
       <a mat-button routerLink="/settings" routerLinkActive="active" (click)="onNavigate('/settings')">
         <mat-icon>settings</mat-icon>
         {{ 'NAV.SETTINGS' | translate }}

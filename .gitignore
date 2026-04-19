@@ -13,6 +13,7 @@ yarn-error.log
 
 # Electron Builder 
 
+/dist-electron/
 *.map
 *.d.ts
 /release

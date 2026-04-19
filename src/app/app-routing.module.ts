@@ -20,6 +20,10 @@ const routes: Routes = [
     loadChildren: () => import('./features/settings/settings.module').then(m => m.SettingsModule)
   },
   {
+    path: 'outlook',
+    loadChildren: () => import('./features/outlook-inbox/outlook-inbox.module').then(m => m.OutlookInboxModule)
+  },
+  {
     path: '**',
     redirectTo: '/tours'
   }

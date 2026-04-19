@@ -91,6 +91,21 @@ export class ElectronService {
       },
       pdf: {
         save: async () => null
+      },
+      outlook: {
+        login:          async () => ({ success: false as const, error: 'Not in Electron' }),
+        logout:         async () => ({ success: true as const }),
+        getAccount:     async () => ({ success: true as const, account: null }),
+        fetchEmails:    async () => ({ success: true as const, invoices: [] }),
+        saveAttachment: async () => ({ success: false as const, error: 'Not in Electron' }),
+        chooseFolder:   async () => ({ success: false as const, canceled: true }),
+        startPolling:   async () => ({ success: true as const }),
+        stopPolling:    async () => ({ success: true as const }),
+        isPolling:      async () => ({ polling: false }),
+        getSettings:    async () => ({ clientId: '', inboxFolder: '', pollIntervalMinutes: 5 }),
+        saveSettings:   async (u: any) => ({ clientId: '', inboxFolder: '', pollIntervalMinutes: 5, ...u }),
+        on:  () => {},
+        off: () => {},
       }
     };
   }
