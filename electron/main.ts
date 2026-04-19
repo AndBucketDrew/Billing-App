@@ -297,6 +297,23 @@ ipcMain.handle('pdf:save', async (_, pdfBase64: string, filename: string): Promi
 });
 
 // ============================================
+// IPC HANDLERS - EXCEL
+// ============================================
+
+ipcMain.handle('excel:save', async (_, excelBase64: string, filename: string): Promise<string | null> => {
+  const result = await dialog.showSaveDialog(mainWindow!, {
+    defaultPath: filename,
+    filters: [{ name: 'Excel Files', extensions: ['xlsx'] }]
+  });
+
+  if (result.canceled || !result.filePath) return null;
+
+  const buffer = Buffer.from(excelBase64, 'base64');
+  fs.writeFileSync(result.filePath, buffer);
+  return result.filePath;
+});
+
+// ============================================
 // APP LIFECYCLE
 // ============================================
 

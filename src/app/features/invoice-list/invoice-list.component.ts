@@ -3,8 +3,9 @@ import { Router } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { InvoiceService } from '../../core/services/invoice.service';
 import { PdfGeneratorService } from '../../core/services/pdf-gen.service';
+import { ExcelExportService } from '../../core/services/excel-export.service';
 import { SettingsService } from '../../core/services/settings.service';
-import { Invoice, CompanySettings } from '../../core/models/domain.models';
+import { Invoice } from '../../core/models/domain.models';
 import { Observable } from 'rxjs';
 import { TranslateService } from '@ngx-translate/core';
 
@@ -16,20 +17,55 @@ import { TranslateService } from '@ngx-translate/core';
 })
 export class InvoiceListComponent implements OnInit {
   invoices$: Observable<Invoice[]>;
+  allInvoices: Invoice[] = [];
   displayedColumns: string[] = ['invoiceNumber', 'invoiceDate', 'customerName', 'totalGross', 'status', 'actions'];
 
   filterStatus: 'all' | 'draft' | 'finalized' = 'all';
+  filterYear: number | null = null;
   searchQuery: string = '';
+  isExporting = false;
 
   constructor(
     private invoiceService: InvoiceService,
     private pdfService: PdfGeneratorService,
+    private excelExportService: ExcelExportService,
     private settingsService: SettingsService,
     private router: Router,
     private snackBar: MatSnackBar,
     private translate: TranslateService
   ) {
     this.invoices$ = this.invoiceService.invoices$;
+    this.invoices$.subscribe(invs => this.allInvoices = invs ?? []);
+  }
+
+  getAvailableYears(): number[] {
+    const years = new Set<number>();
+    for (const inv of this.allInvoices) {
+      if (inv.invoiceNumber && inv.invoiceNumber.length >= 2) {
+        const yy = parseInt(inv.invoiceNumber.substring(0, 2), 10);
+        if (!isNaN(yy)) years.add(2000 + yy);
+      }
+    }
+    return Array.from(years).sort((a, b) => b - a);
+  }
+
+  async exportYear(): Promise<void> {
+    if (!this.filterYear) return;
+    const yearInvoices = this.allInvoices.filter(inv => {
+      const yy = parseInt(inv.invoiceNumber?.substring(0, 2) ?? '', 10);
+      return 2000 + yy === this.filterYear;
+    });
+    this.isExporting = true;
+    try {
+      await this.excelExportService.exportYearToExcel(yearInvoices, this.filterYear);
+      this.showMessage(`Exported ${yearInvoices.length} invoices for ${this.filterYear}`);
+    } catch (error: any) {
+      if (!error?.message?.includes('cancelled')) {
+        this.showMessage(this.translate.instant('MESSAGES.ERROR'), 'error');
+      }
+    } finally {
+      this.isExporting = false;
+    }
   }
 
   ngOnInit(): void { }
@@ -86,6 +122,14 @@ export class InvoiceListComponent implements OnInit {
     if (!invoices) return [];
 
     let result = invoices;
+
+    // Year filter
+    if (this.filterYear !== null) {
+      result = result.filter(inv => {
+        const yy = parseInt(inv.invoiceNumber?.substring(0, 2) ?? '', 10);
+        return 2000 + yy === this.filterYear;
+      });
+    }
 
     // Status filter
     if (this.filterStatus !== 'all') {

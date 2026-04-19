@@ -19,6 +19,25 @@
         </mat-form-field>
 
         <div class="header-actions">
+          <!-- Year Filter -->
+          <mat-form-field appearance="outline" class="year-filter-field">
+            <mat-label>Year</mat-label>
+            <mat-select [(value)]="filterYear">
+              <mat-option [value]="null">All Years</mat-option>
+              <mat-option *ngFor="let y of getAvailableYears()" [value]="y">{{ y }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <!-- Export Year to Excel -->
+          <button mat-stroked-button
+                  class="export-btn"
+                  *ngIf="filterYear !== null"
+                  [disabled]="isExporting"
+                  (click)="exportYear()">
+            <mat-icon>table_chart</mat-icon>
+            Export {{ filterYear }}
+          </button>
+
           <!-- Status Filter -->
           <mat-button-toggle-group [(value)]="filterStatus" class="status-filter">
             <mat-button-toggle value="all">
@@ -31,7 +50,7 @@
               {{ 'INVOICE.STATUS_FINALIZED' | translate }}
             </mat-button-toggle>
           </mat-button-toggle-group>
-          
+
           <button mat-raised-button color="primary" (click)="createInvoice()">
             <mat-icon>add</mat-icon>
             {{ 'INVOICE.CREATE' | translate }}

@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [1.0.1]
+
+### Added
+
+* **Excel Year Export** — export all invoices for a selected year to an `.xlsx` file directly from the invoice list; year is auto-detected from the invoice number prefix (e.g. `26` → 2026)
+* **Known Customer Autofill** — invoice editor now suggests previously used customer names and auto-fills address, email, and company details when a known customer is selected
+
+---
+
 ## [1.0.0 Beta !!]
 
 ### Added

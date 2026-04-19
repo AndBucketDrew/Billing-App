@@ -32,6 +32,27 @@
   }
 
   button[mat-raised-button] { @include m.btn-primary; }
+  button.export-btn        { @include m.btn-ghost; }
+
+  // ── Year filter select ────────────────────────────────────────────────────
+
+  .year-filter-field {
+    width: 120px;
+    flex-shrink: 0;
+    @include m.compact-form-field;
+
+    ::ng-deep {
+      .mat-mdc-select-value {
+        font-size: var(--font-size-sm);
+        font-family: var(--font-family-base);
+        color: var(--color-fg-default);
+      }
+
+      .mat-mdc-select-arrow {
+        color: var(--color-fg-muted);
+      }
+    }
+  }
 
   // ── Status filter toggle ──────────────────────────────────────────────────
 
@@ -266,7 +287,9 @@
       flex-direction: column;
 
       .status-filter,
-      button[mat-raised-button] { width: 100%; }
+      .year-filter-field,
+      button[mat-raised-button],
+      button.export-btn { width: 100%; }
     }
   }
 

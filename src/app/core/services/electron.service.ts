@@ -92,6 +92,9 @@ export class ElectronService {
       pdf: {
         save: async () => null
       },
+      excel: {
+        save: async () => null
+      },
       outlook: {
         login:          async () => ({ success: false as const, error: 'Not in Electron' }),
         logout:         async () => ({ success: true as const }),

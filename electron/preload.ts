@@ -51,6 +51,11 @@ export interface ElectronAPI {
     save: (pdfBase64: string, filename: string) => Promise<string | null>;
   };
 
+  // Excel operations
+  excel: {
+    save: (excelBase64: string, filename: string) => Promise<string | null>;
+  };
+
   // ── Outlook / Microsoft Graph ───────────────────────────────────────────────
   outlook: {
     // Auth
@@ -127,6 +132,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   pdf: {
     save: (pdfBase64: string, filename: string) =>
       ipcRenderer.invoke('pdf:save', pdfBase64, filename)
+  },
+
+  excel: {
+    save: (excelBase64: string, filename: string) =>
+      ipcRenderer.invoke('excel:save', excelBase64, filename)
   },
 
   // ── Outlook ──────────────────────────────────────────────────────────────────
