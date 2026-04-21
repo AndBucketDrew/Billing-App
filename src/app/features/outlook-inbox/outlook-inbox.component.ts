@@ -50,6 +50,13 @@ export class OutlookInboxComponent implements OnInit, OnDestroy {
     this.account = await this.outlook.getAccount();
     this.isPolling = await this.outlook.isPolling();
 
+    // Pre-load emails in demo mode so the inbox isn't empty on first view
+    if (!this.outlook.isElectron() && this.account) {
+      const emails = await this.outlook.fetchEmails();
+      this.mergeInvoices(emails);
+      this.lastChecked = new Date().toISOString();
+    }
+
     // Subscribe to push events from the background poller
     this.subs.add(
       this.outlook.invoicesDetected$.subscribe(invoices => {

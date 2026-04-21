@@ -2,28 +2,27 @@ import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { ElectronService } from './electron.service';
 import type { Tour } from '../models/domain.models';
+import { DEMO_TOURS } from './demo-data';
 
 @Injectable({
   providedIn: 'root'
 })
 export class TourService {
-  private toursSubject = new BehaviorSubject<Tour[]>([]);
+  private toursSubject = new BehaviorSubject<Tour[]>([...DEMO_TOURS]);
   public tours$: Observable<Tour[]> = this.toursSubject.asObservable();
 
   constructor(private electron: ElectronService) {
     this.loadTours();
   }
 
-  /**
-   * Load all tours from storage
-   */
   async loadTours(): Promise<void> {
     try {
       const tours = await this.electron.api.tour.getAll();
-      this.toursSubject.next(tours);
+      if (tours.length > 0) {
+        this.toursSubject.next(tours);
+      }
     } catch (error) {
       console.error('Error loading tours:', error);
-      throw error;
     }
   }
 

@@ -5,12 +5,13 @@ import { CalculationService } from './calculation.service';
 import type { Invoice, InvoiceLineItem, PaymentMethod, VatRate } from '../models/domain.models';
 import { v4 as uuidv4 } from 'uuid';
 import { SettingsService } from './settings.service';
+import { DEMO_INVOICES } from './demo-data';
 
 @Injectable({
   providedIn: 'root'
 })
 export class InvoiceService {
-  private invoicesSubject = new BehaviorSubject<Invoice[]>([]);
+  private invoicesSubject = new BehaviorSubject<Invoice[]>([...DEMO_INVOICES]);
   public invoices$: Observable<Invoice[]> = this.invoicesSubject.asObservable();
 
   constructor(
@@ -24,10 +25,11 @@ export class InvoiceService {
   async loadInvoices(): Promise<void> {
     try {
       const invoices = await this.electron.api.invoice.getAll();
-      this.invoicesSubject.next(invoices);
+      if (invoices.length > 0) {
+        this.invoicesSubject.next(invoices);
+      }
     } catch (error) {
       console.error('Error loading invoices:', error);
-      throw error;
     }
   }
 

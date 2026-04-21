@@ -17,6 +17,7 @@ import {
   OutlookAccount,
   OutlookSettings,
 } from '../models/outlook.models';
+import { DEMO_OUTLOOK_ACCOUNT, DEMO_OUTLOOK_EMAILS } from './demo-data';
 
 export interface PollCompleteEvent {
   checkedAt: string;
@@ -84,14 +85,14 @@ export class OutlookService implements OnDestroy {
   }
 
   getAccount(): Promise<OutlookAccount | null> {
-    if (!this.isElectron()) return Promise.resolve(null);
+    if (!this.isElectron()) return Promise.resolve(DEMO_OUTLOOK_ACCOUNT);
     return this.api.getAccount().then((r: any) => (r.success ? r.account : null));
   }
 
   // ── Email detection ──────────────────────────────────────────────────────────
 
   fetchEmails(): Promise<DetectedInvoice[]> {
-    if (!this.isElectron()) return Promise.resolve(MOCK_INVOICES);
+    if (!this.isElectron()) return Promise.resolve(DEMO_OUTLOOK_EMAILS);
     return this.api.fetchEmails().then((r: any) => (r.success ? r.invoices : []));
   }
 
@@ -103,12 +104,17 @@ export class OutlookService implements OnDestroy {
     filename: string;
     targetFolder: string;
   }): Promise<{ success: boolean; filePath?: string; error?: string }> {
-    if (!this.isElectron()) return Promise.resolve({ success: false, error: 'Not in Electron' });
+    if (!this.isElectron()) {
+      return Promise.resolve({
+        success: true,
+        filePath: `${args.targetFolder}/${args.filename}`,
+      });
+    }
     return this.api.saveAttachment(args) as any;
   }
 
   chooseFolder(): Promise<string | null> {
-    if (!this.isElectron()) return Promise.resolve(null);
+    if (!this.isElectron()) return Promise.resolve('C:/GoodViennaTours/Invoices/2026/04-April');
     return this.api.chooseFolder().then((r: any) => (r.success ? r.folderPath : null));
   }
 
@@ -125,7 +131,7 @@ export class OutlookService implements OnDestroy {
   }
 
   isPolling(): Promise<boolean> {
-    if (!this.isElectron()) return Promise.resolve(false);
+    if (!this.isElectron()) return Promise.resolve(true);
     return this.api.isPolling().then((r: any) => r.polling);
   }
 
@@ -160,33 +166,3 @@ const DEFAULT_SETTINGS: OutlookSettings = {
   pollIntervalMinutes: 5,
 };
 
-const MOCK_INVOICES: DetectedInvoice[] = [
-  {
-    messageId: 'mock-1',
-    attachmentId: 'att-1',
-    senderName: 'Amazon',
-    senderEmail: 'auto-confirm@amazon.com',
-    subject: 'Your Amazon order #123 – Invoice enclosed',
-    receivedAt: new Date().toISOString(),
-    attachmentName: 'invoice_2024_001.pdf',
-    attachmentSize: 48320,
-    confidence: 'high',
-    confidenceScore: 85,
-    reasons: ['Filename contains "invoice"', 'Subject contains "invoice"', 'PDF attachment', 'Known commercial sender (amazon)'],
-    suggestedSubFolder: '2024/04-April',
-  },
-  {
-    messageId: 'mock-2',
-    attachmentId: 'att-2',
-    senderName: 'Office Supplies GmbH',
-    senderEmail: 'billing@officesupplies.at',
-    subject: 'Rechnung März 2024',
-    receivedAt: new Date(Date.now() - 3600_000).toISOString(),
-    attachmentName: 'rechnung_0042.pdf',
-    attachmentSize: 22100,
-    confidence: 'medium',
-    confidenceScore: 55,
-    reasons: ['Filename contains "rechnung"', 'Subject contains "rechnung"', 'PDF attachment'],
-    suggestedSubFolder: '2024/03-March',
-  },
-];
