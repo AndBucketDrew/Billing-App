@@ -260,7 +260,7 @@ export const DEMO_INVOICES: Invoice[] = [
       {
         id: 'li-005-1',
         tourId: 'tour-003',
-        description: 'Vienna Coffee House Culture Tour – 3 Personen',
+        description: 'Vienna Coffee House Culture Tour 3 Personen',
         quantity: 3,
         unitPriceNet: 10.00,
         vatPercentage: 13,
