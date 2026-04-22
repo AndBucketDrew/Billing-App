@@ -9,9 +9,24 @@
 
   <div class="import-panel" *ngIf="isExpanded">
 
-    <textarea class="import-textarea" rows="7" [(ngModel)]="pasteText"
-      [placeholder]="'INVOICE.PASTE_TEXT_PLACEHOLDER' | translate" autofocus>
-    </textarea>
+    <div class="import-input-row">
+      <textarea class="import-textarea" rows="7" [(ngModel)]="pasteText"
+        [placeholder]="'INVOICE.PASTE_TEXT_PLACEHOLDER' | translate" autofocus>
+      </textarea>
+
+      <div class="sample-block">
+        <div class="sample-header">
+          <span class="sample-label">Example</span>
+          <button mat-stroked-button class="sample-load-btn"
+            matTooltip="Load into editor"
+            (click)="loadSample()">
+            <mat-icon>input</mat-icon>
+            Load
+          </button>
+        </div>
+        <pre class="sample-text">{{ sampleText }}</pre>
+      </div>
+    </div>
 
     <div class="import-actions">
       <button mat-stroked-button (click)="isExpanded = false; clear()">

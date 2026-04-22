@@ -20,7 +20,7 @@ export class LineItemTextImport implements AfterViewChecked {
 
   pasteText = '';
   previewResult: ParseResult | null = null;
-  isExpanded = false;
+  isExpanded = true;
 
   // ── Inline editing state ──────────────────────────────────────────────────
   editingIndex: number | null = null;
@@ -173,6 +173,30 @@ export class LineItemTextImport implements AfterViewChecked {
     this.pasteText = '';
     this.previewResult = null;
     this.cancelEdit();
+  }
+
+  // ── Sample text ───────────────────────────────────────────────────────────
+
+  readonly sampleText =
+    'Belvedere Preoping Tickets 350€ 0%\n' +
+    'Schonbrunn place 38 P.P. 76E\n' +
+    'National Library is 126 p.p.= 24€\n' +
+    'Hofburg and Sisi Museum is 20€ + 20€ =40€\n' +
+    'Metro Ticket - 10,20€ = 20,40€ 20%\n' +
+    'Stephans Cathedral Lift - 16 E\n' +
+    'Total for tickets - 526.40€';
+
+  sampleCopied = false;
+
+  loadSample(): void {
+    this.pasteText = this.sampleText;
+  }
+
+  copySample(): void {
+    navigator.clipboard.writeText(this.sampleText).then(() => {
+      this.sampleCopied = true;
+      setTimeout(() => (this.sampleCopied = false), 2000);
+    });
   }
 
   get hasItems(): boolean {
