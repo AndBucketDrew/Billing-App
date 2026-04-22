@@ -4,9 +4,27 @@
     "LANGUAGE": "Language"
   },
   "NAV": {
+    "DASHBOARD": "Dashboard",
     "TOURS": "Tours",
     "INVOICES": "Invoices",
     "SETTINGS": "Settings"
+  },
+  "DASHBOARD": {
+    "TITLE": "Dashboard",
+    "TOURS": "Tours",
+    "TOTAL_INVOICES": "Total Invoices",
+    "DRAFTS": "Drafts",
+    "REVENUE": "Total Revenue",
+    "RECENT_INVOICES": "Recent Invoices",
+    "SEE_ALL": "See all",
+    "QUICK_ACTIONS": "Quick Actions",
+    "MANAGE_TOURS": "Manage Tours",
+    "ACTION_INVOICE_SUB": "Create a new invoice for a customer",
+    "ACTION_TOURS_SUB": "View and edit your tour catalogue",
+    "ACTION_SETTINGS_SUB": "Company info, bank details & more",
+    "EXPORT_EXCEL": "Export to Excel",
+    "ACTION_EXPORT_SUB": "Download invoices by year as .xlsx",
+    "EXPORT_NO_DATA": "No invoices to export"
   },
   "COMMON": {
     "SAVE": "Save",

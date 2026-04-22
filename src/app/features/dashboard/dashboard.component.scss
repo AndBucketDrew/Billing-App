@@ -1,0 +1,367 @@
+@use 'mixins' as m;
+
+// ─── Layout ───────────────────────────────────────────────────────────────────
+
+.dashboard-container {
+  @include m.page-container;
+}
+
+// ─── Header Card ──────────────────────────────────────────────────────────────
+
+.header-card {
+  @include m.content-card;
+  @include m.card-content-padding;
+
+  .header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .title-section { flex: 1; }
+  .page-title    { @include m.page-title; }
+  .page-subtitle { @include m.page-subtitle; }
+
+  button[mat-raised-button] { @include m.btn-primary; }
+}
+
+// ─── Stats Grid ───────────────────────────────────────────────────────────────
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+
+  @media (max-width: 900px) { grid-template-columns: repeat(2, 1fr); }
+  @media (max-width: 500px) { grid-template-columns: 1fr; }
+}
+
+.stat-card {
+  @include m.content-card;
+
+  ::ng-deep .mat-mdc-card-content {
+    padding: 20px 24px !important;
+  }
+
+  .stat-inner {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .stat-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+
+    mat-icon {
+      font-size: 22px;
+      width: 22px;
+      height: 22px;
+    }
+  }
+
+  .stat-info { flex: 1; min-width: 0; }
+
+  .stat-value {
+    font-size: var(--font-size-2xl);
+    font-weight: 700;
+    font-family: var(--font-family-base);
+    color: var(--color-fg-default);
+    line-height: 1.1;
+    letter-spacing: -0.5px;
+
+    &.revenue-value {
+      font-size: var(--font-size-xl);
+      letter-spacing: -0.3px;
+    }
+  }
+
+  .stat-label {
+    font-size: var(--font-size-sm);
+    font-family: var(--font-family-base);
+    color: var(--color-fg-muted);
+    margin-top: 3px;
+  }
+
+  &.stat-tours .stat-icon {
+    background: var(--color-accent-subtle);
+    mat-icon { color: var(--color-accent-fg); }
+  }
+
+  &.stat-invoices .stat-icon {
+    background: rgba(130, 80, 200, 0.1);
+    mat-icon { color: #8250c8; }
+  }
+
+  &.stat-drafts .stat-icon {
+    background: rgba(210, 140, 40, 0.1);
+    mat-icon { color: #d28c28; }
+  }
+
+  &.stat-revenue .stat-icon {
+    background: var(--color-success-subtle);
+    mat-icon { color: var(--color-success-fg); }
+  }
+}
+
+// ─── Bottom Row ───────────────────────────────────────────────────────────────
+
+.bottom-row {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 16px;
+
+  @media (max-width: 900px) { grid-template-columns: 1fr; }
+}
+
+.recent-card,
+.actions-card {
+  @include m.content-card;
+
+  ::ng-deep .mat-mdc-card-content {
+    padding: 20px 24px !important;
+  }
+}
+
+// ─── Section Header ───────────────────────────────────────────────────────────
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--font-size-md) !important;
+  font-weight: 600 !important;
+  font-family: var(--font-family-base) !important;
+  color: var(--color-fg-default);
+  margin: 0 !important;
+
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    color: var(--color-fg-muted);
+  }
+}
+
+.see-all-btn {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-accent-fg);
+  padding: 0 6px;
+  min-width: 0;
+  height: 28px;
+  line-height: 28px;
+
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+  }
+}
+
+// ─── Recent Invoices ──────────────────────────────────────────────────────────
+
+.recent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.recent-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+
+  &:hover {
+    background: var(--color-canvas-subtle);
+    border-color: var(--color-border-default);
+  }
+
+  .recent-item-left {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .invoice-num {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    font-family: var(--font-family-base);
+    color: var(--color-fg-default);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .customer-name {
+    font-size: var(--font-size-sm);
+    font-family: var(--font-family-base);
+    color: var(--color-fg-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 240px;
+  }
+
+  .recent-item-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    flex-shrink: 0;
+    margin-left: 12px;
+  }
+
+  .invoice-amount {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    font-family: var(--font-family-base);
+    color: var(--color-fg-default);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .status-badge {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    font-family: var(--font-family-base);
+    padding: 1px 8px;
+    border-radius: 20px;
+    line-height: 18px;
+    white-space: nowrap;
+
+    &.finalized {
+      background: var(--color-success-subtle);
+      color: var(--color-success-fg);
+    }
+
+    &.draft {
+      background: var(--color-canvas-subtle);
+      color: var(--color-fg-muted);
+      border: 1px solid var(--color-border-default);
+    }
+  }
+}
+
+.no-data {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32px 16px;
+  gap: 8px;
+
+  mat-icon {
+    font-size: 32px;
+    width: 32px;
+    height: 32px;
+    color: var(--color-fg-subtle);
+  }
+
+  p {
+    font-size: var(--font-size-sm);
+    font-family: var(--font-family-base);
+    color: var(--color-fg-muted);
+    margin: 0;
+    text-align: center;
+  }
+}
+
+// ─── Quick Actions ────────────────────────────────────────────────────────────
+
+.quick-actions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.action-btn {
+  width: 100%;
+  height: auto !important;
+  min-height: 44px;
+  padding: 8px 16px !important;
+  text-align: left;
+  border-radius: var(--radius-md) !important;
+  border: 1px solid var(--color-border-default) !important;
+  background: var(--color-canvas-default) !important;
+  transition: background 0.12s ease, border-color 0.12s ease;
+
+  // Fix Material MDC label wrapper so children flex correctly
+  ::ng-deep .mdc-button__label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+  }
+
+  &:hover {
+    background: var(--color-canvas-subtle) !important;
+    border-color: var(--color-accent-fg) !important;
+  }
+
+  .action-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+
+    &.icon-export   { color: #8250c8; }
+    &.icon-invoice  { color: var(--color-accent-fg); }
+    &.icon-tour     { color: var(--color-success-fg); }
+    &.icon-settings { color: var(--color-fg-muted); }
+  }
+
+  .action-spinner {
+    flex-shrink: 0;
+    &.icon-export { --mdc-circular-progress-active-indicator-color: #8250c8; }
+  }
+
+  .action-text {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .action-title {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    font-family: var(--font-family-base);
+    color: var(--color-fg-default);
+  }
+
+  .action-sub {
+    font-size: var(--font-size-xs);
+    font-family: var(--font-family-base);
+    color: var(--color-fg-muted);
+    white-space: normal;
+    text-transform: none;
+  }
+
+  .action-chevron {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    color: var(--color-fg-subtle);
+    flex-shrink: 0;
+  }
+}

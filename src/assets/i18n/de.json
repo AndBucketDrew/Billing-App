@@ -4,9 +4,27 @@
     "LANGUAGE": "Sprache"
   },
   "NAV": {
+    "DASHBOARD": "Dashboard",
     "TOURS": "Touren",
     "INVOICES": "Rechnungen",
     "SETTINGS": "Einstellungen"
+  },
+  "DASHBOARD": {
+    "TITLE": "Dashboard",
+    "TOURS": "Touren",
+    "TOTAL_INVOICES": "Rechnungen gesamt",
+    "DRAFTS": "Entwürfe",
+    "REVENUE": "Gesamtumsatz",
+    "RECENT_INVOICES": "Letzte Rechnungen",
+    "SEE_ALL": "Alle anzeigen",
+    "QUICK_ACTIONS": "Schnellaktionen",
+    "MANAGE_TOURS": "Touren verwalten",
+    "ACTION_INVOICE_SUB": "Neue Rechnung für einen Kunden erstellen",
+    "ACTION_TOURS_SUB": "Touren anzeigen und bearbeiten",
+    "ACTION_SETTINGS_SUB": "Firmendaten, Bankverbindung & mehr",
+    "EXPORT_EXCEL": "Excel-Export",
+    "ACTION_EXPORT_SUB": "Rechnungen nach Jahr als .xlsx herunterladen",
+    "EXPORT_NO_DATA": "Keine Rechnungen zum Exportieren"
   },
   "COMMON": {
     "SAVE": "Speichern",

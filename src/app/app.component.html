@@ -20,6 +20,10 @@
 
     <!-- Navigation -->
     <nav class="nav-links">
+      <a mat-button routerLink="/dashboard" routerLinkActive="active" (click)="onNavigate('/dashboard')">
+        <mat-icon>dashboard</mat-icon>
+        {{ 'NAV.DASHBOARD' | translate }}
+      </a>
       <a mat-button routerLink="/tours" routerLinkActive="active" (click)="onNavigate('/tours')">
         <mat-icon>tour</mat-icon>
         {{ 'NAV.TOURS' | translate }}

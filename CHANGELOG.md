@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [1.0.2]
+
+### Added
+
+* **Dashboard** — new default landing page (`/dashboard`) with an overview of key stats, a recent invoices list, quick-action buttons, and an Excel export shortcut with year picker
+
+---
+
 ## [1.0.1]
 
 ### Added
