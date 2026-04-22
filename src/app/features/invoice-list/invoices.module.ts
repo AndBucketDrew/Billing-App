@@ -8,6 +8,7 @@ import { LineItemsTableComponent } from '../components/line-items-table/line-ite
 import { VatSummaryComponent } from '../components/vat-summary/vat-summary.component';
 import { TourSelectorDialogComponent } from '../components/tour-selector-dialog/tour-selector-dialog.component';
 import { LineItemTextImport } from '../components/line-items-table/line-item-text-import/line-item-text-import.component';
+import { PdfPreviewComponent } from './pdf-preview/pdf-preview.component';
 
 const routes: Routes = [
   {
@@ -31,8 +32,8 @@ const routes: Routes = [
     LineItemsTableComponent,
     VatSummaryComponent,
     TourSelectorDialogComponent,
-    LineItemTextImport
-
+    LineItemTextImport,
+    PdfPreviewComponent,
   ],
   imports: [
     SharedModule,

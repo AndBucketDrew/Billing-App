@@ -116,6 +116,37 @@
   }
 }
 
+// ─── Demo Banner ──────────────────────────────────────────────────────────────
+
+.demo-banner {
+  position: sticky;
+  top: 56px;
+  z-index: 99;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 20px;
+  background: #fff8e1;
+  border-bottom: 1px solid #ffe082;
+  color: #5f4000;
+  font-size: var(--font-size-sm);
+  font-family: var(--font-family-base);
+  line-height: 1.5;
+
+  &__icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    margin-top: 1px;
+    color: #f59e0b;
+  }
+
+  &__text {
+    flex: 1;
+  }
+}
+
 // ─── Main Content ─────────────────────────────────────────────────────────────
 
 .app-container {

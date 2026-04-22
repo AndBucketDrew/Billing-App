@@ -144,6 +144,62 @@
   }
 }
 
+// ─── PDF Preview Card ─────────────────────────────────────────────────────────
+
+.pdf-preview-card {
+  @include m.content-card;
+
+  ::ng-deep .mat-mdc-card-content { padding: 0 !important; }
+}
+
+.pdf-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  cursor: pointer;
+  user-select: none;
+  border-radius: 6px;
+  transition: background 0.12s ease;
+
+  &:hover { background: var(--color-canvas-subtle); }
+}
+
+.pdf-preview-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-fg-default);
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    color: var(--color-danger-fg);
+  }
+
+  .pdf-preview-hint {
+    font-weight: 400;
+    color: var(--color-fg-muted);
+  }
+}
+
+.pdf-preview-chevron {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+  color: var(--color-fg-muted);
+  transition: transform 0.2s ease;
+
+  &.open { transform: rotate(180deg); }
+}
+
+.pdf-preview-body {
+  padding: 0 20px 20px;
+}
+
 // ─── Table Card ───────────────────────────────────────────────────────────────
 
 .table-card {

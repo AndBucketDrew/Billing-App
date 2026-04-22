@@ -24,6 +24,7 @@ export class InvoiceListComponent implements OnInit {
   filterYear: number | null = null;
   searchQuery: string = '';
   isExporting = false;
+  showPdfPreview = false;
 
   constructor(
     private invoiceService: InvoiceService,

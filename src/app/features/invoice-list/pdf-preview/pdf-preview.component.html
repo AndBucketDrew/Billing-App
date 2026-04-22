@@ -1,0 +1,117 @@
+<div class="pdf-page">
+
+  <!-- ── Header: company info right ───────────────────────────────────────── -->
+  <div class="pdf-header">
+    <div class="pdf-logo-placeholder">
+      <mat-icon>receipt_long</mat-icon>
+    </div>
+    <div class="pdf-company">
+      <div class="pdf-company-name">Good Vienna Tours GmbH</div>
+      <div class="pdf-company-detail">Stephansplatz 1</div>
+      <div class="pdf-company-detail">1010 Wien, Austria</div>
+      <div class="pdf-company-detail">UID-Nr.: ATU12345678</div>
+    </div>
+  </div>
+
+  <!-- ── Invoice title & number ────────────────────────────────────────────── -->
+  <div class="pdf-title">Invoice</div>
+  <div class="pdf-meta">
+    <div>Invoice No.: <strong>260408-0900-003</strong></div>
+    <div>Date: <strong>08.04.2026</strong></div>
+  </div>
+
+  <!-- ── Customer block ────────────────────────────────────────────────────── -->
+  <div class="pdf-customer">
+    <div>Wanderlust Travel Group GmbH</div>
+    <div>Kärntner Straße 28</div>
+    <div>1010 Wien, Austria</div>
+    <div>bookings&#64;wanderlust.at</div>
+  </div>
+
+  <!-- ── Intro text ─────────────────────────────────────────────────────────── -->
+  <p class="pdf-intro">
+    Thank you for your order. We hereby invoice our services rendered.
+  </p>
+
+  <!-- ── Line items table ───────────────────────────────────────────────────── -->
+  <table class="pdf-table">
+    <thead>
+      <tr>
+        <th class="col-desc">Description</th>
+        <th class="col-num">Qty</th>
+        <th class="col-num">Unit Price</th>
+        <th class="col-num">VAT</th>
+        <th class="col-num">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1. Naschmarkt Food &amp; Culture Tour – 12 persons</td>
+        <td class="right">12</td>
+        <td class="right">€18.00</td>
+        <td class="right">13%</td>
+        <td class="right">€244.08</td>
+      </tr>
+      <tr>
+        <td>2. Audioguide Leihgebühr</td>
+        <td class="right">12</td>
+        <td class="right">€3.00</td>
+        <td class="right">20%</td>
+        <td class="right">€43.20</td>
+      </tr>
+      <tr class="tour-details-row">
+        <td colspan="5">
+          <span class="detail-dot">·</span> <strong>Am:</strong> 08.04.2026 09:00&nbsp;&nbsp;
+          <span class="detail-dot">·</span> <strong>Meeting Point:</strong> Naschmarkt, Stand 1 (U4 Kettenbrückengasse exit)&nbsp;&nbsp;
+          <span class="detail-dot">·</span> <strong>Pax:</strong> 12&nbsp;&nbsp;
+          <span class="detail-dot">·</span> <strong>Guide:</strong> Anna Kovacs
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ── VAT summary ────────────────────────────────────────────────────────── -->
+  <div class="pdf-summary-wrap">
+    <table class="pdf-summary">
+      <tbody>
+        <tr><td>Net 13%</td><td class="right">€216.00</td></tr>
+        <tr><td>VAT 13%</td><td class="right">€28.08</td></tr>
+        <tr><td>Net 20%</td><td class="right">€36.00</td></tr>
+        <tr><td>VAT 20%</td><td class="right">€7.20</td></tr>
+        <tr class="summary-divider"><td colspan="2"></td></tr>
+        <tr class="summary-total"><td>Total</td><td class="right">€287.28</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── Payment method ─────────────────────────────────────────────────────── -->
+  <div class="pdf-payment">Payment Method: Bank Transfer</div>
+
+  <!-- ── Footer text ───────────────────────────────────────────────────────── -->
+  <div class="pdf-footer-text">
+    Thank you for choosing Good Vienna Tours! We look forward to welcoming you again.
+  </div>
+
+  <!-- ── Company footer ────────────────────────────────────────────────────── -->
+  <hr class="pdf-divider">
+  <div class="pdf-footer-cols">
+    <div class="pdf-footer-col">
+      <div>Good Vienna Tours GmbH</div>
+      <div>Stephansplatz 1</div>
+      <div>1010 Wien, Austria</div>
+    </div>
+    <div class="pdf-footer-col">
+      <div><strong>Bankverbindung:</strong> Erste Bank</div>
+      <div><strong>Kontoinhaber:</strong> Good Vienna Tours GmbH</div>
+      <div><strong>IBAN:</strong> AT12 2011 1234 5678 9012</div>
+      <div><strong>BIC:</strong> GIBAATWWXXX</div>
+    </div>
+    <div class="pdf-footer-col">
+      <div><strong>Firma &amp; Rechtsform:</strong> GmbH</div>
+      <div><strong>Firmensitz:</strong> Wien</div>
+      <div><strong>FB-Gericht:</strong> Handelsgericht Wien</div>
+      <div><strong>FB-Nummer:</strong> FN 123456 a</div>
+    </div>
+  </div>
+
+</div>

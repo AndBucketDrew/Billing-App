@@ -60,6 +60,25 @@
     </mat-card-content>
   </mat-card>
 
+  <!-- PDF Preview Toggle -->
+  <mat-card class="pdf-preview-card">
+    <mat-card-content>
+      <div class="pdf-preview-header" (click)="showPdfPreview = !showPdfPreview">
+        <div class="pdf-preview-title">
+          <mat-icon>picture_as_pdf</mat-icon>
+          <span>Sample PDF Output</span>
+          <span class="pdf-preview-hint">— see what a generated invoice looks like</span>
+        </div>
+        <mat-icon class="pdf-preview-chevron" [class.open]="showPdfPreview">
+          expand_more
+        </mat-icon>
+      </div>
+      <div class="pdf-preview-body" *ngIf="showPdfPreview">
+        <app-pdf-preview></app-pdf-preview>
+      </div>
+    </mat-card-content>
+  </mat-card>
+
   <!-- Invoices Table -->
   <mat-card class="table-card">
     <mat-card-content>

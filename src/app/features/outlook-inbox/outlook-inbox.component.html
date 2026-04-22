@@ -69,11 +69,11 @@
   </div>
 
   <!-- ── Config notice ───────────────────────────────────────────────────── -->
-  <div class="notice-bar" *ngIf="settings && !settings.clientId">
-    <mat-icon>warning</mat-icon>
+  <div class="notice-bar notice-bar--demo">
+    <mat-icon>desktop_windows</mat-icon>
     <span>
-      <strong>Azure Client ID not configured.</strong>
-      Enter it in the Settings section below before connecting.
+      <strong>Desktop-only feature.</strong>
+      Outlook integration requires the app to run locally as an Electron desktop application. It is not available in this web demo.
     </span>
   </div>
 

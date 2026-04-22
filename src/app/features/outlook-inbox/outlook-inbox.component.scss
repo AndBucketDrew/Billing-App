@@ -124,6 +124,14 @@
     height: 18px;
     flex-shrink: 0;
   }
+
+  &--demo {
+    background: #e8f4fd;
+    border-color: rgba(3, 102, 214, 0.25);
+    color: #0550ae;
+
+    mat-icon { color: #0969da; }
+  }
 }
 
 // ─── Table Card ───────────────────────────────────────────────────────────────
