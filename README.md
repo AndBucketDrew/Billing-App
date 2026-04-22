@@ -2,13 +2,14 @@
 
 A desktop billing and invoice management application. Packaged as a cross-platform Electron app with an Angular frontend.
 
+For a full list of changes see [CHANGELOG.md](CHANGELOG.md).
+
 ---
 
 ## Stack
 
-**Frontend:** Angular 19.2 (standalone components, lazy-loaded feature modules), Angular Material 19.2, RxJS 7.8  
-**Desktop runtime:** Electron 29 with context isolation and a typed IPC preload bridge   
-**Build:** Angular CLI 19.2, electron-builder 24.13 (NSIS/DMG/AppImage)
+**Frontend:** Angular 19.2 (non-standalone components, lazy-loaded feature modules), Angular Material, RxJS
+**Desktop runtime:** Electron 29 with context isolation and a typed IPC preload bridge
 
 ---
 
@@ -19,18 +20,19 @@ The app follows a strict main/renderer separation. The Angular renderer never to
 **Main process modules (`electron/`):**
 - `main.ts` — IPC handler registration, JSON file persistence, single-instance lock
 - `auth/msal-auth.ts` — MSAL Node OAuth2 flow; tokens encrypted at rest via `electron.safeStorage`
-- `graph/graph-client.ts` — Minimal Microsoft Graph REST wrapper (`/me/messages`, attachments)
+- `graph/graph-client.ts` — Minimal Microsoft Graph REST wrapper
 - `graph/mail-poller.ts` — Interval-based background polling; emits push IPC events to renderer
 - `ipc/outlook-ipc.ts` — Outlook IPC channel registration
 
 **Angular feature modules (`src/app/features/`):**
-- `invoice-list` / `invoice-editor` — Reactive form-driven invoice CRUD with per-line VAT
+- `invoice-list` / `invoice-editor` — Reactive form-driven invoice CRUD
 - `tours` — Tour catalog management
 - `settings` — Company profile, logo, bank details, Outlook config
 - `outlook-inbox` — Inbox monitoring UI; displays detected invoices with confidence scores
+- `dashboard` — Overview monitoring UI; displays recent invoices list, quick-action buttons
 
 **Core services (`src/app/core/services/`):**
-- `ElectronService` — IPC bridge with a browser mock for `ng serve` development
+- `ElectronService` — IPC bridge with a browser mock for `ng serve` development used on 'mock-data-demo' branch
 - `CalculationService` — Pure VAT breakdown and line-item totals
 - `PdfGeneratorService` — Client-side PDF assembly via pdfmake (logos, QR codes, multi-language labels)
 - `ExcelExportService` — Year-based XLSX workbook generation via the `xlsx` library
@@ -51,11 +53,11 @@ No database. All state lives in JSON files written to Electron's `userData` dire
 
 ## Microsoft Graph / Outlook Integration
 
-Authentication uses `@azure/msal-node` 5.1 with a multi-tenant Azure AD app registration. The OAuth2 flow opens the system browser for interactive login; subsequent requests use silent token refresh with OS-keychain-backed token storage. Scopes: `Mail.Read`, `offline_access`.
+Authentication uses `@azure/msal-node` with a multi-tenant Azure AD app registration. The OAuth2 flow opens the system browser for interactive login... subsequent requests use silent token refresh with OS-keychain-backed token storage. Scopes: `Mail.Read`, `offline_access`.
 
 The `MailPoller` runs on a configurable interval (default 5 min) in the main process. For each poll cycle it fetches messages with attachments since the last checkpoint, runs them through the `InvoiceDetector` scoring engine, and pushes an `outlook:invoicesDetected` IPC event to the renderer.
 
-**InvoiceDetector** is a pure heuristic scoring engine. Each attachment is scored 0-100 across signals: filename keywords, email subject, body text, MIME type, sender domain, and file extension. Scores map to three confidence levels (`high >= 70`, `medium 35-69`, `low < 35`). High-confidence hits are auto-suggested; medium requires user confirmation. Multilingual keyword sets cover German (`Rechnung`), English, Spanish, and Italian.
+**InvoiceDetector** is a pure heuristic scoring engine. Each attachment is scored 0-100 across signals: filename keywords, email subject, body text, sender domain, and file extension. Scores map to three confidence levels (`high >= 70`, `medium 35-69`, `low < 35`). High-confidence hits are auto-suggested; medium requires user confirmation. Multilingual keyword sets cover German (`Rechnung`), English, Spanish, and Italian.
 
 ---
 
