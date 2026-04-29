@@ -314,6 +314,19 @@ ipcMain.handle('excel:save', async (_, excelBase64: string, filename: string): P
 });
 
 // ============================================
+// DEV CERT BYPASS (localhost self-signed cert)
+// ============================================
+
+app.on('certificate-error', (event, _webContents, url, _error, _certificate, callback) => {
+  if (url.startsWith('https://localhost')) {
+    event.preventDefault();
+    callback(true);
+  } else {
+    callback(false);
+  }
+});
+
+// ============================================
 // APP LIFECYCLE
 // ============================================
 

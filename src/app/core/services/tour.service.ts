@@ -1,7 +1,9 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable } from 'rxjs';
-import { ElectronService } from './electron.service';
-import type { Tour } from '../models/domain.models';
+import { HttpClient } from '@angular/common/http';
+import { BehaviorSubject, Observable, firstValueFrom } from 'rxjs';
+import { API_BASE } from './auth.service';
+import { TenantProductDto } from '../models/api.models';
+import type { Tour, VatRate } from '../models/domain.models';
 
 @Injectable({
   providedIn: 'root'
@@ -10,93 +12,102 @@ export class TourService {
   private toursSubject = new BehaviorSubject<Tour[]>([]);
   public tours$: Observable<Tour[]> = this.toursSubject.asObservable();
 
-  constructor(private electron: ElectronService) {
+  constructor(private http: HttpClient) {
     this.loadTours();
   }
 
-  /**
-   * Load all tours from storage
-   */
   async loadTours(): Promise<void> {
     try {
-      const tours = await this.electron.api.tour.getAll();
-      this.toursSubject.next(tours);
+      const products = await firstValueFrom(
+        this.http.get<TenantProductDto[]>(`${API_BASE}/api/BillingProduct`)
+      );
+      this.toursSubject.next(products.map(p => this.toTour(p)));
     } catch (error) {
-      console.error('Error loading tours:', error);
+      console.error('Error loading products:', error);
       throw error;
     }
   }
 
-  /**
-   * Get current tours value
-   */
   getTours(): Tour[] {
     return this.toursSubject.value;
   }
 
-  /**
-   * Get current tours synchronously (from BehaviorSubject value)
-   * Used for meeting point auto-fill logic
-   */
   getToursSync(): Tour[] {
     return this.toursSubject.value;
   }
 
-  /**
-   * Get tour by ID
-   */
   getTourById(id: string): Tour | undefined {
-    return this.toursSubject.value.find((t: Tour) => t.id === id);
+    return this.toursSubject.value.find(t => t.id === id);
   }
 
-  /**
-   * Create a new tour
-   */
   async createTour(tourData: {
     name: string;
     description: string;
     meetingPoint: string;
     basePriceNet: number;
+    defaultVatPercentage?: number;
   }): Promise<Tour> {
     try {
-      const newTour = await this.electron.api.tour.create(tourData);
-      await this.loadTours(); // Refresh list
-      return newTour;
+      const dto = await firstValueFrom(
+        this.http.post<TenantProductDto>(`${API_BASE}/api/BillingProduct`, {
+          name: tourData.name,
+          description: tourData.description,
+          meetingPoint: tourData.meetingPoint,
+          basePriceNet: tourData.basePriceNet,
+          defaultVatPercentage: tourData.defaultVatPercentage ?? 0
+        })
+      );
+      await this.loadTours();
+      return this.toTour(dto);
     } catch (error) {
-      console.error('Error creating tour:', error);
+      console.error('Error creating product:', error);
       throw error;
     }
   }
 
-  /**
-   * Update an existing tour
-   */
   async updateTour(id: string, updates: Partial<Tour>): Promise<Tour | null> {
     try {
-      const updated = await this.electron.api.tour.update(id, updates);
-      if (updated) {
-        await this.loadTours(); // Refresh list
-      }
-      return updated;
+      const current = this.getTourById(id);
+      if (!current) return null;
+
+      const dto = await firstValueFrom(
+        this.http.put<TenantProductDto>(`${API_BASE}/api/BillingProduct/${id}`, {
+          name: updates.name ?? current.name,
+          description: updates.description ?? current.description,
+          meetingPoint: updates.meetingPoint ?? current.meetingPoint,
+          basePriceNet: updates.basePriceNet ?? current.basePriceNet,
+          defaultVatPercentage: (updates as any).defaultVatPercentage ?? current.vatPercentage ?? 0
+        })
+      );
+      await this.loadTours();
+      return this.toTour(dto);
     } catch (error) {
-      console.error('Error updating tour:', error);
+      console.error('Error updating product:', error);
       throw error;
     }
   }
 
-  /**
-   * Delete a tour
-   */
   async deleteTour(id: string): Promise<boolean> {
     try {
-      const success = await this.electron.api.tour.delete(id);
-      if (success) {
-        await this.loadTours(); // Refresh list
-      }
-      return success;
+      await firstValueFrom(this.http.delete(`${API_BASE}/api/BillingProduct/${id}`));
+      await this.loadTours();
+      return true;
     } catch (error) {
-      console.error('Error deleting tour:', error);
+      console.error('Error deleting product:', error);
       throw error;
     }
+  }
+
+  private toTour(dto: TenantProductDto): Tour {
+    return {
+      id: dto.id,
+      name: dto.name,
+      description: dto.description ?? '',
+      meetingPoint: dto.meetingPoint ?? '',
+      basePriceNet: dto.basePriceNet,
+      vatPercentage: dto.defaultVatPercentage as VatRate,
+      createdAt: '',
+      updatedAt: ''
+    };
   }
 }
