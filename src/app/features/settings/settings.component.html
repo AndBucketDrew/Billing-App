@@ -60,13 +60,23 @@
           </mat-error>
         </mat-form-field>
 
-        <!-- City/Country -->
+        <!-- City -->
         <mat-form-field appearance="outline" class="form-field-full">
-          <mat-label>{{ 'SETTINGS.CITY_COUNTRY' | translate }}</mat-label>
-          <input matInput formControlName="cityCountry" [placeholder]="'1010 Wien, Österreich'" required>
+          <mat-label>{{ 'SETTINGS.CITY' | translate }}</mat-label>
+          <input matInput formControlName="city" [placeholder]="'1010 Wien'" required>
+          <mat-icon matPrefix>location_on</mat-icon>
+          <mat-error *ngIf="settingsForm.get('city')?.invalid">
+            {{ getErrorMessage('city') }}
+          </mat-error>
+        </mat-form-field>
+
+        <!-- Country -->
+        <mat-form-field appearance="outline" class="form-field-full">
+          <mat-label>{{ 'SETTINGS.COUNTRY' | translate }}</mat-label>
+          <input matInput formControlName="country" [placeholder]="'Austria'" required>
           <mat-icon matPrefix>public</mat-icon>
-          <mat-error *ngIf="settingsForm.get('cityCountry')?.invalid">
-            {{ getErrorMessage('cityCountry') }}
+          <mat-error *ngIf="settingsForm.get('country')?.invalid">
+            {{ getErrorMessage('country') }}
           </mat-error>
         </mat-form-field>
 

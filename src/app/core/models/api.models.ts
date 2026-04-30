@@ -81,11 +81,12 @@ export interface BillingInvoiceVatBreakdownDto {
   grossTotal: number;
 }
 
-export interface BillingSettingsDto {
+export interface TenantSettingDto {
   tenantId: string;
   companyName: string;
   companyAddress?: string;
-  cityCountry?: string;
+  city?: string;
+  country?: string;
   vatNumber?: string;
   logoPath?: string;
   defaultVatPercentage: number;

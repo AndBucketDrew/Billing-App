@@ -1,10 +1,10 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, firstValueFrom } from 'rxjs';
-import { API_BASE } from './auth.service';
+import { API_BASE, AuthService } from './auth.service';
 import { ElectronService } from './electron.service';
 import { TranslateService } from '@ngx-translate/core';
-import { BillingSettingsDto } from '../models/api.models';
+import { TenantSettingDto } from '../models/api.models';
 import type { CompanySettings } from '../models/domain.models';
 
 const LANG_KEY = 'app_language';
@@ -19,15 +19,18 @@ export class SettingsService {
   constructor(
     private http: HttpClient,
     private electron: ElectronService,
-    private translate: TranslateService
+    private translate: TranslateService,
+    private auth: AuthService
   ) {
-    this.loadSettings();
+    if (this.auth.isLoggedIn()) {
+      this.loadSettings();
+    }
   }
 
   async loadSettings(): Promise<void> {
     try {
       const dto = await firstValueFrom(
-        this.http.get<BillingSettingsDto>(`${API_BASE}/api/BillingSettings`)
+        this.http.get<TenantSettingDto>(`${API_BASE}/api/TenantSetting`)
       );
       const language = (localStorage.getItem(LANG_KEY) as 'de' | 'en') ?? 'de';
       const settings = this.toCompanySettings(dto, language);
@@ -35,7 +38,6 @@ export class SettingsService {
       this.translate.use(language);
     } catch (error) {
       console.error('Error loading billing settings:', error);
-      throw error;
     }
   }
 
@@ -49,9 +51,10 @@ export class SettingsService {
       const merged = { ...current, ...updates };
 
       const dto = await firstValueFrom(
-        this.http.put<BillingSettingsDto>(`${API_BASE}/api/BillingSettings`, {
+        this.http.put<TenantSettingDto>(`${API_BASE}/api/TenantSetting`, {
           companyAddress: merged.companyAddress,
-          cityCountry: merged.cityCountry,
+          city: merged.city,
+          country: merged.country,
           vatNumber: merged.vatNumber,
           logoPath: merged.logoPath,
           defaultVatPercentage: merged.defaultVatPercentage,
@@ -103,13 +106,14 @@ export class SettingsService {
     return this.settingsSubject.value.language;
   }
 
-  private toCompanySettings(dto: BillingSettingsDto, language: 'de' | 'en'): CompanySettings {
+  private toCompanySettings(dto: TenantSettingDto, language: 'de' | 'en'): CompanySettings {
     return {
       language,
       invoiceCounter: 1,
       companyName: dto.companyName ?? '',
       companyAddress: dto.companyAddress ?? '',
-      cityCountry: dto.cityCountry ?? '',
+      city: dto.city ?? '',
+      country: dto.country ?? '',
       vatNumber: dto.vatNumber ?? '',
       logoPath: dto.logoPath ?? '',
       defaultVatPercentage: dto.defaultVatPercentage as any,
@@ -131,7 +135,8 @@ export class SettingsService {
       invoiceCounter: 1,
       companyName: '',
       companyAddress: '',
-      cityCountry: '',
+      city: '',
+      country: '',
       vatNumber: '',
       logoPath: '',
       defaultVatPercentage: 13,

@@ -236,7 +236,7 @@ export class InvoiceService {
       guide: dto.guide,
       civitatisId: dto.civitatisId,
       paymentMethod: dto.paymentMethod ? this.fromApiPaymentMethod(dto.paymentMethod) : null,
-      language: dto.language as 'de' | 'en',
+      language: (dto.language as 'de' | 'en') || 'de',
       status: dto.status.toLowerCase() as 'draft' | 'finalized',
       lineItems: dto.lineItems.map(li => ({
         id: li.id,

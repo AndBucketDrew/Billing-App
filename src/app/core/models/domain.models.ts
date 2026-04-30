@@ -77,7 +77,8 @@ export interface CompanySettings {
   invoiceCounter: number;
   companyName: string;
   companyAddress: string;
-  cityCountry: string;
+  city: string;
+  country: string;
   vatNumber: string;
   logoPath?: string;
   defaultVatPercentage: VatRate;

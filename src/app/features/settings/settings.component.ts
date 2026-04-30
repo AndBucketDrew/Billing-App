@@ -47,7 +47,8 @@ export class SettingsComponent implements OnInit {
       // Basic company info
       companyName: ['', [Validators.required, Validators.minLength(2)]],
       companyAddress: ['', [Validators.required]],
-      cityCountry: ['', [Validators.required]],
+      city: ['', [Validators.required]],
+      country: ['', [Validators.required]],
       vatNumber: ['', [Validators.required]],
 
       // Bank details
@@ -87,7 +88,8 @@ export class SettingsComponent implements OnInit {
           invoiceCounter: settings.invoiceCounter ?? 1,
           companyName: settings.companyName,
           companyAddress: settings.companyAddress,
-          cityCountry: settings.cityCountry,
+          city: settings.city,
+          country: settings.country,
           vatNumber: settings.vatNumber,
           bankName: settings.bankName,
           accountHolder: settings.accountHolder,
@@ -130,7 +132,8 @@ export class SettingsComponent implements OnInit {
         invoiceCounter: formValue.invoiceCounter,
         companyName: formValue.companyName,
         companyAddress: formValue.companyAddress,
-        cityCountry: formValue.cityCountry,
+        city: formValue.city,
+        country: formValue.country,
         vatNumber: formValue.vatNumber,
         bankName: formValue.bankName,
         accountHolder: formValue.accountHolder,

@@ -106,7 +106,7 @@ export class PdfGeneratorService {
           stack: [
             { text: settings.companyName, style: 'companyName', alignment: 'right' },
             { text: settings.companyAddress, style: 'companyAddress', alignment: 'right' },
-            { text: settings.cityCountry, style: 'companyAddress', alignment: 'right' },
+            { text: [settings.city, settings.country].filter(Boolean).join(', '), style: 'companyAddress', alignment: 'right' },
             { text: `${t('SETTINGS.VAT_NUMBER')}: ${settings.vatNumber}`, style: 'companyAddress', alignment: 'right' }
           ]
         }
@@ -431,7 +431,8 @@ export class PdfGeneratorService {
     const col1: any[] = [];
     if (settings.companyName) col1.push({ text: settings.companyName, ...footerTextStyle });
     if (settings.companyAddress) col1.push({ text: settings.companyAddress, ...footerTextStyle });
-    if (settings.cityCountry) col1.push({ text: settings.cityCountry, ...footerTextStyle });
+    const cityCountry = [settings.city, settings.country].filter(Boolean).join(', ');
+    if (cityCountry) col1.push({ text: cityCountry, ...footerTextStyle });
 
     const col2: any[] = [];
     if (settings.bankName) col2.push(footerLine('Bankverbindung', settings.bankName));
