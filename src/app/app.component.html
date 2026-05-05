@@ -48,6 +48,17 @@
   </div>
 </header>
 
+<!-- Backup warning — shown when a data file was corrupt and restored from .bak -->
+<app-banner
+  *ngIf="backupWarning"
+  type="error"
+  icon="warning_amber"
+  (dismissed)="backupWarning = null">
+  <strong>{{ backupWarning }} was corrupt</strong> — your data was restored from the last backup.
+  The most recent save may be missing. You can find both files in
+  <code>%AppData%\Good Vienna TOurs\</code>.
+</app-banner>
+
 <!-- Main Content -->
 <div class="app-container">
   <router-outlet></router-outlet>

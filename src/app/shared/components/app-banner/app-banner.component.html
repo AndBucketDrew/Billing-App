@@ -1,0 +1,9 @@
+<div class="app-banner" [class.app-banner--error]="type === 'error'">
+  <mat-icon class="app-banner__icon">{{ icon }}</mat-icon>
+  <div class="app-banner__text">
+    <ng-content></ng-content>
+  </div>
+  <button class="app-banner__dismiss" mat-icon-button (click)="dismissed.emit()" aria-label="Dismiss">
+    <mat-icon>close</mat-icon>
+  </button>
+</div>

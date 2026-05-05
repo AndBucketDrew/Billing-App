@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { SettingsService } from './core/services/settings.service';
+import { ElectronService } from './core/services/electron.service';
 import { Router, NavigationEnd } from '@angular/router';
 import { RouterOutlet } from '@angular/router';
 import { CommonModule } from '@angular/common';
@@ -20,9 +21,11 @@ import { TranslateModule } from '@ngx-translate/core';
 export class AppComponent implements OnInit {
   title = 'Tour Billing';
   logoUrl: string | null = null;
+  backupWarning: string | null = null;
 
   constructor(
     private settingsService: SettingsService,
+    private electronService: ElectronService,
     private router: Router
   ) {
     this.router.events.subscribe(event => {
@@ -36,6 +39,11 @@ export class AppComponent implements OnInit {
     console.log('App initialized');
     console.log('Current route:', this.router.url);
     await this.loadLogo();
+
+    // Show a banner if a data file was corrupt and had to be restored from backup
+    this.electronService.api.data.on('data:restoredFromBackup', (filename) => {
+      this.backupWarning = filename;
+    });
   }
 
   private async loadLogo(): Promise<void> {

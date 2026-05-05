@@ -56,6 +56,12 @@ export interface ElectronAPI {
     save: (excelBase64: string, filename: string) => Promise<string | null>;
   };
 
+  // Data integrity push events (main → renderer)
+  data: {
+    on:  (event: 'data:restoredFromBackup', handler: (filename: string) => void) => void;
+    off: (event: 'data:restoredFromBackup', handler: (filename: string) => void) => void;
+  };
+
   // ── Outlook / Microsoft Graph ───────────────────────────────────────────────
   outlook: {
     // Auth
@@ -137,6 +143,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   excel: {
     save: (excelBase64: string, filename: string) =>
       ipcRenderer.invoke('excel:save', excelBase64, filename)
+  },
+
+  data: {
+    on: (event: string, handler: (filename: string) => void) => {
+      if (event === 'data:restoredFromBackup') {
+        ipcRenderer.on(event, (_ipcEvent, filename) => handler(filename));
+      }
+    },
+    off: (event: string, handler: (...args: any[]) => void) => {
+      ipcRenderer.removeListener(event, handler);
+    },
   },
 
   // ── Outlook ──────────────────────────────────────────────────────────────────

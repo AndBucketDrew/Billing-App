@@ -113,7 +113,7 @@
     "LINE_TOTAL": "Zeilensumme",
     "NET_TOTAL": "Summe Netto {{vat}}%",
     "VAT_AMOUNT": "MwSt. {{vat}}%",
-    "VAT_REVERSED": "Umkehrung der Steuerschuldnerschaft",
+    "VAT_REVERSED": "Reverse Charge System",
     "GROSS_TOTAL": "Summe Brutto",
     "TOTAL_NET": "Gesamtsumme Netto",
     "TOTAL_VAT": "Gesamtsumme MwSt.",
@@ -167,7 +167,7 @@
     "SAVE_SUCCESS": "Einstellungen erfolgreich gespeichert"
   },
   "VAT": {
-    "RATE_0": "0% (Umkehrung der Steuerschuldnerschaft)",
+    "RATE_0": "0% (Reverse Charge System)",
     "RATE_10": "10%",
     "RATE_13": "13%",
     "RATE_20": "20%"

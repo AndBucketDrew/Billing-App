@@ -111,7 +111,7 @@
     "LINE_TOTAL": "Line Total",
     "NET_TOTAL": "Net Total {{vat}}%",
     "VAT_AMOUNT": "VAT {{vat}}%",
-    "VAT_REVERSED": "Reverse Charge",
+    "VAT_REVERSED": "Reverse Charge System",
     "GROSS_TOTAL": "Gross Total",
     "TOTAL_NET": "Total Net",
     "TOTAL_VAT": "Total VAT",
@@ -165,7 +165,7 @@
     "SAVE_SUCCESS": "Settings saved successfully"
   },
   "VAT": {
-    "RATE_0": "0% (Reverse Charge)",
+    "RATE_0": "0% (Reverse Charge System)",
     "RATE_10": "10%",
     "RATE_13": "13%",
     "RATE_20": "20%"

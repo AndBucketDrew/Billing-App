@@ -29,6 +29,7 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 
 // Shared Components
 import { LanguageSwitcherComponent } from './components/language-switcher/language-switcher.component';
+import { AppBannerComponent } from './components/app-banner/app-banner.component';
 
 const MATERIAL_MODULES = [
   MatToolbarModule,
@@ -57,7 +58,8 @@ const MATERIAL_MODULES = [
 
 @NgModule({
   declarations: [
-    LanguageSwitcherComponent
+    LanguageSwitcherComponent,
+    AppBannerComponent
   ],
   imports: [
     CommonModule,
@@ -72,7 +74,8 @@ const MATERIAL_MODULES = [
     ReactiveFormsModule,
     TranslateModule,
     ...MATERIAL_MODULES,
-    LanguageSwitcherComponent
+    LanguageSwitcherComponent,
+    AppBannerComponent
   ]
 })
 export class SharedModule { }

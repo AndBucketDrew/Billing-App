@@ -81,13 +81,42 @@ function ensureDataFiles(): void {
   }
 }
 
-function readJsonFile<T>(filePath: string): T {
-  const data = fs.readFileSync(filePath, 'utf-8');
-  return JSON.parse(data);
+// Write in three steps to protect against mid-write crashes:
+//   1. Write new content to a .tmp file  — if the process dies here, the real file is untouched
+//   2. Copy the current file to .bak     — preserves the last known-good state before we replace it
+//   3. Rename .tmp → real file           — rename is a single OS operation, so there is no window
+//                                          where the file is partially written or missing
+function writeJsonFile<T>(filePath: string, data: T): void {
+  const tmpPath = filePath + '.tmp';
+  const bakPath = filePath + '.bak';
+
+  fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2), 'utf-8');
+
+  if (fs.existsSync(filePath)) {
+    fs.copyFileSync(filePath, bakPath);
+  }
+
+  fs.renameSync(tmpPath, filePath);
 }
 
-function writeJsonFile<T>(filePath: string, data: T): void {
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+// Try the main file first. If it fails to parse (truncated write, manual edit gone wrong, etc.)
+// fall back to the .bak snapshot so one bad save doesn't take the whole app down.
+function readJsonFile<T>(filePath: string): T {
+  try {
+    const data = fs.readFileSync(filePath, 'utf-8');
+    return JSON.parse(data);
+  } catch (err) {
+    const bakPath = filePath + '.bak';
+    if (fs.existsSync(bakPath)) {
+      console.warn(`[data] ${path.basename(filePath)} is corrupt — loading from .bak`, err);
+      // Push a visible warning to the renderer so the user knows something happened
+      mainWindow?.webContents.send('data:restoredFromBackup', path.basename(filePath));
+      const backup = fs.readFileSync(bakPath, 'utf-8');
+      return JSON.parse(backup);
+    }
+    // No backup available — surface the original error
+    throw err;
+  }
 }
 
 // ============================================

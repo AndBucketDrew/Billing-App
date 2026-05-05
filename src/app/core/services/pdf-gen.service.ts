@@ -324,7 +324,7 @@ export class PdfGeneratorService {
     invoice.vatBreakdown.forEach(vat => {
       if (vat.vatPercentage === 0) {
         summaryTable.push([
-          { text: lang === 'de' ? 'Umkehr.' : 'Rev. Charge', style: 'summaryLabel' },
+          { text: lang === 'de' ? 'Reverse Charge System' : 'Reverse Charge System', style: 'summaryLabel' },
           { text: this.formatCurrency(vat.netTotal, lang), style: 'summaryValue', alignment: 'right' }
         ]);
       } else {
@@ -534,7 +534,7 @@ export class PdfGeneratorService {
 
   private formatVat(vat: number, language: 'de' | 'en'): string {
     if (vat === 0) {
-      return language === 'de' ? 'Umkehr.' : 'Rev. Charge';
+      return language === 'de' ? 'Reverse Charge 0%' : 'Reverse Charge 0%';
     }
     return `${vat}%`;
   }

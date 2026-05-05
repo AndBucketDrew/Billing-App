@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [1.0.3]
+
+### Added
+
+* **Data integrity protection** for all local JSON files (`invoices.json`, `tours.json`, `settings.json`)
+  * A `.bak` snapshot of the previous good state is kept alongside each data file in `%AppData%\Good Vienna TOurs\`
+  * On startup, if a data file fails to parse, the app automatically falls back to the `.bak` and continues normally instead of crashing
+* **`AppBannerComponent`** — reusable sticky banner component (`warning` / `error` variants) added to the shared module for future use
+
+---
+
 ## [1.0.2]
 
 ### Added
