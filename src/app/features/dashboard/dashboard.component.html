@@ -87,7 +87,7 @@
         </div>
 
         <div class="recent-list" *ngIf="recentInvoices.length > 0; else noInvoices">
-          <div *ngFor="let invoice of recentInvoices" class="recent-item" (click)="navigate('/invoices')">
+          <div *ngFor="let invoice of recentInvoices" class="recent-item" (click)="navigateToInvoice(invoice)">
             <div class="recent-item-left">
               <div class="invoice-num">{{ invoice.invoiceNumber }}</div>
               <div class="customer-name">{{ invoice.customerName }}</div>

@@ -103,4 +103,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
   navigate(path: string): void {
     this.router.navigate([path]);
   }
+
+  navigateToInvoice(invoice: Invoice): void {
+    this.router.navigate(['/invoices/edit', invoice.id]);
+  }
 }
