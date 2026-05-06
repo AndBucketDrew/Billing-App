@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, firstValueFrom } from 'rxjs';
 import { API_BASE } from './auth.service';
-import { TenantProductDto } from '../models/api.models';
+import { ProductDto } from '../models/api.models';
 import type { Tour, VatRate } from '../models/domain.models';
 
 @Injectable({
@@ -19,7 +19,7 @@ export class TourService {
   async loadTours(): Promise<void> {
     try {
       const products = await firstValueFrom(
-        this.http.get<TenantProductDto[]>(`${API_BASE}/api/BillingProduct`)
+        this.http.get<ProductDto[]>(`${API_BASE}/api/BillingProduct`)
       );
       this.toursSubject.next(products.map(p => this.toTour(p)));
     } catch (error) {
@@ -49,7 +49,7 @@ export class TourService {
   }): Promise<Tour> {
     try {
       const dto = await firstValueFrom(
-        this.http.post<TenantProductDto>(`${API_BASE}/api/BillingProduct`, {
+        this.http.post<ProductDto>(`${API_BASE}/api/BillingProduct`, {
           name: tourData.name,
           description: tourData.description,
           meetingPoint: tourData.meetingPoint,
@@ -71,7 +71,7 @@ export class TourService {
       if (!current) return null;
 
       const dto = await firstValueFrom(
-        this.http.put<TenantProductDto>(`${API_BASE}/api/BillingProduct/${id}`, {
+        this.http.put<ProductDto>(`${API_BASE}/api/BillingProduct/${id}`, {
           name: updates.name ?? current.name,
           description: updates.description ?? current.description,
           meetingPoint: updates.meetingPoint ?? current.meetingPoint,
@@ -98,7 +98,7 @@ export class TourService {
     }
   }
 
-  private toTour(dto: TenantProductDto): Tour {
+  private toTour(dto: ProductDto): Tour {
     return {
       id: dto.id,
       name: dto.name,

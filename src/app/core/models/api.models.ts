@@ -18,14 +18,14 @@ export interface AppClaimDto {
   claimValue: string;
 }
 
-export interface TenantProductDto {
+export interface ProductDto {
   id: string;
   name: string;
   description?: string;
   meetingPoint?: string;
   basePriceNet: number;
   defaultVatPercentage: number;
-  tenantId: string;
+  tenantId?: string;
 }
 
 export interface BillingInvoiceDto {
@@ -61,7 +61,7 @@ export interface BillingInvoiceDto {
 export interface BillingInvoiceLineItemDto {
   id: string;
   invoiceId: string;
-  tenantProductId?: string;
+  productId?: string;
   description: string;
   quantity: number;
   unitPriceNet: number;
@@ -120,7 +120,7 @@ export interface AddBillingInvoiceRequest {
 }
 
 export interface BillingInvoiceLineItemInput {
-  tenantProductId?: string;
+  productId?: string;
   description: string;
   quantity: number;
   unitPriceNet: number;

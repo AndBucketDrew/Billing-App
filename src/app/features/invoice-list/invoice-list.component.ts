@@ -68,7 +68,9 @@ export class InvoiceListComponent implements OnInit {
     }
   }
 
-  ngOnInit(): void { }
+  ngOnInit(): void {
+    this.invoiceService.loadInvoices();
+  }
 
   createInvoice(): void {
     this.router.navigate(['/invoices/create']);

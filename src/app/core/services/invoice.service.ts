@@ -240,7 +240,7 @@ export class InvoiceService {
       status: dto.status.toLowerCase() as 'draft' | 'finalized',
       lineItems: dto.lineItems.map(li => ({
         id: li.id,
-        tourId: li.tenantProductId,
+        tourId: li.productId,
         description: li.description,
         quantity: li.quantity,
         unitPriceNet: li.unitPriceNet,
