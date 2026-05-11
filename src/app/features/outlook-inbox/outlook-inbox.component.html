@@ -19,7 +19,7 @@
         <div class="header-actions">
           <!-- Not connected -->
           <ng-container *ngIf="!account">
-            <button mat-raised-button (click)="login()" [disabled]="isLoading">
+            <button mat-raised-button color="primary" (click)="login()" [disabled]="isLoading">
               <mat-icon>login</mat-icon>
               Connect Outlook
             </button>
@@ -45,12 +45,97 @@
         </div>
       </div>
 
+      <!-- ── Setup steps — shown when not signed in ──────────────────────── -->
+      <div class="setup-steps" *ngIf="!account">
+        <div class="setup-step" [class.step-done]="settings?.clientId">
+          <div class="step-badge">
+            <mat-icon *ngIf="settings?.clientId">check</mat-icon>
+            <span *ngIf="!settings?.clientId">1</span>
+          </div>
+          <div class="step-text">
+            <strong>Configure Azure Client ID</strong>
+            <span>Paste your Application (Client) ID in the Settings card below</span>
+          </div>
+        </div>
+
+        <div class="setup-step">
+          <div class="step-badge">2</div>
+          <div class="step-text">
+            <strong>Sign in with Microsoft</strong>
+            <span>Your browser opens for a secure, one-time sign-in</span>
+          </div>
+        </div>
+
+        <div class="setup-step">
+          <div class="step-badge">3</div>
+          <div class="step-text">
+            <strong>Fetch or auto-poll for invoices</strong>
+            <span>We'll scan your inbox for PDF invoice attachments</span>
+          </div>
+        </div>
+      </div>
+
       <mat-progress-bar
         *ngIf="isLoading"
         mode="indeterminate"
         class="card-progress">
       </mat-progress-bar>
     </mat-card-content>
+  </mat-card>
+
+  <!-- ── Config notice ───────────────────────────────────────────────────── -->
+  <div class="notice-bar" *ngIf="settings && !settings.clientId">
+    <mat-icon>warning</mat-icon>
+    <span>
+      <strong>Azure Client ID not configured.</strong>
+      Complete Step 1 in the Settings card below, then click Connect Outlook.
+    </span>
+  </div>
+
+  <!-- ── Settings card ───────────────────────────────────────────────────── -->
+  <mat-card class="settings-card" id="outlook-settings" *ngIf="settings">
+    <mat-card-header>
+      <mat-card-title>
+        <mat-icon>settings</mat-icon>
+        Outlook Settings
+      </mat-card-title>
+    </mat-card-header>
+
+    <mat-card-content>
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="form-field-full">
+          <mat-label>Azure Application (Client) ID</mat-label>
+          <input matInput [(ngModel)]="settings.clientId"
+            placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+          <mat-hint>
+            portal.azure.com → App Registrations → your app → Overview → Application (Client) ID
+          </mat-hint>
+        </mat-form-field>
+      </div>
+
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="form-field-full">
+          <mat-label>Inbox root folder</mat-label>
+          <input matInput [(ngModel)]="settings.inboxFolder"
+            placeholder="C:\Users\You\Documents\Tour Billing\Inbox">
+        </mat-form-field>
+      </div>
+
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="form-field-narrow">
+          <mat-label>Poll interval (minutes)</mat-label>
+          <input matInput type="number" [(ngModel)]="settings.pollIntervalMinutes"
+            min="1" max="60">
+        </mat-form-field>
+      </div>
+    </mat-card-content>
+
+    <mat-card-actions>
+      <button mat-raised-button (click)="saveSettings()">
+        <mat-icon>save</mat-icon>
+        Save Settings
+      </button>
+    </mat-card-actions>
   </mat-card>
 
   <!-- ── Status bar ──────────────────────────────────────────────────────── -->
@@ -65,15 +150,6 @@
     <span class="bar-spacer"></span>
     <span class="pending-count" *ngIf="pendingCount > 0">
       {{ pendingCount }} pending
-    </span>
-  </div>
-
-  <!-- ── Config notice ───────────────────────────────────────────────────── -->
-  <div class="notice-bar" *ngIf="settings && !settings.clientId">
-    <mat-icon>warning</mat-icon>
-    <span>
-      <strong>Azure Client ID not configured.</strong>
-      Enter it in the Settings section below before connecting.
     </span>
   </div>
 
@@ -213,50 +289,5 @@
     </div>
   </mat-card>
 
-  <!-- ── Settings card ───────────────────────────────────────────────────── -->
-  <mat-card class="settings-card" *ngIf="settings">
-    <mat-card-header>
-      <mat-card-title>
-        <mat-icon>settings</mat-icon>
-        Outlook Settings
-      </mat-card-title>
-    </mat-card-header>
-
-    <mat-card-content>
-      <div class="form-row">
-        <mat-form-field appearance="outline" class="form-field-full">
-          <mat-label>Azure Application (Client) ID</mat-label>
-          <input matInput [(ngModel)]="settings.clientId"
-            placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
-          <mat-hint>
-            portal.azure.com → App Registrations → redirect URI: http://localhost
-          </mat-hint>
-        </mat-form-field>
-      </div>
-
-      <div class="form-row">
-        <mat-form-field appearance="outline" class="form-field-full">
-          <mat-label>Inbox root folder</mat-label>
-          <input matInput [(ngModel)]="settings.inboxFolder"
-            placeholder="C:\Users\You\Documents\Tour Billing\Inbox">
-        </mat-form-field>
-      </div>
-
-      <div class="form-row">
-        <mat-form-field appearance="outline" class="form-field-narrow">
-          <mat-label>Poll interval (minutes)</mat-label>
-          <input matInput type="number" [(ngModel)]="settings.pollIntervalMinutes"
-            min="1" max="60">
-        </mat-form-field>
-      </div>
-    </mat-card-content>
-
-    <mat-card-actions>
-      <button mat-raised-button (click)="saveSettings()">
-        <mat-icon>save</mat-icon>
-        Save Settings
-      </button>
-    </mat-card-actions>
-  </mat-card>
 
 </div>
