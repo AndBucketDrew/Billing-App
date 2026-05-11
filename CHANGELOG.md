@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [1.0.4]
+
+### Fixed
+
+* **Mail poller `lastChecked` persistence** — the poller now saves the last successful poll timestamp in the app data folder; on restart it resumes from where it left off instead of always re-scanning the previous 24 hours, eliminating the risk of missing emails on the initial scan after a restart
+* **Poll error no longer advances the scan window** — if a poll fails  the `lastChecked` timestamp is rolled back so the failed time window is retried on the next interval
+
+---
+
 ## [1.0.3]
 
 ### Added
