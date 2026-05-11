@@ -11,22 +11,29 @@
  */
 
 import { BrowserWindow } from 'electron';
+import * as fs from 'fs';
+import * as path from 'path';
 import { GraphClient } from './graph-client';
 import { InvoiceDetector, DetectedInvoice } from '../invoice-detector/invoice-detector';
+
+const STATE_FILENAME = 'outlook-poll-state.json';
+const FALLBACK_LOOKBACK_MS = 24 * 60 * 60 * 1000;
 
 export class MailPoller {
   private timer: ReturnType<typeof setInterval> | null = null;
   private isRunning = false;
   private lastChecked: Date;
   private readonly detector = new InvoiceDetector();
+  private readonly stateFile: string;
 
   constructor(
     private readonly graph: GraphClient,
     /** Getter instead of direct reference — window may be recreated */
     private readonly getWindow: () => BrowserWindow | null,
+    stateDir: string,
   ) {
-    // On first poll fetch the last 24 h so we catch recent emails immediately
-    this.lastChecked = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    this.stateFile = path.join(stateDir, STATE_FILENAME);
+    this.lastChecked = this.loadLastChecked();
   }
 
   // ─── Control ───────────────────────────────────────────────────────────────
@@ -72,6 +79,8 @@ export class MailPoller {
         detected.push(...this.detector.analyze(msg, attachments));
       }
 
+      this.saveLastChecked(this.lastChecked);
+
       if (detected.length > 0) {
         win.webContents.send('outlook:invoicesDetected', detected);
       }
@@ -81,9 +90,33 @@ export class MailPoller {
         found: detected.length,
       });
     } catch (err: unknown) {
+      // Roll back so the failed window is retried on the next poll
+      this.lastChecked = since;
       const message = err instanceof Error ? err.message : String(err);
       const w = this.getWindow();
       w?.webContents.send('outlook:pollError', message);
+    }
+  }
+
+  // ─── Persistence ───────────────────────────────────────────────────────────
+
+  private loadLastChecked(): Date {
+    try {
+      const raw = fs.readFileSync(this.stateFile, 'utf-8');
+      const { lastChecked } = JSON.parse(raw);
+      const d = new Date(lastChecked);
+      if (!isNaN(d.getTime())) return d;
+    } catch {
+      // file absent or corrupt — fall through to default
+    }
+    return new Date(Date.now() - FALLBACK_LOOKBACK_MS);
+  }
+
+  private saveLastChecked(d: Date): void {
+    try {
+      fs.writeFileSync(this.stateFile, JSON.stringify({ lastChecked: d.toISOString() }));
+    } catch {
+      // non-fatal: worst case we re-scan a small window on next restart
     }
   }
 }

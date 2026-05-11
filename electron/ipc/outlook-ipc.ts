@@ -91,7 +91,7 @@ export function registerOutlookIpcHandlers(
     if (!auth) {
       auth = new MsalAuthService(userDataPath, settings.clientId);
       graph = new GraphClient(auth);
-      poller = new MailPoller(graph, getWindow);
+      poller = new MailPoller(graph, getWindow, userDataPath);
     }
 
     return { auth, graph: graph!, poller: poller! };
