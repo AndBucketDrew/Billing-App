@@ -92,52 +92,6 @@
     </span>
   </div>
 
-  <!-- ── Settings card ───────────────────────────────────────────────────── -->
-  <mat-card class="settings-card" id="outlook-settings" *ngIf="settings">
-    <mat-card-header>
-      <mat-card-title>
-        <mat-icon>settings</mat-icon>
-        Outlook Settings
-      </mat-card-title>
-    </mat-card-header>
-
-    <mat-card-content>
-      <div class="form-row">
-        <mat-form-field appearance="outline" class="form-field-full">
-          <mat-label>Azure Application (Client) ID</mat-label>
-          <input matInput [(ngModel)]="settings.clientId"
-            placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
-          <mat-hint>
-            portal.azure.com → App Registrations → your app → Overview → Application (Client) ID
-          </mat-hint>
-        </mat-form-field>
-      </div>
-
-      <div class="form-row">
-        <mat-form-field appearance="outline" class="form-field-full">
-          <mat-label>Inbox root folder</mat-label>
-          <input matInput [(ngModel)]="settings.inboxFolder"
-            placeholder="C:\Users\You\Documents\Tour Billing\Inbox">
-        </mat-form-field>
-      </div>
-
-      <div class="form-row">
-        <mat-form-field appearance="outline" class="form-field-narrow">
-          <mat-label>Poll interval (minutes)</mat-label>
-          <input matInput type="number" [(ngModel)]="settings.pollIntervalMinutes"
-            min="1" max="60">
-        </mat-form-field>
-      </div>
-    </mat-card-content>
-
-    <mat-card-actions>
-      <button mat-raised-button (click)="saveSettings()">
-        <mat-icon>save</mat-icon>
-        Save Settings
-      </button>
-    </mat-card-actions>
-  </mat-card>
-
   <!-- ── Status bar ──────────────────────────────────────────────────────── -->
   <div class="status-bar" *ngIf="account">
     <span class="poll-status" [class.active]="isPolling">
@@ -289,5 +243,121 @@
     </div>
   </mat-card>
 
+  <!-- ── Settings card ───────────────────────────────────────────────────── -->
+  <mat-card class="settings-card" id="outlook-settings" *ngIf="settings">
+    <mat-card-header>
+      <mat-card-title>
+        <mat-icon>settings</mat-icon>
+        Outlook Settings
+      </mat-card-title>
+    </mat-card-header>
+
+    <mat-card-content>
+
+      <!-- Connection settings -->
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="form-field-full">
+          <mat-label>Azure Application (Client) ID</mat-label>
+          <input matInput [(ngModel)]="settings.clientId"
+            placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+          <mat-hint>
+            portal.azure.com → App Registrations → your app → Overview → Application (Client) ID
+          </mat-hint>
+        </mat-form-field>
+      </div>
+
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="form-field-full">
+          <mat-label>Inbox root folder</mat-label>
+          <input matInput [(ngModel)]="settings.inboxFolder"
+            placeholder="C:\Users\You\Documents\Tour Billing\Inbox">
+        </mat-form-field>
+      </div>
+
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="form-field-narrow">
+          <mat-label>Poll interval (minutes)</mat-label>
+          <input matInput type="number" [(ngModel)]="settings.pollIntervalMinutes"
+            min="1" max="60">
+        </mat-form-field>
+      </div>
+
+      <div class="settings-divider"></div>
+
+      <!-- Auto-download toggle -->
+      <div class="toggle-row">
+        <div class="toggle-body">
+          <div class="toggle-label">
+            <mat-icon>cloud_download</mat-icon>
+            Auto-download high-confidence invoices
+          </div>
+          <p class="toggle-desc">
+            Attachments scoring &ge;70 are saved automatically when the poller detects them —
+            they still appear in the list above as saved.
+          </p>
+        </div>
+        <mat-checkbox
+          [(ngModel)]="settings.autoDownloadHighConfidence"
+          color="primary"
+          class="toggle-check">
+        </mat-checkbox>
+      </div>
+
+      <div class="settings-divider"></div>
+
+      <!-- Trusted senders -->
+      <div class="trusted-section">
+        <div class="trusted-header">
+          <span class="trusted-icon-wrap">
+            <mat-icon>verified_user</mat-icon>
+          </span>
+          <div class="trusted-header-text">
+            <span class="trusted-title">Trusted senders</span>
+            <p class="trusted-desc">
+              Emails from these addresses always score 100 — guaranteed high confidence
+              regardless of subject or filename.
+            </p>
+          </div>
+        </div>
+
+        <mat-chip-set class="trusted-chips" *ngIf="settings.trustedSenders.length">
+          <mat-chip *ngFor="let email of settings.trustedSenders"
+            (removed)="removeTrustedSender(email)">
+            {{ email }}
+            <button matChipRemove [attr.aria-label]="'Remove ' + email">
+              <mat-icon>cancel</mat-icon>
+            </button>
+          </mat-chip>
+        </mat-chip-set>
+
+        <div class="trusted-empty" *ngIf="!settings.trustedSenders.length">
+          No trusted senders yet — add one below.
+        </div>
+
+        <mat-form-field appearance="outline" class="trusted-add-field">
+          <mat-label>Add trusted sender</mat-label>
+          <mat-icon matPrefix>alternate_email</mat-icon>
+          <input matInput
+            [(ngModel)]="newSenderEmail"
+            placeholder="billing@supplier.at"
+            (keydown.enter)="addTrustedSender(newSenderEmail)">
+          <button mat-icon-button matSuffix
+            (click)="addTrustedSender(newSenderEmail)"
+            [disabled]="!newSenderEmail"
+            matTooltip="Add sender">
+            <mat-icon>add_circle</mat-icon>
+          </button>
+        </mat-form-field>
+      </div>
+
+    </mat-card-content>
+
+    <mat-card-actions>
+      <button mat-raised-button (click)="saveSettings()">
+        <mat-icon>save</mat-icon>
+        Save Settings
+      </button>
+    </mat-card-actions>
+  </mat-card>
 
 </div>

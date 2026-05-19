@@ -18,6 +18,11 @@ import {
   OutlookSettings,
 } from '../models/outlook.models';
 
+export interface AutoSavedEvent {
+  invoice: DetectedInvoice;
+  filePath: string;
+}
+
 export interface PollCompleteEvent {
   checkedAt: string;
   found: number;
@@ -29,6 +34,7 @@ export class OutlookService implements OnDestroy {
   private readonly _invoicesDetected$ = new Subject<DetectedInvoice[]>();
   private readonly _pollComplete$ = new Subject<PollCompleteEvent>();
   private readonly _pollError$ = new Subject<string>();
+  private readonly _autoSaved$ = new Subject<AutoSavedEvent>();
 
   /** Emitted whenever the background poller finds new invoices */
   readonly invoicesDetected$: Observable<DetectedInvoice[]> = this._invoicesDetected$.asObservable();
@@ -36,6 +42,8 @@ export class OutlookService implements OnDestroy {
   readonly pollComplete$: Observable<PollCompleteEvent> = this._pollComplete$.asObservable();
   /** Emitted when the poller encounters a network or auth error */
   readonly pollError$: Observable<string> = this._pollError$.asObservable();
+  /** Emitted when a high-confidence invoice is auto-saved during polling */
+  readonly autoSaved$: Observable<AutoSavedEvent> = this._autoSaved$.asObservable();
 
   // ── Bound handlers stored for removal ───────────────────────────────────────
   private readonly onInvoicesDetected = (invoices: DetectedInvoice[]) =>
@@ -47,6 +55,9 @@ export class OutlookService implements OnDestroy {
   private readonly onPollError = (msg: string) =>
     this.zone.run(() => this._pollError$.next(msg));
 
+  private readonly onAutoSaved = (event: AutoSavedEvent) =>
+    this.zone.run(() => this._autoSaved$.next(event));
+
   constructor(
     @Inject(PLATFORM_ID) private platformId: object,
     private readonly zone: NgZone,
@@ -56,6 +67,7 @@ export class OutlookService implements OnDestroy {
       api.on('outlook:invoicesDetected', this.onInvoicesDetected);
       api.on('outlook:pollComplete', this.onPollComplete);
       api.on('outlook:pollError', this.onPollError);
+      api.on('outlook:autoSaved', this.onAutoSaved);
     }
   }
 
@@ -65,10 +77,12 @@ export class OutlookService implements OnDestroy {
       api.off('outlook:invoicesDetected', this.onInvoicesDetected);
       api.off('outlook:pollComplete', this.onPollComplete);
       api.off('outlook:pollError', this.onPollError);
+      api.off('outlook:autoSaved', this.onAutoSaved);
     }
     this._invoicesDetected$.complete();
     this._pollComplete$.complete();
     this._pollError$.complete();
+    this._autoSaved$.complete();
   }
 
   // ── Auth ─────────────────────────────────────────────────────────────────────
@@ -158,6 +172,8 @@ const DEFAULT_SETTINGS: OutlookSettings = {
   clientId: '',
   inboxFolder: '',
   pollIntervalMinutes: 5,
+  trustedSenders: [],
+  autoDownloadHighConfidence: false,
 };
 
 const MOCK_INVOICES: DetectedInvoice[] = [

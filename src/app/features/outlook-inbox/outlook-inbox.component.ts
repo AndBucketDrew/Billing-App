@@ -7,7 +7,7 @@ import {
 } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Subscription } from 'rxjs';
-import { OutlookService } from '../../core/services/outlook.service';
+import { OutlookService, AutoSavedEvent } from '../../core/services/outlook.service';
 import {
   DetectedInvoice,
   OutlookAccount,
@@ -31,6 +31,7 @@ export class OutlookInboxComponent implements OnInit, OnDestroy {
   isPolling = false;
   isLoading = false;
   lastChecked: string | null = null;
+  newSenderEmail = '';
 
   // Table columns
   readonly columns = ['confidence', 'sender', 'subject', 'attachment', 'size', 'receivedAt', 'actions'];
@@ -70,6 +71,22 @@ export class OutlookInboxComponent implements OnInit, OnDestroy {
     this.subs.add(
       this.outlook.pollError$.subscribe(msg => {
         this.snack.open(`Polling error: ${msg}`, 'Dismiss', { duration: 6000 });
+        this.cd.markForCheck();
+      }),
+    );
+
+    this.subs.add(
+      this.outlook.autoSaved$.subscribe(({ invoice, filePath }: AutoSavedEvent) => {
+        const existing = this.items.find(
+          i => i.invoice.messageId === invoice.messageId && i.invoice.attachmentId === invoice.attachmentId,
+        );
+        if (existing) {
+          existing.status = 'saved';
+          existing.savedPath = filePath;
+        } else {
+          this.items.unshift({ invoice, status: 'saved', savedPath: filePath });
+        }
+        this.snack.open(`Auto-saved: ${invoice.attachmentName}`, undefined, { duration: 3000 });
         this.cd.markForCheck();
       }),
     );
@@ -175,6 +192,25 @@ export class OutlookInboxComponent implements OnInit, OnDestroy {
       item.targetFolder = folder;
       this.cd.markForCheck();
     }
+  }
+
+  // ── Trusted senders ──────────────────────────────────────────────────────────
+
+  addTrustedSender(email: string): void {
+    const trimmed = email.trim().toLowerCase();
+    if (!trimmed || !trimmed.includes('@')) return;
+    if (!this.settings) return;
+    if (!this.settings.trustedSenders.includes(trimmed)) {
+      this.settings.trustedSenders = [...this.settings.trustedSenders, trimmed];
+    }
+    this.newSenderEmail = '';
+    this.cd.markForCheck();
+  }
+
+  removeTrustedSender(email: string): void {
+    if (!this.settings) return;
+    this.settings.trustedSenders = this.settings.trustedSenders.filter(s => s !== email);
+    this.cd.markForCheck();
   }
 
   // ── Settings ─────────────────────────────────────────────────────────────────

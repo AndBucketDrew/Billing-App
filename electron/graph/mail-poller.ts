@@ -19,12 +19,19 @@ import { InvoiceDetector, DetectedInvoice } from '../invoice-detector/invoice-de
 const STATE_FILENAME = 'outlook-poll-state.json';
 const FALLBACK_LOOKBACK_MS = 24 * 60 * 60 * 1000;
 
+export interface PollerOptions {
+  trustedSenders?: string[];
+  onAutoSave?: (invoice: DetectedInvoice) => Promise<void>;
+}
+
 export class MailPoller {
   private timer: ReturnType<typeof setInterval> | null = null;
   private isRunning = false;
   private lastChecked: Date;
   private readonly detector = new InvoiceDetector();
   private readonly stateFile: string;
+  private trustedSenders: string[] = [];
+  private onAutoSave?: (invoice: DetectedInvoice) => Promise<void>;
 
   constructor(
     private readonly graph: GraphClient,
@@ -38,8 +45,10 @@ export class MailPoller {
 
   // ─── Control ───────────────────────────────────────────────────────────────
 
-  start(intervalMs = 5 * 60 * 1000): void {
+  start(intervalMs = 5 * 60 * 1000, options: PollerOptions = {}): void {
     if (this.isRunning) return;
+    this.trustedSenders = options.trustedSenders ?? [];
+    this.onAutoSave = options.onAutoSave;
     this.isRunning = true;
 
     // Fire immediately, then on each interval
@@ -76,7 +85,20 @@ export class MailPoller {
         if (!msg.hasAttachments) continue;
 
         const attachments = await this.graph.getAttachments(msg.id);
-        detected.push(...this.detector.analyze(msg, attachments));
+        detected.push(...this.detector.analyze(msg, attachments, this.trustedSenders));
+      }
+
+      // Auto-save high-confidence invoices before notifying the UI
+      if (this.onAutoSave) {
+        for (const inv of detected) {
+          if (inv.confidence === 'high') {
+            try {
+              await this.onAutoSave(inv);
+            } catch {
+              // Non-fatal — invoice still appears in the review queue
+            }
+          }
+        }
       }
 
       this.saveLastChecked(this.lastChecked);

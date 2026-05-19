@@ -69,14 +69,14 @@ export class InvoiceDetector {
    * Analyses a single email + its attachment list.
    * Returns one DetectedInvoice per qualifying attachment (low confidence excluded).
    */
-  analyze(message: GraphMessage, attachments: GraphAttachment[]): DetectedInvoice[] {
+  analyze(message: GraphMessage, attachments: GraphAttachment[], trustedSenders: string[] = []): DetectedInvoice[] {
     const results: DetectedInvoice[] = [];
 
     for (const att of attachments) {
       if (att.isInline) continue;
       if (!this.isProcessableFile(att)) continue;
 
-      const { score, reasons } = this.score(message, att);
+      const { score, reasons } = this.score(message, att, trustedSenders);
       const confidence = this.toConfidence(score);
 
       if (confidence === 'low') continue;
@@ -105,9 +105,17 @@ export class InvoiceDetector {
   private score(
     message: GraphMessage,
     att: GraphAttachment,
+    trustedSenders: string[] = [],
   ): { score: number; reasons: string[] } {
     let total = 0;
     const reasons: string[] = [];
+
+    // ── Trusted sender (guarantees high confidence regardless of other signals)
+    const lowerSenderEmail = message.from.emailAddress.address.toLowerCase();
+    if (trustedSenders.some(s => s.toLowerCase() === lowerSenderEmail)) {
+      total += 100;
+      reasons.push(`Trusted sender (${message.from.emailAddress.address})`);
+    }
 
     // ── Filename keyword (0–40) ──────────────────────────────────────────────
     const lowerName = att.name.toLowerCase();
@@ -132,8 +140,7 @@ export class InvoiceDetector {
     }
 
     // ── Commercial sender domain (0–10) ─────────────────────────────────────
-    const lowerEmail = message.from.emailAddress.address.toLowerCase();
-    const domain = COMMERCIAL_DOMAINS.find(d => lowerEmail.includes(d));
+    const domain = COMMERCIAL_DOMAINS.find(d => lowerSenderEmail.includes(d));
     if (domain) {
       total += 10;
       reasons.push(`Known commercial sender (${domain})`);

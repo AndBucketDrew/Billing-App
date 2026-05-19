@@ -158,13 +158,13 @@
   }
 }
 
-/// Small icon action button — 30 px, coloured hover states
+/// Small icon action button — 32 px, coloured hover states
 @mixin icon-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   padding: 0;
   margin: 0 2px;
   border-radius: var(--radius-md);
@@ -172,10 +172,10 @@
   transition: background 0.12s ease, border-color 0.12s ease;
 
   mat-icon {
-    font-size: 16px;
-    width: 16px;
-    height: 16px;
-    line-height: 16px;
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    line-height: 18px;
   }
 
   &:hover:not([disabled]) {

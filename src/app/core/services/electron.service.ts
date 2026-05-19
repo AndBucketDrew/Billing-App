@@ -109,8 +109,8 @@ export class ElectronService {
         startPolling:   async () => ({ success: true as const }),
         stopPolling:    async () => ({ success: true as const }),
         isPolling:      async () => ({ polling: false }),
-        getSettings:    async () => ({ clientId: '', inboxFolder: '', pollIntervalMinutes: 5 }),
-        saveSettings:   async (u: any) => ({ clientId: '', inboxFolder: '', pollIntervalMinutes: 5, ...u }),
+        getSettings:    async () => ({ clientId: '', inboxFolder: '', pollIntervalMinutes: 5, trustedSenders: [], autoDownloadHighConfidence: false }),
+        saveSettings:   async (u: any) => ({ clientId: '', inboxFolder: '', pollIntervalMinutes: 5, trustedSenders: [], autoDownloadHighConfidence: false, ...u }),
         on:  () => {},
         off: () => {},
       }

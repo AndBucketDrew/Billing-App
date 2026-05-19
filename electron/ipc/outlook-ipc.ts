@@ -28,8 +28,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { MsalAuthService } from '../auth/msal-auth';
 import { GraphClient } from '../graph/graph-client';
+import { MockGraphClient } from '../graph/mock-graph-client';
 import { MailPoller } from '../graph/mail-poller';
-import { InvoiceDetector } from '../invoice-detector/invoice-detector';
+import { InvoiceDetector, DetectedInvoice } from '../invoice-detector/invoice-detector';
 
 // ─── Settings stored for Outlook feature ─────────────────────────────────────
 
@@ -43,12 +44,18 @@ export interface OutlookSettings {
   inboxFolder: string;
   /** Polling interval in minutes. */
   pollIntervalMinutes: number;
+  /** Exact sender email addresses that always score 100 (guaranteed high confidence). */
+  trustedSenders: string[];
+  /** When true, high-confidence invoices are saved automatically during polling. */
+  autoDownloadHighConfidence: boolean;
 }
 
 const DEFAULT_SETTINGS: OutlookSettings = {
   clientId: '',
   inboxFolder: path.join(app.getPath('documents'), 'Tour Billing', 'Inbox'),
   pollIntervalMinutes: 5,
+  trustedSenders: [],
+  autoDownloadHighConfidence: false,
 };
 
 // ─── Registration ─────────────────────────────────────────────────────────────
@@ -81,8 +88,16 @@ export function registerOutlookIpcHandlers(
   let poller: MailPoller | null = null;
   const detector = new InvoiceDetector();
 
-  function getServices(): { auth: MsalAuthService; graph: GraphClient; poller: MailPoller } {
+  function getServices(): { auth: MsalAuthService | null; graph: GraphClient | MockGraphClient; poller: MailPoller } {
     const settings = readSettings();
+
+    if (settings.clientId === 'mock') {
+      if (!graph) {
+        graph = new MockGraphClient() as unknown as GraphClient;
+        poller = new MailPoller(graph, getWindow, userDataPath);
+      }
+      return { auth: null, graph, poller: poller! };
+    }
 
     if (!settings.clientId) {
       throw new Error('Azure Client ID is not configured. Please set it in Outlook Settings.');
@@ -107,15 +122,27 @@ export function registerOutlookIpcHandlers(
     const current = readSettings();
     const next = { ...current, ...updates };
 
-    // If clientId changed, reset service instances so they pick up the new ID
+    // clientId change resets all service instances so they pick up the new ID
     if (updates.clientId && updates.clientId !== current.clientId) {
       poller?.stop();
       auth = null;
       graph = null;
       poller = null;
+      return writeSettings(next);
     }
 
-    return writeSettings(next);
+    writeSettings(next);
+
+    // Restart the poller silently so trustedSenders / autoDownload changes take effect
+    if (poller?.running) {
+      poller.stop();
+      poller.start(next.pollIntervalMinutes * 60 * 1000, {
+        trustedSenders: next.trustedSenders,
+        onAutoSave: next.autoDownloadHighConfidence ? makeAutoSaver(next) : undefined,
+      });
+    }
+
+    return next;
   });
 
   // ─── Auth ─────────────────────────────────────────────────────────────────
@@ -123,6 +150,7 @@ export function registerOutlookIpcHandlers(
   ipcMain.handle('outlook:login', async () => {
     try {
       const { auth: a } = getServices();
+      if (!a) return { success: true, account: { username: 'mock@example.com', name: 'Mock User' } };
       const account = await a.login();
       return { success: true, account };
     } catch (e: unknown) {
@@ -146,6 +174,7 @@ export function registerOutlookIpcHandlers(
   ipcMain.handle('outlook:getAccount', async () => {
     try {
       const { auth: a } = getServices();
+      if (!a) return { success: true, account: { username: 'mock@example.com', name: 'Mock User' } };
       const account = await a.getLoggedInAccount();
       return { success: true, account };
     } catch (e: unknown) {
@@ -159,13 +188,14 @@ export function registerOutlookIpcHandlers(
   ipcMain.handle('outlook:fetchEmails', async () => {
     try {
       const { graph: g } = getServices();
+      const settings = readSettings();
       const messages = await g.getRecentMessages(50);
       const all = [];
 
       for (const msg of messages) {
         if (!msg.hasAttachments) continue;
         const attachments = await g.getAttachments(msg.id);
-        all.push(...detector.analyze(msg, attachments));
+        all.push(...detector.analyze(msg, attachments, settings.trustedSenders));
       }
 
       return { success: true, invoices: all };
@@ -233,11 +263,27 @@ export function registerOutlookIpcHandlers(
 
   // ─── Polling control ──────────────────────────────────────────────────────
 
+  function makeAutoSaver(settings: OutlookSettings) {
+    return async (inv: DetectedInvoice): Promise<void> => {
+      if (!graph) return;
+      const buffer = await graph.downloadAttachment(inv.messageId, inv.attachmentId);
+      const folder = path.join(settings.inboxFolder, inv.suggestedSubFolder);
+      fs.mkdirSync(folder, { recursive: true });
+      const safeName = inv.attachmentName.replace(/[<>:"/\\|?*\x00-\x1F]/g, '_');
+      const finalPath = uniquePath(path.join(folder, safeName));
+      fs.writeFileSync(finalPath, buffer);
+      getWindow()?.webContents.send('outlook:autoSaved', { invoice: inv, filePath: finalPath });
+    };
+  }
+
   ipcMain.handle('outlook:startPolling', async () => {
     try {
       const { poller: p } = getServices();
       const settings = readSettings();
-      p.start(settings.pollIntervalMinutes * 60 * 1000);
+      p.start(settings.pollIntervalMinutes * 60 * 1000, {
+        trustedSenders: settings.trustedSenders,
+        onAutoSave: settings.autoDownloadHighConfidence ? makeAutoSaver(settings) : undefined,
+      });
       return { success: true };
     } catch (e: unknown) {
       return { success: false, error: toMessage(e) };

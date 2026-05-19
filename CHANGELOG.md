@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [1.0.5]
+
+### Added
+
+* **Trusted Senders** — add specific email addresses to a trusted list in Outlook Settings attachments from those addresses always score 100 and are guaranteed high-confidence regardless of filename or subject
+* **Auto-download high-confidence invoices** new toggle in Outlook Settings.. when enabled, attachments scoring ≥ 70 are saved automatically to the inbox folder during polling without manual confirmation, auto-saved files still appear in the table with a "saved" status
+* `InvoiceDetector` now accepts the trusted-senders list and awards the full 100-point bonus when the sender email matches exactly
+
+---
+
 ## [1.0.4]
 
 ### Fixed

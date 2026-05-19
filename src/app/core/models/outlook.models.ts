@@ -37,6 +37,10 @@ export interface OutlookSettings {
   clientId: string;
   inboxFolder: string;
   pollIntervalMinutes: number;
+  /** Exact email addresses that always score 100 (guaranteed high confidence) */
+  trustedSenders: string[];
+  /** Automatically save attachments when confidence is high, without manual review */
+  autoDownloadHighConfidence: boolean;
 }
 
 /** UI-only state attached to a detected invoice during the review session */
