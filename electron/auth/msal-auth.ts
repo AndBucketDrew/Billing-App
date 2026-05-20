@@ -113,16 +113,19 @@ export class MsalAuthService {
         scopes: GRAPH_SCOPES,
         account: accounts[0],
       });
-      return result!.accessToken;
+      if (!result) throw new Error('Silent token acquisition returned null');
+      return result.accessToken;
     } catch {
-      // Silent refresh failed (e.g. refresh token expired) — re-authenticate
+      // Silent refresh failed (e.g. refresh token expired) — re-authenticate interactively
       await this.login();
       const fresh = await this.pca.getTokenCache().getAllAccounts();
+      if (fresh.length === 0) throw new Error('NOT_AUTHENTICATED');
       const result = await this.pca.acquireTokenSilent({
         scopes: GRAPH_SCOPES,
         account: fresh[0],
       });
-      return result!.accessToken;
+      if (!result) throw new Error('Silent token acquisition returned null after re-authentication');
+      return result.accessToken;
     }
   }
 

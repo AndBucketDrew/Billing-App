@@ -10,7 +10,7 @@
  * emails it has already seen in the current session.
  */
 
-import { BrowserWindow } from 'electron';
+import { BrowserWindow, app } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
 import { GraphClient } from './graph-client';
@@ -28,7 +28,7 @@ export class MailPoller {
   private timer: ReturnType<typeof setInterval> | null = null;
   private isRunning = false;
   private lastChecked: Date;
-  private readonly detector = new InvoiceDetector();
+  private readonly detector = new InvoiceDetector(app.getLocale());
   private readonly stateFile: string;
   private trustedSenders: string[] = [];
   private onAutoSave?: (invoice: DetectedInvoice) => Promise<void>;
@@ -84,8 +84,13 @@ export class MailPoller {
       for (const msg of messages) {
         if (!msg.hasAttachments) continue;
 
-        const attachments = await this.graph.getAttachments(msg.id);
-        detected.push(...this.detector.analyze(msg, attachments, this.trustedSenders));
+        try {
+          const attachments = await this.graph.getAttachments(msg.id);
+          detected.push(...this.detector.analyze(msg, attachments, this.trustedSenders));
+        } catch {
+          // Skip this message on attachment fetch failure; it will be retried next poll
+          // because lastChecked is only advanced after the full loop succeeds.
+        }
       }
 
       // Auto-save high-confidence invoices before notifying the UI
@@ -94,8 +99,9 @@ export class MailPoller {
           if (inv.confidence === 'high') {
             try {
               await this.onAutoSave(inv);
-            } catch {
-              // Non-fatal — invoice still appears in the review queue
+            } catch (err: unknown) {
+              const message = err instanceof Error ? err.message : String(err);
+              win.webContents.send('outlook:autoSaveError', { invoice: inv, error: message });
             }
           }
         }

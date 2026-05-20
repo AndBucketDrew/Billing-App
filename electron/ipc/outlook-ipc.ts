@@ -86,7 +86,8 @@ export function registerOutlookIpcHandlers(
   let auth: MsalAuthService | null = null;
   let graph: GraphClient | null = null;
   let poller: MailPoller | null = null;
-  const detector = new InvoiceDetector();
+  let lastManualFetch: Date | null = null;
+  const detector = new InvoiceDetector(app.getLocale());
 
   function getServices(): { auth: MsalAuthService | null; graph: GraphClient | MockGraphClient; poller: MailPoller } {
     const settings = readSettings();
@@ -134,11 +135,11 @@ export function registerOutlookIpcHandlers(
     writeSettings(next);
 
     // Restart the poller silently so trustedSenders / autoDownload changes take effect
-    if (poller?.running) {
+    if (poller?.running && graph) {
       poller.stop();
       poller.start(next.pollIntervalMinutes * 60 * 1000, {
         trustedSenders: next.trustedSenders,
-        onAutoSave: next.autoDownloadHighConfidence ? makeAutoSaver(next) : undefined,
+        onAutoSave: next.autoDownloadHighConfidence ? makeAutoSaver(next, graph) : undefined,
       });
     }
 
@@ -161,7 +162,7 @@ export function registerOutlookIpcHandlers(
   ipcMain.handle('outlook:logout', async () => {
     try {
       poller?.stop();
-      auth?.logout();
+      await auth?.logout();
       auth = null;
       graph = null;
       poller = null;
@@ -189,7 +190,9 @@ export function registerOutlookIpcHandlers(
     try {
       const { graph: g } = getServices();
       const settings = readSettings();
-      const messages = await g.getRecentMessages(50);
+      const since = lastManualFetch ?? undefined;
+      lastManualFetch = new Date();
+      const messages = await g.getRecentMessages(50, since);
       const all = [];
 
       for (const msg of messages) {
@@ -224,6 +227,15 @@ export function registerOutlookIpcHandlers(
     ) => {
       try {
         const { graph: g } = getServices();
+        const settings = readSettings();
+
+        // Prevent path traversal: targetFolder must be inside the configured inbox root
+        const resolvedTarget = path.resolve(targetFolder);
+        const resolvedRoot = path.resolve(settings.inboxFolder);
+        if (!resolvedTarget.startsWith(resolvedRoot + path.sep) && resolvedTarget !== resolvedRoot) {
+          return { success: false, error: 'Target folder is outside the configured inbox folder.' };
+        }
+
         const buffer = await g.downloadAttachment(messageId, attachmentId);
 
         fs.mkdirSync(targetFolder, { recursive: true });
@@ -263,10 +275,9 @@ export function registerOutlookIpcHandlers(
 
   // ─── Polling control ──────────────────────────────────────────────────────
 
-  function makeAutoSaver(settings: OutlookSettings) {
+  function makeAutoSaver(settings: OutlookSettings, graphInstance: Pick<GraphClient, 'downloadAttachment'>) {
     return async (inv: DetectedInvoice): Promise<void> => {
-      if (!graph) return;
-      const buffer = await graph.downloadAttachment(inv.messageId, inv.attachmentId);
+      const buffer = await graphInstance.downloadAttachment(inv.messageId, inv.attachmentId);
       const folder = path.join(settings.inboxFolder, inv.suggestedSubFolder);
       fs.mkdirSync(folder, { recursive: true });
       const safeName = inv.attachmentName.replace(/[<>:"/\\|?*\x00-\x1F]/g, '_');
@@ -278,11 +289,11 @@ export function registerOutlookIpcHandlers(
 
   ipcMain.handle('outlook:startPolling', async () => {
     try {
-      const { poller: p } = getServices();
+      const { poller: p, graph: g } = getServices();
       const settings = readSettings();
       p.start(settings.pollIntervalMinutes * 60 * 1000, {
         trustedSenders: settings.trustedSenders,
-        onAutoSave: settings.autoDownloadHighConfidence ? makeAutoSaver(settings) : undefined,
+        onAutoSave: settings.autoDownloadHighConfidence ? makeAutoSaver(settings, g) : undefined,
       });
       return { success: true };
     } catch (e: unknown) {

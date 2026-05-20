@@ -65,6 +65,8 @@ const ALLOWED_MIMES = [PDF_MIME, 'image/jpeg', 'image/png', 'image/tiff'];
 // ─── Detector ─────────────────────────────────────────────────────────────────
 
 export class InvoiceDetector {
+  constructor(private readonly locale: string = 'en-US') {}
+
   /**
    * Analyses a single email + its attachment list.
    * Returns one DetectedInvoice per qualifying attachment (low confidence excluded).
@@ -140,7 +142,10 @@ export class InvoiceDetector {
     }
 
     // ── Commercial sender domain (0–10) ─────────────────────────────────────
-    const domain = COMMERCIAL_DOMAINS.find(d => lowerSenderEmail.includes(d));
+    // Extract the domain part after '@' to avoid matching spoofed addresses like
+    // "fakepaypal@evil.com" which would pass an includes() check.
+    const senderDomain = lowerSenderEmail.split('@')[1] ?? '';
+    const domain = COMMERCIAL_DOMAINS.find(d => senderDomain === d || senderDomain.endsWith(`.${d}`));
     if (domain) {
       total += 10;
       reasons.push(`Known commercial sender (${domain})`);
@@ -178,7 +183,7 @@ export class InvoiceDetector {
     const d = new Date(isoDate);
     const year = d.getFullYear();
     const month = String(d.getMonth() + 1).padStart(2, '0');
-    const monthName = d.toLocaleString('en-US', { month: 'long' });
+    const monthName = d.toLocaleString(this.locale, { month: 'long' });
     return `${year}/${month}-${monthName}`;
   }
 }

@@ -99,7 +99,6 @@ export class GraphClient {
     const response = await fetch(`${BASE}${path}`, {
       headers: {
         Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
       },
     });
 

@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [1.0.6]
+
+### Fixed
+
+* **Outlook / `outlook-ipc.ts`** — `auth.logout()` was not awaited, causing errors to be silently dropped on sign-out
+* **Outlook / `msal-auth.ts`** — token refresh fallback could crash with a null/undefined access token or an empty accounts array after interactive re-login.. added proper null guards throughout
+* **Outlook / `outlook-ipc.ts`** — `makeAutoSaver` closed over the mutable `graph` variable.
+* **Outlook / `outlook-ipc.ts`** — `saveAttachment` did not validate `targetFolder` against the configured inbox root, allowing path traversal to arbitrary locations
+* **Outlook / `invoice-detector.ts`** — commercial domain matching used `String.includes()` on the full sender address, so a spoofed address like `fakepaypal@evil.com` would match `paypal`; matching now extracts the `@domain` part and checks for exact match or subdomain only
+* **Outlook / `outlook-ipc.ts`** — "Fetch Now" always re-scanned the same last 50 emails with no date filter; it now tracks `lastManualFetch` and passes it as `since` so each manual fetch only returns new emails
+
+### Changed
+
+* **Outlook / `invoice-detector.ts`** — `InvoiceDetector` now accepts a `locale`, so folder names respect the system locale instead of always using English
+* **Outlook / `graph-client.ts`** — removed `Content-Type: application/json` header 
+
+---
+
 ## [1.0.5]
 
 ### Added
