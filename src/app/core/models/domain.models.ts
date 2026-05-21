@@ -36,6 +36,8 @@ export interface VatBreakdownItem {
 // Add this new type
 export type PaymentMethod = 'bank' | 'paypal' | 'cash' | 'civitatis' | 'mypos';
 
+export type InvoiceType = 'invoice' | 'credit_note';
+
 export interface Invoice {
   id: string;
   invoiceNumber: string;
@@ -61,8 +63,11 @@ export interface Invoice {
   civitatisId?: string | null;
   paymentMethod?: PaymentMethod | null;
 
+  type?: InvoiceType | null;                     // undefined/null = regular invoice (backward compat)
+  creditNoteForInvoiceNumber?: string | null;    // original invoice number this credit note refers to
+
   language: 'de' | 'en';
-  status: 'draft' | 'finalized';
+  status: 'draft' | 'finalized' | 'storniert';
   lineItems: InvoiceLineItem[];
   vatBreakdown: VatBreakdownItem[];
   totalNet: number;

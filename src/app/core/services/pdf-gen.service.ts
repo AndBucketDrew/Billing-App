@@ -114,16 +114,27 @@ export class PdfGeneratorService {
       margin: [0, 0, 0, 30]
     });
 
-    // ── Invoice title and number ───────────────────────────────────────────────
-    content.push({ text: t('INVOICE.TITLE'), style: 'header', margin: [0, 0, 0, 10] });
+    // ── Invoice / Gutschrift title and number ─────────────────────────────────
+    const isCreditNote = invoice.type === 'credit_note';
+    const docTitle = isCreditNote ? t('INVOICE.CREDIT_NOTE_TITLE') : t('INVOICE.TITLE');
+    content.push({ text: docTitle, style: 'header', margin: [0, 0, 0, 10] });
+
+    const infoStack: any[] = [
+      { text: `${t('INVOICE.NUMBER')}: ${invoice.invoiceNumber}`, style: 'invoiceInfo' },
+      { text: `${t('INVOICE.DATE')}: ${this.formatDate(invoice.invoiceDate, lang)}`, style: 'invoiceInfo' },
+    ];
+
+    // For credit notes: add a reference line pointing to the original invoice
+    if (isCreditNote && invoice.creditNoteForInvoiceNumber) {
+      infoStack.push({
+        text: `${t('INVOICE.CREDIT_NOTE_REFERENCE')}: ${invoice.creditNoteForInvoiceNumber}`,
+        style: 'invoiceInfo',
+        color: '#6e40c9'
+      });
+    }
+
     content.push({
-      columns: [{
-        width: '*',
-        stack: [
-          { text: `${t('INVOICE.NUMBER')}: ${invoice.invoiceNumber}`, style: 'invoiceInfo' },
-          { text: `${t('INVOICE.DATE')}: ${this.formatDate(invoice.invoiceDate, lang)}`, style: 'invoiceInfo' }
-        ]
-      }],
+      columns: [{ width: '*', stack: infoStack }],
       margin: [0, 0, 0, 20]
     });
 
@@ -211,9 +222,16 @@ export class PdfGeneratorService {
     content.push({ stack: customerStack, margin: [0, 0, 0, 20] });
 
     // ── 3. INTRO TEXT ─────────────────────────────────────────────────────────
-    const introText = lang === 'de'
-      ? 'Vielen Dank für Ihren Auftrag. Wir stellen hiermit unsere erbrachten Leistungen in Rechnung.'
-      : 'Thank you for your order. We hereby invoice our services rendered.';
+    let introText: string;
+    if (isCreditNote) {
+      introText = lang === 'de'
+        ? `Wir erteilen hiermit Gutschrift für obige Rechnung${invoice.creditNoteForInvoiceNumber ? ' Nr. ' + invoice.creditNoteForInvoiceNumber : ''}.`
+        : `We hereby issue a credit note for the above invoice${invoice.creditNoteForInvoiceNumber ? ' no. ' + invoice.creditNoteForInvoiceNumber : ''}.`;
+    } else {
+      introText = lang === 'de'
+        ? 'Vielen Dank für Ihren Auftrag. Wir stellen hiermit unsere erbrachten Leistungen in Rechnung.'
+        : 'Thank you for your order. We hereby invoice our services rendered.';
+    }
     content.push({
       text: introText,
       italics: true,
@@ -356,8 +374,9 @@ export class PdfGeneratorService {
     };
 
     // Generate QR code when payment method is bank and bank details are available
+    // Skip for credit notes — there is nothing to pay
     let qrDataUrl: string | null = null;
-    if (invoice.paymentMethod === 'bank' && settings.iban && settings.bic && settings.accountHolder) {
+    if (!isCreditNote && invoice.paymentMethod === 'bank' && settings.iban && settings.bic && settings.accountHolder) {
       qrDataUrl = await this.generateEpcQrCode(
         settings.bic,
         settings.accountHolder,

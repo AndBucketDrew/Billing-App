@@ -75,7 +75,7 @@ export class InvoiceListComponent implements OnInit {
   }
 
   editInvoice(invoice: Invoice): void {
-    if (invoice.status === 'finalized') {
+    if (invoice.status !== 'draft') {
       this.showMessage(this.translate.instant('INVOICE.STATUS_FINALIZED'), 'error');
       return;
     }
@@ -115,6 +115,20 @@ export class InvoiceListComponent implements OnInit {
     }
   }
 
+  async createCreditNote(invoice: Invoice): Promise<void> {
+    const msg = this.translate.instant('INVOICE.CREATE_CREDIT_NOTE_CONFIRM', {
+      invoiceNumber: invoice.invoiceNumber
+    });
+    if (!confirm(msg)) return;
+    try {
+      await this.invoiceService.createCreditNote(invoice);
+      this.showMessage(this.translate.instant('INVOICE.CREDIT_NOTE_CREATED'));
+    } catch (error) {
+      this.showMessage(this.translate.instant('MESSAGES.ERROR'), 'error');
+      console.error('Error creating credit note:', error);
+    }
+  }
+
   /**
    * Filter by status AND search query (invoice number or customer name)
    */
@@ -145,24 +159,35 @@ export class InvoiceListComponent implements OnInit {
       );
     }
 
-    // Newest first
+    // Newest first — credit notes (026G) always sit directly after their parent (026)
     result = [...result].sort((a, b) => {
-      const numA = parseInt(a.invoiceNumber?.replace(/\D/g, '') ?? '0', 10);
-      const numB = parseInt(b.invoiceNumber?.replace(/\D/g, '') ?? '0', 10);
-      return numB - numA;
+      const baseA = (a.invoiceNumber ?? '').replace(/G$/i, '').replace(/\D/g, '');
+      const baseB = (b.invoiceNumber ?? '').replace(/G$/i, '').replace(/\D/g, '');
+      const numA = parseInt(baseA || '0', 10);
+      const numB = parseInt(baseB || '0', 10);
+      if (numA !== numB) return numB - numA;                              // descending
+      const isGA = (a.invoiceNumber ?? '').toUpperCase().endsWith('G') ? 1 : 0;
+      const isGB = (b.invoiceNumber ?? '').toUpperCase().endsWith('G') ? 1 : 0;
+      return isGA - isGB;                                                 // regular before G
     });
 
     return result;
   }
 
   getStatusClass(status: string): string {
-    return status === 'finalized' ? 'status-finalized' : 'status-draft';
+    if (status === 'finalized')  return 'status-finalized';
+    if (status === 'storniert')  return 'status-storniert';
+    return 'status-draft';
   }
 
   getStatusLabel(status: string): string {
-    return status === 'finalized'
-      ? this.translate.instant('INVOICE.STATUS_FINALIZED')
-      : this.translate.instant('INVOICE.STATUS_DRAFT');
+    if (status === 'finalized')  return this.translate.instant('INVOICE.STATUS_FINALIZED');
+    if (status === 'storniert')  return this.translate.instant('INVOICE.STATUS_STORNIERT');
+    return this.translate.instant('INVOICE.STATUS_DRAFT');
+  }
+
+  isCreditNote(invoice: Invoice): boolean {
+    return invoice.type === 'credit_note';
   }
 
   formatCurrency(value: number): string {

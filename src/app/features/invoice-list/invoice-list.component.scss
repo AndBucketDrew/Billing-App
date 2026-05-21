@@ -161,16 +161,40 @@
 
   // ── Invoice number pill ───────────────────────────────────────────────────
 
-  .invoice-number-cell strong {
-    font-family: var(--font-family-mono);
-    font-size: var(--font-size-sm);
-    font-weight: 600;
-    color: var(--color-accent-fg);
-    background: var(--color-accent-subtle);
-    padding: 2px 8px;
-    border-radius: var(--radius-sm);
-    border: 1px solid rgba(9, 105, 218, 0.18);
-    letter-spacing: 0.02em;
+  .invoice-number-cell {
+    // inline-flex so the column shrinks to content, not full td width
+    .number-cell-inner {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 2px;
+    }
+
+    strong {
+      font-family: var(--font-family-mono);
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+      color: var(--color-accent-fg);
+      background: var(--color-accent-subtle);
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(9, 105, 218, 0.18);
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+    }
+
+    // "↩ original-number" reference shown below the credit note number
+    .credit-note-ref {
+      font-family: var(--font-family-mono);
+      font-size: 10px;
+      color: var(--color-fg-muted);
+      padding-left: 4px;
+      white-space: nowrap;
+
+      &::before {
+        content: '↩ ';
+      }
+    }
   }
 
   .customer-cell {
@@ -194,6 +218,13 @@
   .status-cell {
     text-align: center;
 
+    .status-chips {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
     mat-chip {
       &.status-draft {
         @include m.badge(
@@ -210,16 +241,65 @@
           rgba(26, 127, 55, 0.2)
         );
       }
+
+      // Gutschrift / credit note badge — purple tint
+      &.status-credit-note {
+        @include m.badge(
+          #f0ebff,
+          #6e40c9,
+          rgba(110, 64, 201, 0.2)
+        );
+      }
+
+      // Storniert (voided by Gutschrift) — muted red
+      &.status-storniert {
+        @include m.badge(
+          var(--color-danger-subtle),
+          var(--color-danger-fg),
+          rgba(209, 36, 47, 0.2)
+        );
+        text-decoration: line-through;
+        opacity: 0.8;
+      }
     }
   }
 
   .actions-header {
     text-align: center;
-    width: 160px;
+    width: 180px;
   }
 
   .actions-cell {
     button[mat-icon-button] { @include m.icon-btn; }
+
+    // Plain <button> — no mat-icon-button directive so we own the centering 100%
+    .gutschrift-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      margin: 0 2px;
+      border: 1px solid transparent;
+      border-radius: var(--radius-md);
+      background: transparent;
+      cursor: pointer;
+      color: #6e40c9;
+      font-size: 14px;
+      font-weight: 700;
+      font-family: var(--font-family-mono);
+      line-height: 1;
+      letter-spacing: 0;
+      vertical-align: middle;
+      user-select: none;
+      transition: background 0.12s ease, border-color 0.12s ease;
+
+      &:hover {
+        background: #f0ebff;
+        border-color: rgba(110, 64, 201, 0.2);
+      }
+    }
   }
 }
 

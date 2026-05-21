@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [1.0.7]
+
+### Added
+
+* **Gutschrift (Credit Note)** — finalized invoices now have a **G** action button that creates a matching credit note
+  * Credit note invoice number is the original number with a `G` suffix (e.g. `260521-1524-026G`)
+  * All line item amounts are automatically negated so the credit note exactly cancels the original
+  * The original invoice is immediately marked **Storniert** (voided) — edit, finalize, and delete are disabled for storniert invoices
+  * A purple **Gutschrift** chip is shown in the Status column; storniert invoices show a red strikethrough badge
+  * PDF output uses **Gutschrift** / **Credit Note** as the document title, adds a reference line to the original invoice, and omits the payment QR code
+
+### Changed
+
+* **Invoice list sort** — credit notes now always appear directly below the invoice they correct, in both the UI list and the Excel export (sort key: base number descending, then regular before G)
+* **Excel export** — invoices are now sorted ascending by base number with the matching Gutschrift immediately after its parent; a new **Type** column (`Rechnung` / `Gutschrift`) is included in the export
+* **Action button guards** — edit and delete buttons are now disabled for any non-draft invoice (`status !== 'draft'`), covering both `finalized` and the new `storniert` state
+
+---
+
 ## [1.0.6]
 
 ### Fixed

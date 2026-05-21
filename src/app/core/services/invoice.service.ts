@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { ElectronService } from './electron.service';
 import { CalculationService } from './calculation.service';
-import type { Invoice, InvoiceLineItem, PaymentMethod, VatRate } from '../models/domain.models';
+import type { Invoice, InvoiceLineItem, InvoiceType, PaymentMethod, VatRate } from '../models/domain.models';
 import { v4 as uuidv4 } from 'uuid';
 import { SettingsService } from './settings.service';
 
@@ -125,6 +125,55 @@ export class InvoiceService {
 
   async finalizeInvoice(id: string): Promise<Invoice | null> {
     return this.updateInvoice(id, { status: 'finalized' });
+  }
+
+  /**
+   * Create a Gutschrift (credit note) that mirrors the original invoice
+   * with all amounts negated. The invoice number gets a 'G' suffix.
+   */
+  async createCreditNote(originalInvoice: Invoice): Promise<Invoice> {
+    try {
+      // Negate every line item so the credit note cancels the original
+      const creditLineItems: InvoiceLineItem[] = originalInvoice.lineItems.map(item => ({
+        ...item,
+        id: uuidv4(),
+        quantity: -Math.abs(item.quantity),
+        lineTotalNet: -Math.abs(item.lineTotalNet),
+        lineTotalVat: -Math.abs(item.lineTotalVat),
+        lineTotalGross: -Math.abs(item.lineTotalGross),
+      }));
+
+      const totals = this.calculation.calculateInvoiceTotals(creditLineItems);
+
+      // Destructure away the original's id/timestamps so electron assigns new ones
+      const { id: _id, createdAt: _ca, updatedAt: _ua, ...rest } = originalInvoice;
+
+      const payload = {
+        ...rest,
+        invoiceNumber: originalInvoice.invoiceNumber + 'G',
+        type: 'credit_note' as InvoiceType,
+        creditNoteForInvoiceNumber: originalInvoice.invoiceNumber,
+        status: 'draft' as const,
+        lineItems: creditLineItems,
+        vatBreakdown: totals.vatBreakdown,
+        totalNet: totals.totalNet,
+        totalVat: totals.totalVat,
+        totalGross: totals.totalGross,
+      };
+
+      const newInvoice = await this.electron.api.invoice.create(payload);
+
+      // Mark the original invoice as storniert (cancelled by this credit note)
+      await this.electron.api.invoice.update(originalInvoice.id, {
+        status: 'storniert'
+      } as any);
+
+      await this.loadInvoices();
+      return newInvoice;
+    } catch (error) {
+      console.error('Error creating credit note:', error);
+      throw error;
+    }
   }
 
   createLineItem(data: {

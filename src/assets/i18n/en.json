@@ -101,6 +101,7 @@
     "STATUS": "Status",
     "STATUS_DRAFT": "Draft",
     "STATUS_FINALIZED": "Finalized",
+    "STATUS_STORNIERT": "Voided",
     "LINE_ITEMS": "Line Items",
     "ADD_LINE_ITEM": "Add Line Item",
     "ADD_FROM_TOUR": "Add from Tour",
@@ -133,7 +134,13 @@
     "NO_ITEMS_PARSED": "No items could be parsed",
     "SKIPPED_ADD_TOOLTIP": "This button adds the skipped line back to the list. The values must then be verified and entered by the user.",
     "SKIPPED_ADD": "Add Line",
-    "SKIPPED_DISMISS": "Dismiss Line"
+    "SKIPPED_DISMISS": "Dismiss Line",
+    "TYPE_CREDIT_NOTE": "Credit Note",
+    "CREDIT_NOTE_TITLE": "Credit Note",
+    "CREDIT_NOTE_REFERENCE": "Credit Note for Invoice No.",
+    "CREATE_CREDIT_NOTE": "Create Credit Note",
+    "CREATE_CREDIT_NOTE_CONFIRM": "Create a credit note for invoice {{invoiceNumber}}?",
+    "CREDIT_NOTE_CREATED": "Credit note created successfully"
   },
   "SETTINGS": {
     "TITLE": "Settings",

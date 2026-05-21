@@ -103,6 +103,7 @@
     "STATUS": "Status",
     "STATUS_DRAFT": "Entwurf",
     "STATUS_FINALIZED": "Finalisiert",
+    "STATUS_STORNIERT": "Storniert",
     "LINE_ITEMS": "Positionen",
     "ADD_LINE_ITEM": "Position hinzufügen",
     "ADD_FROM_TOUR": "Aus Tour hinzufügen",
@@ -135,7 +136,13 @@
     "NO_ITEMS_PARSED": "Keine Positionen konnten erkannt werden",
     "SKIPPED_ADD_TOOLTIP": "Diese Schaltfläche fügt die übersprungene Position wieder zur Liste hinzu. Die Werte müssen anschließend vom Benutzer überprüft und eingegeben werden.",
     "SKIPPED_ADD": "Position hinzufügen",
-    "SKIPPED_DISMISS": "Position verwerfen"
+    "SKIPPED_DISMISS": "Position verwerfen",
+    "TYPE_CREDIT_NOTE": "Gutschrift",
+    "CREDIT_NOTE_TITLE": "Gutschrift",
+    "CREDIT_NOTE_REFERENCE": "Gutschrift für Rechnung Nr.",
+    "CREATE_CREDIT_NOTE": "Gutschrift erstellen",
+    "CREATE_CREDIT_NOTE_CONFIRM": "Gutschrift für Rechnung {{invoiceNumber}} erstellen?",
+    "CREDIT_NOTE_CREATED": "Gutschrift wurde erstellt"
   },
   "SETTINGS": {
     "TITLE": "Einstellungen",
