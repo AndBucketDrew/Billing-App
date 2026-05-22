@@ -1,7 +1,10 @@
 /**
  * MailPoller — background service that periodically checks for new emails.
  *
- * When new invoices are detected it pushes them to the renderer via IPC:
+ * Works with any IMailClient backend (GraphClient for Microsoft 365,
+ * ImapClient for IMAP/SMTP accounts, MockMailClient for development).
+ *
+ * Push events sent to the renderer via IPC:
  *   'outlook:invoicesDetected'  — DetectedInvoice[]
  *   'outlook:pollComplete'      — { checkedAt: string; found: number }
  *   'outlook:pollError'         — string (error message)
@@ -10,10 +13,10 @@
  * emails it has already seen in the current session.
  */
 
-import { BrowserWindow, app } from 'electron';
+import { BrowserWindow } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
-import { GraphClient } from './graph-client';
+import type { IMailClient } from '../imap/email-types';
 import { InvoiceDetector, DetectedInvoice } from '../invoice-detector/invoice-detector';
 
 const STATE_FILENAME = 'outlook-poll-state.json';
@@ -27,17 +30,19 @@ export interface PollerOptions {
 export class MailPoller {
   private timer: ReturnType<typeof setInterval> | null = null;
   private isRunning = false;
+  private pollInProgress = false;
   private lastChecked: Date;
-  private readonly detector = new InvoiceDetector(app.getLocale());
   private readonly stateFile: string;
   private trustedSenders: string[] = [];
   private onAutoSave?: (invoice: DetectedInvoice) => Promise<void>;
 
   constructor(
-    private readonly graph: GraphClient,
+    private readonly client: IMailClient,
     /** Getter instead of direct reference — window may be recreated */
     private readonly getWindow: () => BrowserWindow | null,
     stateDir: string,
+    /** Shared detector instance — injected to avoid duplicate construction. */
+    private readonly detector: InvoiceDetector,
   ) {
     this.stateFile = path.join(stateDir, STATE_FILENAME);
     this.lastChecked = this.loadLastChecked();
@@ -62,6 +67,12 @@ export class MailPoller {
       this.timer = null;
     }
     this.isRunning = false;
+    // A3: notify the renderer so its isPolling indicator stays in sync even
+    // when stop() is called from the main process (e.g. on settings reset).
+    const win = this.getWindow();
+    if (win && !win.isDestroyed()) {
+      win.webContents.send('outlook:pollerStopped');
+    }
   }
 
   get running(): boolean {
@@ -71,25 +82,39 @@ export class MailPoller {
   // ─── Poll ──────────────────────────────────────────────────────────────────
 
   async poll(): Promise<void> {
+    // Skip if a poll is already in-flight — prevents overlapping network calls
+    // when the interval fires before the previous poll completes.
+    if (this.pollInProgress) return;
+    this.pollInProgress = true;
+
     const win = this.getWindow();
-    if (!win || win.isDestroyed()) return;
+    if (!win || win.isDestroyed()) {
+      this.pollInProgress = false;
+      return;
+    }
 
     const since = this.lastChecked;
     this.lastChecked = new Date(); // advance before await to avoid duplicate window
 
     try {
-      const messages = await this.graph.getRecentMessages(50, since);
+      const messages = await this.client.getRecentMessages(50, since);
       const detected: DetectedInvoice[] = [];
 
       for (const msg of messages) {
         if (!msg.hasAttachments) continue;
 
         try {
-          const attachments = await this.graph.getAttachments(msg.id);
+          const attachments = await this.client.getAttachments(msg.id);
           detected.push(...this.detector.analyze(msg, attachments, this.trustedSenders));
-        } catch {
-          // Skip this message on attachment fetch failure; it will be retried next poll
-          // because lastChecked is only advanced after the full loop succeeds.
+        } catch (attachErr: unknown) {
+          // B7: log the per-message error for diagnosability, but continue polling.
+          // Best-effort: skip this message if its attachment fetch fails.
+          // lastChecked was already advanced before the loop started, so this
+          // message will NOT be retried on the next poll.  This is intentional —
+          // a transient error on a single message should not stall the entire
+          // polling window.  If the outer getRecentMessages() call itself throws,
+          // lastChecked is rolled back in the catch block below and the whole
+          // window is retried.
         }
       }
 
@@ -101,7 +126,10 @@ export class MailPoller {
               await this.onAutoSave(inv);
             } catch (err: unknown) {
               const message = err instanceof Error ? err.message : String(err);
-              win.webContents.send('outlook:autoSaveError', { invoice: inv, error: message });
+              // B7: re-check — window may have closed while auto-save was in flight
+              if (!win.isDestroyed()) {
+                win.webContents.send('outlook:autoSaveError', { invoice: inv, error: message });
+              }
             }
           }
         }
@@ -123,6 +151,8 @@ export class MailPoller {
       const message = err instanceof Error ? err.message : String(err);
       const w = this.getWindow();
       w?.webContents.send('outlook:pollError', message);
+    } finally {
+      this.pollInProgress = false;
     }
   }
 

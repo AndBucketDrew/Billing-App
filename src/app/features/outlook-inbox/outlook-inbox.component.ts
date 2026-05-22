@@ -7,7 +7,7 @@ import {
 } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Subscription } from 'rxjs';
-import { OutlookService, AutoSavedEvent } from '../../core/services/outlook.service';
+import { OutlookService, AutoSavedEvent, AutoSaveErrorEvent } from '../../core/services/outlook.service';
 import {
   DetectedInvoice,
   OutlookAccount,
@@ -51,10 +51,17 @@ export class OutlookInboxComponent implements OnInit, OnDestroy {
     this.account = await this.outlook.getAccount();
     this.isPolling = await this.outlook.isPolling();
 
+    // Restore the review queue saved in the previous session
+    const saved = await this.outlook.loadQueue();
+    if (saved.length > 0) {
+      this.items = saved;
+    }
+
     // Subscribe to push events from the background poller
     this.subs.add(
       this.outlook.invoicesDetected$.subscribe(invoices => {
         this.mergeInvoices(invoices);
+        this.persistQueue();
         this.snack.open(`${invoices.length} new invoice(s) detected`, 'View', { duration: 4000 });
         this.cd.markForCheck();
       }),
@@ -63,7 +70,8 @@ export class OutlookInboxComponent implements OnInit, OnDestroy {
     this.subs.add(
       this.outlook.pollComplete$.subscribe(event => {
         this.lastChecked = event.checkedAt;
-        this.isPolling = true;
+        // Don't force isPolling = true here — the poller may have been stopped
+        // while a poll was already in-flight. isPolling is owned by togglePolling().
         this.cd.markForCheck();
       }),
     );
@@ -86,7 +94,43 @@ export class OutlookInboxComponent implements OnInit, OnDestroy {
         } else {
           this.items.unshift({ invoice, status: 'saved', savedPath: filePath });
         }
+        this.persistQueue();
         this.snack.open(`Auto-saved: ${invoice.attachmentName}`, undefined, { duration: 3000 });
+        this.cd.markForCheck();
+      }),
+    );
+
+    this.subs.add(
+      this.outlook.autoSaveError$.subscribe(({ invoice, error }: AutoSaveErrorEvent) => {
+        const existing = this.items.find(
+          i => i.invoice.messageId === invoice.messageId && i.invoice.attachmentId === invoice.attachmentId,
+        );
+        if (existing) {
+          existing.status = 'pending';
+          existing.error = error;
+        } else {
+          // autoSaveError fires before invoicesDetected — pre-insert as pending
+          // so mergeInvoices will skip it as a duplicate when invoicesDetected arrives.
+          this.items.unshift({ invoice, status: 'pending', error });
+        }
+        this.persistQueue();
+        this.snack.open(`Auto-save failed: ${error}`, 'Dismiss', { duration: 6000 });
+        this.cd.markForCheck();
+      }),
+    );
+
+    this.subs.add(
+      this.outlook.warning$.subscribe(msg => {
+        this.snack.open(`⚠ ${msg}`, 'Dismiss', { duration: 10000 });
+      }),
+    );
+
+    // A3: keep isPolling in sync when the main process stops the poller
+    // (e.g. on settings reset — no user action causes this, but it happens on
+    // every settings save before B1 was fixed, and could still happen on errors).
+    this.subs.add(
+      this.outlook.pollerStopped$.subscribe(() => {
+        this.isPolling = false;
         this.cd.markForCheck();
       }),
     );
@@ -104,17 +148,22 @@ export class OutlookInboxComponent implements OnInit, OnDestroy {
     this.isLoading = true;
     this.cd.markForCheck();
 
-    const result = await this.outlook.login();
+    try {
+      const result = await this.outlook.login();
 
-    if (result.success && result.account) {
-      this.account = result.account;
-      this.snack.open(`Logged in as ${result.account.username}`, undefined, { duration: 3000 });
-    } else {
-      this.snack.open(`Login failed: ${result.error}`, 'Dismiss', { duration: 5000 });
+      if (result.success && result.account) {
+        this.account = result.account;
+        this.snack.open(`Logged in as ${result.account.username}`, undefined, { duration: 3000 });
+      } else {
+        this.snack.open(`Login failed: ${result.error}`, 'Dismiss', { duration: 5000 });
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.snack.open(`Login failed: ${msg}`, 'Dismiss', { duration: 5000 });
+    } finally {
+      this.isLoading = false;
+      this.cd.markForCheck();
     }
-
-    this.isLoading = false;
-    this.cd.markForCheck();
   }
 
   async logout(): Promise<void> {
@@ -122,6 +171,7 @@ export class OutlookInboxComponent implements OnInit, OnDestroy {
     this.account = null;
     this.items = [];
     this.isPolling = false;
+    this.persistQueue(); // clear persisted queue on sign-out
     this.snack.open('Signed out', undefined, { duration: 2000 });
     this.cd.markForCheck();
   }
@@ -132,21 +182,35 @@ export class OutlookInboxComponent implements OnInit, OnDestroy {
     this.isLoading = true;
     this.cd.markForCheck();
 
-    const invoices = await this.outlook.fetchEmails();
-    this.mergeInvoices(invoices);
-
-    this.isLoading = false;
-    this.snack.open(`${invoices.length} invoice(s) found`, undefined, { duration: 3000 });
-    this.cd.markForCheck();
+    try {
+      const invoices = await this.outlook.fetchEmails();
+      this.mergeInvoices(invoices);
+      this.persistQueue();
+      this.snack.open(`${invoices.length} invoice(s) found`, undefined, { duration: 3000 });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.snack.open(`Fetch failed: ${msg}`, 'Dismiss', { duration: 5000 });
+    } finally {
+      this.isLoading = false;
+      this.cd.markForCheck();
+    }
   }
 
   async togglePolling(): Promise<void> {
-    if (this.isPolling) {
-      await this.outlook.stopPolling();
-      this.isPolling = false;
-    } else {
-      await this.outlook.startPolling();
-      this.isPolling = true;
+    const previous = this.isPolling;
+    try {
+      if (this.isPolling) {
+        await this.outlook.stopPolling();
+        this.isPolling = false;
+      } else {
+        await this.outlook.startPolling();
+        this.isPolling = true;
+      }
+    } catch (err: unknown) {
+      // Roll back to the previous state so the UI stays in sync with reality
+      this.isPolling = previous;
+      const msg = err instanceof Error ? err.message : String(err);
+      this.snack.open(`Polling failed: ${msg}`, 'Dismiss', { duration: 5000 });
     }
     this.cd.markForCheck();
   }
@@ -173,16 +237,18 @@ export class OutlookInboxComponent implements OnInit, OnDestroy {
       item.status = 'saved';
       item.savedPath = result.filePath;
     } else {
-      item.status = 'confirmed'; // revert to let user retry
+      item.status = 'pending'; // revert so the action buttons reappear for retry
       item.error = result.error;
       this.snack.open(`Save failed: ${result.error}`, 'Dismiss', { duration: 5000 });
     }
 
+    this.persistQueue();
     this.cd.markForCheck();
   }
 
   reject(item: InvoiceReviewItem): void {
     item.status = 'rejected';
+    this.persistQueue();
     this.cd.markForCheck();
   }
 
@@ -198,7 +264,7 @@ export class OutlookInboxComponent implements OnInit, OnDestroy {
 
   addTrustedSender(email: string): void {
     const trimmed = email.trim().toLowerCase();
-    if (!trimmed || !trimmed.includes('@')) return;
+    if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) return;
     if (!this.settings) return;
     if (!this.settings.trustedSenders.includes(trimmed)) {
       this.settings.trustedSenders = [...this.settings.trustedSenders, trimmed];
@@ -247,6 +313,11 @@ export class OutlookInboxComponent implements OnInit, OnDestroy {
   }
 
   // ── Private ──────────────────────────────────────────────────────────────────
+
+  /** Fire-and-forget queue write — non-fatal if it fails. */
+  private persistQueue(): void {
+    this.outlook.saveQueue(this.items).catch(() => {});
+  }
 
   private mergeInvoices(invoices: DetectedInvoice[]): void {
     for (const inv of invoices) {

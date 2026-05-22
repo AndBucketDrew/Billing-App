@@ -12,7 +12,7 @@
             Connected as {{ account.username }}
           </p>
           <p class="page-subtitle" *ngIf="!account">
-            Connect your Microsoft account to detect invoice attachments automatically
+            Connect your mailbox to detect invoice attachments automatically
           </p>
         </div>
 
@@ -47,25 +47,50 @@
 
       <!-- ── Setup steps — shown when not signed in ──────────────────────── -->
       <div class="setup-steps" *ngIf="!account">
-        <div class="setup-step" [class.step-done]="settings?.clientId">
-          <div class="step-badge">
-            <mat-icon *ngIf="settings?.clientId">check</mat-icon>
-            <span *ngIf="!settings?.clientId">1</span>
-          </div>
-          <div class="step-text">
-            <strong>Configure Azure Client ID</strong>
-            <span>Paste your Application (Client) ID in the Settings card below</span>
-          </div>
-        </div>
 
-        <div class="setup-step">
-          <div class="step-badge">2</div>
-          <div class="step-text">
-            <strong>Sign in with Microsoft</strong>
-            <span>Your browser opens for a secure, one-time sign-in</span>
+        <!-- MSAL steps -->
+        <ng-container *ngIf="settings?.connectionType === 'msal'">
+          <div class="setup-step" [class.step-done]="settings?.clientId">
+            <div class="step-badge">
+              <mat-icon *ngIf="settings?.clientId">check</mat-icon>
+              <span *ngIf="!settings?.clientId">1</span>
+            </div>
+            <div class="step-text">
+              <strong>Configure Azure Client ID</strong>
+              <span>Paste your Application (Client) ID in the Settings card below</span>
+            </div>
           </div>
-        </div>
+          <div class="setup-step">
+            <div class="step-badge">2</div>
+            <div class="step-text">
+              <strong>Sign in with Microsoft</strong>
+              <span>Your browser opens for a secure, one-time sign-in</span>
+            </div>
+          </div>
+        </ng-container>
 
+        <!-- IMAP steps -->
+        <ng-container *ngIf="settings?.connectionType === 'imap'">
+          <div class="setup-step" [class.step-done]="settings?.hasStoredPassword">
+            <div class="step-badge">
+              <mat-icon *ngIf="settings?.hasStoredPassword">check</mat-icon>
+              <span *ngIf="!settings?.hasStoredPassword">1</span>
+            </div>
+            <div class="step-text">
+              <strong>Configure IMAP credentials</strong>
+              <span>Fill in server, username and password in the Settings card below</span>
+            </div>
+          </div>
+          <div class="setup-step">
+            <div class="step-badge">2</div>
+            <div class="step-text">
+              <strong>Test &amp; connect</strong>
+              <span>Click "Connect" to verify your credentials</span>
+            </div>
+          </div>
+        </ng-container>
+
+        <!-- Common step 3 -->
         <div class="setup-step">
           <div class="step-badge">3</div>
           <div class="step-text">
@@ -84,11 +109,16 @@
   </mat-card>
 
   <!-- ── Config notice ───────────────────────────────────────────────────── -->
-  <div class="notice-bar" *ngIf="settings && !settings.clientId">
+  <div class="notice-bar"
+    *ngIf="settings && ((settings.connectionType === 'msal' && !settings.clientId) || (settings.connectionType === 'imap' && !settings.hasStoredPassword))">
     <mat-icon>warning</mat-icon>
-    <span>
+    <span *ngIf="settings.connectionType === 'msal'">
       <strong>Azure Client ID not configured.</strong>
-      Complete Step 1 in the Settings card below, then click Connect Outlook.
+      Complete Step 1 in the Settings card below, then click Connect.
+    </span>
+    <span *ngIf="settings.connectionType === 'imap'">
+      <strong>IMAP credentials not configured.</strong>
+      Fill in the IMAP settings below, save, then click Connect.
     </span>
   </div>
 
@@ -254,17 +284,92 @@
 
     <mat-card-content>
 
-      <!-- Connection settings -->
+      <!-- Connection type selector -->
       <div class="form-row">
-        <mat-form-field appearance="outline" class="form-field-full">
-          <mat-label>Azure Application (Client) ID</mat-label>
-          <input matInput [(ngModel)]="settings.clientId"
-            placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
-          <mat-hint>
-            portal.azure.com → App Registrations → your app → Overview → Application (Client) ID
-          </mat-hint>
-        </mat-form-field>
+        <mat-button-toggle-group [(ngModel)]="settings.connectionType" class="conn-type-toggle">
+          <mat-button-toggle value="msal">
+            <mat-icon>cloud</mat-icon>
+            Microsoft 365
+          </mat-button-toggle>
+          <mat-button-toggle value="imap">
+            <mat-icon>mail_outline</mat-icon>
+            IMAP / Custom mailbox
+          </mat-button-toggle>
+        </mat-button-toggle-group>
       </div>
+
+      <!-- MSAL settings -->
+      <ng-container *ngIf="settings.connectionType === 'msal'">
+        <div class="form-row">
+          <mat-form-field appearance="outline" class="form-field-full">
+            <mat-label>Azure Application (Client) ID</mat-label>
+            <input matInput [(ngModel)]="settings.clientId"
+              placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+            <mat-hint>
+              portal.azure.com → App Registrations → your app → Overview → Application (Client) ID
+            </mat-hint>
+          </mat-form-field>
+        </div>
+      </ng-container>
+
+      <!-- IMAP settings -->
+      <ng-container *ngIf="settings.connectionType === 'imap'">
+        <div class="form-row">
+          <mat-form-field appearance="outline" class="form-field-grow">
+            <mat-label>IMAP server</mat-label>
+            <input matInput [(ngModel)]="settings.imapHost"
+              placeholder="mail.yourdomain.com">
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="form-field-narrow">
+            <mat-label>Port</mat-label>
+            <input matInput type="number" [(ngModel)]="settings.imapPort" min="1" max="65535">
+            <mat-hint>993 = SSL · 143 = STARTTLS</mat-hint>
+          </mat-form-field>
+        </div>
+        <div class="form-row">
+          <mat-form-field appearance="outline" class="form-field-full">
+            <mat-label>Email address (username)</mat-label>
+            <input matInput [(ngModel)]="settings.imapUser"
+              placeholder="invoice@yourdomain.com">
+          </mat-form-field>
+        </div>
+        <div class="form-row">
+          <mat-form-field appearance="outline" class="form-field-full">
+            <mat-label>Password</mat-label>
+            <input matInput type="password" [(ngModel)]="settings.imapPassword"
+              [placeholder]="settings.hasStoredPassword ? '(password saved — leave blank to keep)' : 'Enter your email password'">
+            <mat-hint *ngIf="settings.hasStoredPassword">
+              A password is already saved. Enter a new one only if you want to change it.
+            </mat-hint>
+          </mat-form-field>
+        </div>
+        <div class="toggle-row" style="margin-bottom: 8px;">
+          <div class="toggle-body">
+            <div class="toggle-label">
+              <mat-icon>lock</mat-icon>
+              Use SSL/TLS
+            </div>
+            <p class="toggle-desc">Recommended — encrypts the connection (port 993)</p>
+          </div>
+          <mat-checkbox [(ngModel)]="settings.imapTls" color="primary" class="toggle-check">
+          </mat-checkbox>
+        </div>
+        <div class="toggle-row" style="margin-bottom: 8px;">
+          <div class="toggle-body">
+            <div class="toggle-label">
+              <mat-icon color="warn">warning</mat-icon>
+              Ignore certificate errors
+            </div>
+            <p class="toggle-desc">
+              <strong>Security risk.</strong>
+              Only enable if your server uses a self-signed or mismatched certificate and
+              you trust the server. Disables TLS verification — use with caution.
+            </p>
+          </div>
+          <mat-checkbox [(ngModel)]="settings.imapIgnoreCertErrors" color="warn" class="toggle-check">
+          </mat-checkbox>
+        </div>
+      </ng-container>
 
       <div class="form-row">
         <mat-form-field appearance="outline" class="form-field-full">

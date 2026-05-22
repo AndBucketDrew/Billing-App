@@ -1,56 +1,26 @@
 /**
- * Outlook / invoice-detection types shared between the Angular UI and the
- * Electron main process. These are plain interfaces — no Angular dependencies.
+ * Outlook / invoice-detection types for the Angular UI.
  *
- * The canonical runtime types live in the electron layer; these definitions
- * mirror them so the renderer has full TypeScript support without importing
- * from electron source files.
+ * A1 FIX: this file is now a thin re-export barrel — types are imported directly
+ * from their canonical Electron-layer sources instead of being duplicated here.
+ * There is no more manual synchronisation required; a type change in the
+ * Electron layer is reflected here automatically at compile time.
+ *
+ * Angular can resolve these paths because the tsconfig includes the project root,
+ * and `import type` / `export type` are erased at compile time — no Electron
+ * runtime code ever reaches the Angular bundle.
  */
 
-export type ConfidenceLevel = 'high' | 'medium' | 'low';
+// ── Invoice detector types ────────────────────────────────────────────────────
+export type { ConfidenceLevel, DetectedInvoice } from '../../../../electron/invoice-detector/invoice-detector';
 
-export interface DetectedInvoice {
-  messageId: string;
-  attachmentId: string;
-  senderName: string;
-  senderEmail: string;
-  subject: string;
-  receivedAt: string;
-  attachmentName: string;
-  /** Bytes */
-  attachmentSize: number;
-  confidence: ConfidenceLevel;
-  /** 0–100 */
-  confidenceScore: number;
-  /** Human-readable reasons for the score */
-  reasons: string[];
-  /** Relative sub-folder, e.g. "2024/04-April" */
-  suggestedSubFolder: string;
-}
+// ── IPC layer types (includes InvoiceReviewItem / InvoiceReviewStatus) ────────
+export type {
+  ConnectionType,
+  OutlookSettings,
+  InvoiceReviewStatus,
+  InvoiceReviewItem,
+} from '../../../../electron/ipc/outlook-ipc';
 
-export interface OutlookAccount {
-  name: string;
-  username: string;
-}
-
-export interface OutlookSettings {
-  clientId: string;
-  inboxFolder: string;
-  pollIntervalMinutes: number;
-  /** Exact email addresses that always score 100 (guaranteed high confidence) */
-  trustedSenders: string[];
-  /** Automatically save attachments when confidence is high, without manual review */
-  autoDownloadHighConfidence: boolean;
-}
-
-/** UI-only state attached to a detected invoice during the review session */
-export type InvoiceReviewStatus = 'pending' | 'confirmed' | 'rejected' | 'saving' | 'saved';
-
-export interface InvoiceReviewItem {
-  invoice: DetectedInvoice;
-  status: InvoiceReviewStatus;
-  /** Overridden by the user via the folder picker */
-  targetFolder?: string;
-  savedPath?: string;
-  error?: string;
-}
+// ── Preload bridge types ───────────────────────────────────────────────────────
+export type { OutlookAccount } from '../../../../electron/preload';

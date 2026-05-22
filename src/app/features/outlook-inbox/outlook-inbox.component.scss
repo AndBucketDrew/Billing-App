@@ -401,7 +401,12 @@
   }
 
   .form-field-full   { width: 100%; }
-  .form-field-narrow { width: 200px; }
+  .form-field-grow   { flex: 1; min-width: 180px; }
+  .form-field-narrow { width: 160px; }
+
+  .conn-type-toggle {
+    margin-bottom: 12px;
+  }
 
   // ── Divider between setting groups ────────────────────────────────────────
   .settings-divider {

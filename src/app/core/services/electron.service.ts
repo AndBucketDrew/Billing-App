@@ -109,8 +109,10 @@ export class ElectronService {
         startPolling:   async () => ({ success: true as const }),
         stopPolling:    async () => ({ success: true as const }),
         isPolling:      async () => ({ polling: false }),
-        getSettings:    async () => ({ clientId: '', inboxFolder: '', pollIntervalMinutes: 5, trustedSenders: [], autoDownloadHighConfidence: false }),
-        saveSettings:   async (u: any) => ({ clientId: '', inboxFolder: '', pollIntervalMinutes: 5, trustedSenders: [], autoDownloadHighConfidence: false, ...u }),
+        getSettings:    async () => ({ connectionType: 'msal' as const, clientId: '', imapHost: '', imapPort: 993, imapTls: true, imapIgnoreCertErrors: false, imapUser: '', imapPassword: '', hasStoredPassword: false, inboxFolder: '', pollIntervalMinutes: 5, trustedSenders: [], autoDownloadHighConfidence: false }),
+        saveSettings:   async (u: any) => ({ connectionType: 'msal' as const, clientId: '', imapHost: '', imapPort: 993, imapTls: true, imapIgnoreCertErrors: false, imapUser: '', imapPassword: '', hasStoredPassword: false, inboxFolder: '', pollIntervalMinutes: 5, trustedSenders: [], autoDownloadHighConfidence: false, ...u }),
+        loadQueue:      async () => [],
+        saveQueue:      async () => {},
         on:  () => {},
         off: () => {},
       }

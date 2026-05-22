@@ -17,7 +17,7 @@
  * at any time without touching the scoring logic.
  */
 
-import type { GraphMessage, GraphAttachment } from '../graph/graph-client';
+import type { MailMessage, MailAttachment } from '../imap/email-types';
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -52,10 +52,22 @@ const SUBJECT_KEYWORDS = [
   'order confirmation', 'bestellbestätigung',
 ];
 
-/** Partial domain fragments — checked against sender email address */
+/**
+ * Known commercial sender domains — full registrable domain (e.g. "stripe.com").
+ * The scorer checks whether the sender's domain equals an entry exactly OR is a
+ * subdomain of it (e.g. "billing.stripe.com" matches "stripe.com").
+ * Do NOT use bare names like "stripe" — they never match real addresses.
+ */
 const COMMERCIAL_DOMAINS = [
-  'amazon', 'paypal', 'ebay', 'microsoft', 'google', 'apple',
-  'booking.com', 'airbnb', 'stripe', 'paddle', 'fastspring',
+  // Shopping / marketplaces
+  'amazon.com', 'amazon.de', 'amazon.co.uk', 'amazon.at', 'amazon.fr', 'amazon.it', 'amazon.es',
+  'ebay.com', 'ebay.de', 'ebay.at', 'ebay.co.uk',
+  // Payment processors
+  'paypal.com', 'stripe.com', 'paddle.com', 'fastspring.com',
+  // Software / cloud
+  'microsoft.com', 'google.com', 'apple.com',
+  // Travel / accommodation
+  'booking.com', 'airbnb.com',
 ];
 
 const PDF_MIME = 'application/pdf';
@@ -71,7 +83,7 @@ export class InvoiceDetector {
    * Analyses a single email + its attachment list.
    * Returns one DetectedInvoice per qualifying attachment (low confidence excluded).
    */
-  analyze(message: GraphMessage, attachments: GraphAttachment[], trustedSenders: string[] = []): DetectedInvoice[] {
+  analyze(message: MailMessage, attachments: MailAttachment[], trustedSenders: string[] = []): DetectedInvoice[] {
     const results: DetectedInvoice[] = [];
 
     for (const att of attachments) {
@@ -86,8 +98,8 @@ export class InvoiceDetector {
       results.push({
         messageId: message.id,
         attachmentId: att.id,
-        senderName: message.from.emailAddress.name,
-        senderEmail: message.from.emailAddress.address,
+        senderName: message.from.name,
+        senderEmail: message.from.address,
         subject: message.subject ?? '(no subject)',
         receivedAt: message.receivedDateTime,
         attachmentName: att.name,
@@ -105,18 +117,19 @@ export class InvoiceDetector {
   // ─── Scoring ───────────────────────────────────────────────────────────────
 
   private score(
-    message: GraphMessage,
-    att: GraphAttachment,
+    message: MailMessage,
+    att: MailAttachment,
     trustedSenders: string[] = [],
   ): { score: number; reasons: string[] } {
     let total = 0;
     const reasons: string[] = [];
 
     // ── Trusted sender (guarantees high confidence regardless of other signals)
-    const lowerSenderEmail = message.from.emailAddress.address.toLowerCase();
+    // Short-circuit immediately: no other signal can change the outcome and
+    // continuing would add irrelevant entries to the reasons array.
+    const lowerSenderEmail = message.from.address.toLowerCase();
     if (trustedSenders.some(s => s.toLowerCase() === lowerSenderEmail)) {
-      total += 100;
-      reasons.push(`Trusted sender (${message.from.emailAddress.address})`);
+      return { score: 100, reasons: [`Trusted sender (${message.from.address})`] };
     }
 
     // ── Filename keyword (0–40) ──────────────────────────────────────────────
@@ -170,7 +183,7 @@ export class InvoiceDetector {
     return 'low';
   }
 
-  private isProcessableFile(att: GraphAttachment): boolean {
+  private isProcessableFile(att: MailAttachment): boolean {
     const lower = att.name.toLowerCase();
     return (
       ALLOWED_MIMES.includes(att.contentType) ||

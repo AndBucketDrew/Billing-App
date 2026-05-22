@@ -12,8 +12,10 @@
 import { Injectable, Inject, PLATFORM_ID, OnDestroy, NgZone } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Subject, Observable } from 'rxjs';
+import type { ElectronAPI } from '../../../../electron/preload';
 import {
   DetectedInvoice,
+  InvoiceReviewItem,
   OutlookAccount,
   OutlookSettings,
 } from '../models/outlook.models';
@@ -23,6 +25,11 @@ export interface AutoSavedEvent {
   filePath: string;
 }
 
+export interface AutoSaveErrorEvent {
+  invoice: DetectedInvoice;
+  error: string;
+}
+
 export interface PollCompleteEvent {
   checkedAt: string;
   found: number;
@@ -30,11 +37,19 @@ export interface PollCompleteEvent {
 
 @Injectable({ providedIn: 'root' })
 export class OutlookService implements OnDestroy {
+  // NOTE: Angular does NOT call ngOnDestroy on root (singleton) services —
+  // the service lives for the entire application lifetime.  ngOnDestroy is
+  // implemented here for correctness in case the service is ever scoped to a
+  // component or module, but it will not fire in the current configuration.
   // ── Push-event subjects ──────────────────────────────────────────────────────
   private readonly _invoicesDetected$ = new Subject<DetectedInvoice[]>();
   private readonly _pollComplete$ = new Subject<PollCompleteEvent>();
   private readonly _pollError$ = new Subject<string>();
   private readonly _autoSaved$ = new Subject<AutoSavedEvent>();
+  private readonly _autoSaveError$ = new Subject<AutoSaveErrorEvent>();
+  private readonly _warning$ = new Subject<string>();
+  /** A3: emitted when the main process stops the poller (e.g. on settings reset) */
+  private readonly _pollerStopped$ = new Subject<void>();
 
   /** Emitted whenever the background poller finds new invoices */
   readonly invoicesDetected$: Observable<DetectedInvoice[]> = this._invoicesDetected$.asObservable();
@@ -44,6 +59,12 @@ export class OutlookService implements OnDestroy {
   readonly pollError$: Observable<string> = this._pollError$.asObservable();
   /** Emitted when a high-confidence invoice is auto-saved during polling */
   readonly autoSaved$: Observable<AutoSavedEvent> = this._autoSaved$.asObservable();
+  /** Emitted when auto-saving a high-confidence invoice fails */
+  readonly autoSaveError$: Observable<AutoSaveErrorEvent> = this._autoSaveError$.asObservable();
+  /** Emitted for non-fatal advisories (e.g. insecure credential storage fallback) */
+  readonly warning$: Observable<string> = this._warning$.asObservable();
+  /** A3: emitted when the main process stops the poller — use to sync isPolling in the UI */
+  readonly pollerStopped$: Observable<void> = this._pollerStopped$.asObservable();
 
   // ── Bound handlers stored for removal ───────────────────────────────────────
   private readonly onInvoicesDetected = (invoices: DetectedInvoice[]) =>
@@ -58,6 +79,16 @@ export class OutlookService implements OnDestroy {
   private readonly onAutoSaved = (event: AutoSavedEvent) =>
     this.zone.run(() => this._autoSaved$.next(event));
 
+  private readonly onAutoSaveError = (event: AutoSaveErrorEvent) =>
+    this.zone.run(() => this._autoSaveError$.next(event));
+
+  private readonly onWarning = (msg: string) =>
+    this.zone.run(() => this._warning$.next(msg));
+
+  // A3: no payload — main process calls MailPoller.stop() which emits this event
+  private readonly onPollerStopped = () =>
+    this.zone.run(() => this._pollerStopped$.next());
+
   constructor(
     @Inject(PLATFORM_ID) private platformId: object,
     private readonly zone: NgZone,
@@ -68,6 +99,9 @@ export class OutlookService implements OnDestroy {
       api.on('outlook:pollComplete', this.onPollComplete);
       api.on('outlook:pollError', this.onPollError);
       api.on('outlook:autoSaved', this.onAutoSaved);
+      api.on('outlook:autoSaveError', this.onAutoSaveError);
+      api.on('outlook:warning', this.onWarning);
+      api.on('outlook:pollerStopped', this.onPollerStopped); // A3
     }
   }
 
@@ -78,11 +112,17 @@ export class OutlookService implements OnDestroy {
       api.off('outlook:pollComplete', this.onPollComplete);
       api.off('outlook:pollError', this.onPollError);
       api.off('outlook:autoSaved', this.onAutoSaved);
+      api.off('outlook:autoSaveError', this.onAutoSaveError);
+      api.off('outlook:warning', this.onWarning);
+      api.off('outlook:pollerStopped', this.onPollerStopped); // A3
     }
     this._invoicesDetected$.complete();
     this._pollComplete$.complete();
     this._pollError$.complete();
     this._autoSaved$.complete();
+    this._autoSaveError$.complete();
+    this._warning$.complete();
+    this._pollerStopped$.complete();
   }
 
   // ── Auth ─────────────────────────────────────────────────────────────────────
@@ -99,14 +139,14 @@ export class OutlookService implements OnDestroy {
 
   getAccount(): Promise<OutlookAccount | null> {
     if (!this.isElectron()) return Promise.resolve(null);
-    return this.api.getAccount().then((r: any) => (r.success ? r.account : null));
+    return this.api.getAccount().then(r => (r.success ? r.account : null));
   }
 
   // ── Email detection ──────────────────────────────────────────────────────────
 
   fetchEmails(): Promise<DetectedInvoice[]> {
     if (!this.isElectron()) return Promise.resolve(MOCK_INVOICES);
-    return this.api.fetchEmails().then((r: any) => (r.success ? r.invoices : []));
+    return this.api.fetchEmails().then(r => (r.success ? r.invoices : []));
   }
 
   // ── File operations ──────────────────────────────────────────────────────────
@@ -123,7 +163,7 @@ export class OutlookService implements OnDestroy {
 
   chooseFolder(): Promise<string | null> {
     if (!this.isElectron()) return Promise.resolve(null);
-    return this.api.chooseFolder().then((r: any) => (r.success ? r.folderPath : null));
+    return this.api.chooseFolder().then(r => (r.success ? r.folderPath : null));
   }
 
   // ── Polling ──────────────────────────────────────────────────────────────────
@@ -140,7 +180,7 @@ export class OutlookService implements OnDestroy {
 
   isPolling(): Promise<boolean> {
     if (!this.isElectron()) return Promise.resolve(false);
-    return this.api.isPolling().then((r: any) => r.polling);
+    return this.api.isPolling().then(r => r.polling);
   }
 
   // ── Settings ─────────────────────────────────────────────────────────────────
@@ -155,21 +195,43 @@ export class OutlookService implements OnDestroy {
     return this.api.saveSettings(updates);
   }
 
+  // ── Review-queue persistence ──────────────────────────────────────────────────
+
+  /** Loads the review queue that was persisted during the previous session. */
+  loadQueue(): Promise<InvoiceReviewItem[]> {
+    if (!this.isElectron()) return Promise.resolve([]);
+    return this.api.loadQueue();
+  }
+
+  /** Persists the current review queue to disk so it survives restarts. */
+  saveQueue(items: InvoiceReviewItem[]): Promise<void> {
+    if (!this.isElectron()) return Promise.resolve();
+    return this.api.saveQueue(items);
+  }
+
   // ── Helpers ──────────────────────────────────────────────────────────────────
 
   isElectron(): boolean {
-    return isPlatformBrowser(this.platformId) && !!((window as any).electronAPI?.outlook);
+    return isPlatformBrowser(this.platformId) && !!(window as any as { electronAPI?: ElectronAPI }).electronAPI?.outlook;
   }
 
-  private get api() {
-    return (window as any).electronAPI.outlook;
+  private get api(): ElectronAPI['outlook'] {
+    return (window as Window & { electronAPI: ElectronAPI }).electronAPI.outlook;
   }
 }
 
 // ─── Defaults & mocks ─────────────────────────────────────────────────────────
 
 const DEFAULT_SETTINGS: OutlookSettings = {
+  connectionType: 'msal',
   clientId: '',
+  imapHost: '',
+  imapPort: 993,
+  imapTls: true,
+  imapIgnoreCertErrors: false,
+  imapUser: '',
+  imapPassword: '',
+  hasStoredPassword: false,
   inboxFolder: '',
   pollIntervalMinutes: 5,
   trustedSenders: [],

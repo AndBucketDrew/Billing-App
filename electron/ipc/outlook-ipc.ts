@@ -1,9 +1,13 @@
 /**
  * registerOutlookIpcHandlers — registers all IPC channels for Outlook features.
  *
+ * Supports two connection backends selectable via settings.connectionType:
+ *   'msal' — Microsoft 365 / Exchange Online via Azure AD + Microsoft Graph API
+ *   'imap' — Any mailbox via standard IMAP (plain username + password)
+ *
  * Call this once from main.ts after the app is ready:
  *
- *   registerOutlookIpcHandlers(app.getPath('userData'), OUTLOOK_CLIENT_ID, () => mainWindow);
+ *   registerOutlookIpcHandlers(app.getPath('userData'), () => mainWindow);
  *
  * IPC channels exposed:
  *   outlook:login            → { success, account? }
@@ -21,25 +25,55 @@
  *   outlook:invoicesDetected  — DetectedInvoice[]
  *   outlook:pollComplete      — { checkedAt: string; found: number }
  *   outlook:pollError         — string
+ *   outlook:autoSaved         — { invoice, filePath }
+ *   outlook:warning           — string  (non-fatal advisory, e.g. insecure storage)
  */
 
 import { ipcMain, dialog, BrowserWindow, app } from 'electron';
+import { safeStorage } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
 import { MsalAuthService } from '../auth/msal-auth';
 import { GraphClient } from '../graph/graph-client';
-import { MockGraphClient } from '../graph/mock-graph-client';
+import { MockMailClient } from '../graph/mock-graph-client';
+import { ImapClient } from '../imap/imap-client';
 import { MailPoller } from '../graph/mail-poller';
 import { InvoiceDetector, DetectedInvoice } from '../invoice-detector/invoice-detector';
+import type { IMailClient } from '../imap/email-types';
 
-// ─── Settings stored for Outlook feature ─────────────────────────────────────
+// ─── Settings types ───────────────────────────────────────────────────────────
+
+export type ConnectionType = 'msal' | 'imap' | 'mock';
 
 export interface OutlookSettings {
-  /**
-   * Azure AD Application (client) ID.
-   * Register at https://portal.azure.com → App Registrations.
-   */
+  /** Which backend to use */
+  connectionType: ConnectionType;
+
+  // ── MSAL / Microsoft 365 ─────────────────────────────────────────────────
+  /** Azure AD Application (client) ID. Register at portal.azure.com → App Registrations. */
   clientId: string;
+
+  // ── IMAP ────────────────────────────────────────────────────────────────
+  imapHost: string;
+  imapPort: number;
+  /** true = SSL/TLS on port 993 (recommended), false = STARTTLS on port 143 */
+  imapTls: boolean;
+  /**
+   * When true, TLS certificate errors are silently ignored for this IMAP account.
+   * Only enable for servers whose certificate CN/SAN does not match the hostname
+   * (e.g. shared-hosting catch-all certs). Exposes the connection to MITM.
+   */
+  imapIgnoreCertErrors: boolean;
+  imapUser: string;
+  /**
+   * Plaintext password — only used when saving.
+   * When reading settings, this is always '' (password is stored encrypted on disk).
+   */
+  imapPassword: string;
+  /** True when an encrypted password is saved on disk. Read-only. */
+  hasStoredPassword: boolean;
+
+  // ── Common ────────────────────────────────────────────────────────────────
   /** Root folder where confirmed invoices are saved. */
   inboxFolder: string;
   /** Polling interval in minutes. */
@@ -50,13 +84,55 @@ export interface OutlookSettings {
   autoDownloadHighConfidence: boolean;
 }
 
-const DEFAULT_SETTINGS: OutlookSettings = {
+// ─── Review-queue types (canonical definitions — re-exported via preload) ─────
+
+export type InvoiceReviewStatus = 'pending' | 'confirmed' | 'rejected' | 'saving' | 'saved';
+
+export interface InvoiceReviewItem {
+  invoice: DetectedInvoice;
+  status: InvoiceReviewStatus;
+  /** Overridden by the user via the folder picker */
+  targetFolder?: string;
+  savedPath?: string;
+  error?: string;
+}
+
+// ─── On-disk schema (extends settings with encrypted password field) ──────────
+
+interface StoredSettings extends Omit<OutlookSettings, 'imapPassword' | 'hasStoredPassword'> {
+  /** Base64-encoded encrypted password (via safeStorage). Never in the IPC interface. */
+  imapPasswordEnc?: string;
+  /**
+   * S3: tracks HOW the password was stored so we can transparently upgrade to
+   * safeStorage encryption the first time the keychain becomes available.
+   *   'safeStorage' — encrypted via the OS keychain (secure)
+   *   'base64'      — plain Base64 fallback (insecure, used when keychain unavailable)
+   * Absent on settings files written before this field was introduced; treated as 'base64'.
+   */
+  imapPasswordEncMethod?: 'safeStorage' | 'base64';
+}
+
+const DEFAULT_SETTINGS: StoredSettings = {
+  connectionType: 'msal' as ConnectionType,
   clientId: '',
+  imapHost: '',
+  imapPort: 993,
+  imapTls: true,
+  imapIgnoreCertErrors: false,
+  imapUser: '',
   inboxFolder: path.join(app.getPath('documents'), 'Tour Billing', 'Inbox'),
   pollIntervalMinutes: 5,
   trustedSenders: [],
   autoDownloadHighConfidence: false,
 };
+
+/** Fields the renderer is allowed to supply — anything outside this list is ignored. */
+const ALLOWED_SETTING_KEYS: Array<keyof OutlookSettings> = [
+  'connectionType', 'clientId',
+  'imapHost', 'imapPort', 'imapTls', 'imapIgnoreCertErrors',
+  'imapUser', 'imapPassword',
+  'inboxFolder', 'pollIntervalMinutes', 'trustedSenders', 'autoDownloadHighConfidence',
+];
 
 // ─── Registration ─────────────────────────────────────────────────────────────
 
@@ -68,91 +144,257 @@ export function registerOutlookIpcHandlers(
 
   // ── Settings helpers ──────────────────────────────────────────────────────
 
-  function readSettings(): OutlookSettings {
+  /** In-memory cache — invalidated on every write to avoid redundant disk reads. */
+  let settingsCache: StoredSettings | null = null;
+
+  function readRaw(): StoredSettings {
+    if (settingsCache) return settingsCache;
     try {
-      return { ...DEFAULT_SETTINGS, ...JSON.parse(fs.readFileSync(settingsFile, 'utf-8')) };
+      const parsed = JSON.parse(fs.readFileSync(settingsFile, 'utf-8'));
+      settingsCache = { ...DEFAULT_SETTINGS, ...parsed };
     } catch {
-      return { ...DEFAULT_SETTINGS };
+      settingsCache = { ...DEFAULT_SETTINGS };
     }
+    return settingsCache!;
   }
 
-  function writeSettings(s: OutlookSettings): OutlookSettings {
-    fs.writeFileSync(settingsFile, JSON.stringify(s, null, 2));
-    return s;
+  /**
+   * Atomic write: write to a temp file first, then rename over the target.
+   * Rename is atomic on the same filesystem — a crash mid-write cannot
+   * corrupt the previous settings file.
+   */
+  function writeRaw(s: StoredSettings): void {
+    const json = JSON.stringify(s, null, 2);
+    const tmp = `${settingsFile}.tmp`;
+    fs.writeFileSync(tmp, json, 'utf-8');
+    fs.renameSync(tmp, settingsFile);
+    settingsCache = s;
   }
 
-  // ── Service instances (lazy, recreated when clientId changes) ─────────────
+  /** Convert stored settings → IPC-safe settings (strips enc, adds hasStoredPassword). */
+  function toPublic(raw: StoredSettings): OutlookSettings {
+    return {
+      connectionType: raw.connectionType,
+      clientId: raw.clientId,
+      imapHost: raw.imapHost,
+      imapPort: raw.imapPort,
+      imapTls: raw.imapTls,
+      imapIgnoreCertErrors: raw.imapIgnoreCertErrors ?? false,
+      imapUser: raw.imapUser,
+      imapPassword: '',  // never expose plaintext over IPC
+      hasStoredPassword: !!raw.imapPasswordEnc,
+      inboxFolder: raw.inboxFolder,
+      pollIntervalMinutes: raw.pollIntervalMinutes,
+      trustedSenders: raw.trustedSenders,
+      autoDownloadHighConfidence: raw.autoDownloadHighConfidence,
+    };
+  }
 
-  let auth: MsalAuthService | null = null;
-  let graph: GraphClient | null = null;
+  /**
+   * Returns the stored IMAP password.
+   *
+   * S3 — Transparent upgrade: if the password was stored as plain Base64 because
+   * safeStorage was unavailable at save time, and safeStorage has since become
+   * available (e.g. the user logged into their OS keychain), the password is
+   * silently re-encrypted and the settings file is updated before returning.
+   */
+  function getStoredPassword(raw: StoredSettings): string {
+    if (!raw.imapPasswordEnc) {
+      throw new Error('IMAP password not configured. Please enter your password in Settings.');
+    }
+
+    const encMethod = raw.imapPasswordEncMethod ?? 'base64'; // pre-field files treated as base64
+
+    // Upgrade path: plain-Base64 → safeStorage
+    if (encMethod !== 'safeStorage' && safeStorage.isEncryptionAvailable()) {
+      const plaintext = Buffer.from(raw.imapPasswordEnc, 'base64').toString('utf-8');
+      writeRaw({
+        ...raw,
+        imapPasswordEnc: safeStorage.encryptString(plaintext).toString('base64'),
+        imapPasswordEncMethod: 'safeStorage',
+      });
+      return plaintext;
+    }
+
+    if (safeStorage.isEncryptionAvailable()) {
+      const buf = Buffer.from(raw.imapPasswordEnc, 'base64');
+      return safeStorage.decryptString(buf);
+    }
+    // safeStorage was unavailable when the password was saved — it is stored as
+    // plain Base64 (NOT encrypted).  The user was warned about this at save time.
+    return Buffer.from(raw.imapPasswordEnc, 'base64').toString('utf-8');
+  }
+
+  // ── Service instances ─────────────────────────────────────────────────────
+
+  let msalAuth: MsalAuthService | null = null;
+  let mailClient: IMailClient | null = null;
   let poller: MailPoller | null = null;
   let lastManualFetch: Date | null = null;
   const detector = new InvoiceDetector(app.getLocale());
 
-  function getServices(): { auth: MsalAuthService | null; graph: GraphClient | MockGraphClient; poller: MailPoller } {
-    const settings = readSettings();
+  /**
+   * Returns the current mail client, auth service, and poller — creating them
+   * on first call (or after resetServices).  Has side effects on first call.
+   */
+  function getOrCreateServices(): { client: IMailClient; auth: MsalAuthService | null } {
+    const raw = readRaw();
 
-    if (settings.clientId === 'mock') {
-      if (!graph) {
-        graph = new MockGraphClient() as unknown as GraphClient;
-        poller = new MailPoller(graph, getWindow, userDataPath);
+    // ── Mock mode (S2: blocked in production builds) ──────────────────────────
+    if (raw.connectionType === 'mock') {
+      if (process.env['NODE_ENV'] === 'production') {
+        throw new Error('Mock connection mode is not available in production builds.');
       }
-      return { auth: null, graph, poller: poller! };
+      if (!mailClient) {
+        mailClient = new MockMailClient();
+        poller = new MailPoller(mailClient, getWindow, userDataPath, detector);
+      }
+      return { client: mailClient!, auth: null };
     }
 
-    if (!settings.clientId) {
+    // ── IMAP ─────────────────────────────────────────────────────────────────
+    if (raw.connectionType === 'imap') {
+      if (!raw.imapUser) {
+        throw new Error('IMAP username not configured. Please fill in the IMAP settings.');
+      }
+      const password = getStoredPassword(raw);
+
+      if (!mailClient) {
+        mailClient = new ImapClient({
+          host: raw.imapHost,
+          port: raw.imapPort,
+          secure: raw.imapTls,
+          user: raw.imapUser,
+          password,
+          ignoreCertErrors: raw.imapIgnoreCertErrors ?? false,
+        });
+        poller = new MailPoller(mailClient, getWindow, userDataPath, detector);
+      }
+      return { client: mailClient!, auth: null };
+    }
+
+    // ── MSAL / Microsoft 365 ─────────────────────────────────────────────────
+    if (!raw.clientId) {
       throw new Error('Azure Client ID is not configured. Please set it in Outlook Settings.');
     }
-
-    if (!auth) {
-      auth = new MsalAuthService(userDataPath, settings.clientId);
-      graph = new GraphClient(auth);
-      poller = new MailPoller(graph, getWindow, userDataPath);
+    if (!msalAuth) {
+      msalAuth = new MsalAuthService(userDataPath, raw.clientId);
+      mailClient = new GraphClient(msalAuth);
+      poller = new MailPoller(mailClient, getWindow, userDataPath, detector);
     }
+    return { client: mailClient!, auth: msalAuth };
+  }
 
-    return { auth, graph: graph!, poller: poller! };
+  function resetServices(): void {
+    poller?.stop();
+    msalAuth = null;
+    mailClient = null;
+    poller = null;
   }
 
   // ─── Settings ─────────────────────────────────────────────────────────────
 
   ipcMain.handle('outlook:getSettings', (): OutlookSettings => {
-    return readSettings();
+    return toPublic(readRaw());
   });
 
   ipcMain.handle('outlook:saveSettings', (_, updates: Partial<OutlookSettings>): OutlookSettings => {
-    const current = readSettings();
-    const next = { ...current, ...updates };
-
-    // clientId change resets all service instances so they pick up the new ID
-    if (updates.clientId && updates.clientId !== current.clientId) {
-      poller?.stop();
-      auth = null;
-      graph = null;
-      poller = null;
-      return writeSettings(next);
+    // Guard against malformed renderer payloads
+    if (!updates || typeof updates !== 'object' || Array.isArray(updates)) {
+      return toPublic(readRaw());
     }
 
-    writeSettings(next);
+    const raw = readRaw();
 
-    // Restart the poller silently so trustedSenders / autoDownload changes take effect
-    if (poller?.running && graph) {
+    // Whitelist: only accept known setting keys — silently drop anything else
+    const sanitized: Partial<OutlookSettings> = {};
+    for (const key of ALLOWED_SETTING_KEYS) {
+      if (Object.prototype.hasOwnProperty.call(updates, key)) {
+        (sanitized as any)[key] = (updates as any)[key];
+      }
+    }
+
+    // Pull the password out before merging — it must NEVER reach the disk file
+    const { imapPassword, hasStoredPassword: _hs, ...safeUpdates } = sanitized as any;
+    const next: StoredSettings = { ...raw, ...safeUpdates };
+
+    // Encrypt and store password if a new one was provided
+    if (imapPassword && imapPassword !== '') {
+      if (safeStorage.isEncryptionAvailable()) {
+        next.imapPasswordEnc = safeStorage.encryptString(imapPassword).toString('base64');
+        next.imapPasswordEncMethod = 'safeStorage'; // S3: record method for upgrade detection
+      } else {
+        // Fallback: base64 only — NOT encrypted. Warn the user explicitly.
+        next.imapPasswordEnc = Buffer.from(imapPassword, 'utf-8').toString('base64');
+        next.imapPasswordEncMethod = 'base64'; // S3: mark as unencrypted for future upgrade
+        getWindow()?.webContents.send(
+          'outlook:warning',
+          'Secure credential storage is not available on this system. ' +
+          'The IMAP password is stored as Base64 on disk and is not encrypted. ' +
+          'Consider using Microsoft 365 (MSAL) for secure authentication.',
+        );
+      }
+    }
+
+    // A4: clamp imapPort to a valid TCP port range server-side — HTML min/max are UI hints only
+    if ('imapPort' in sanitized) {
+      const p = Number((sanitized as any).imapPort);
+      (sanitized as any).imapPort = isNaN(p) ? 993 : Math.max(1, Math.min(65535, Math.round(p)));
+    }
+
+    // B1 FIX: compare against current value — connectionType being present in the
+    // payload (which is always true when the component sends the full settings object)
+    // must NOT be treated as a change unless the value actually differs.
+    // Reset services when any connection-critical setting changes.
+    // imapPort and imapTls are included because changing them requires a new ImapClient.
+    const credChanged =
+      (sanitized.connectionType !== undefined && sanitized.connectionType !== raw.connectionType) ||
+      (sanitized.clientId  !== undefined && sanitized.clientId  !== raw.clientId)  ||
+      (sanitized.imapHost  !== undefined && sanitized.imapHost  !== raw.imapHost)  ||
+      (sanitized.imapPort  !== undefined && sanitized.imapPort  !== raw.imapPort)  ||
+      (sanitized.imapTls   !== undefined && sanitized.imapTls   !== raw.imapTls)   ||
+      (sanitized.imapUser  !== undefined && sanitized.imapUser  !== raw.imapUser)  ||
+      (imapPassword !== undefined && imapPassword !== '');
+
+    if (credChanged) resetServices();
+
+    writeRaw(next);
+
+    // Restart the poller so new trustedSenders / autoDownload changes take effect
+    if (!credChanged && poller?.running && mailClient) {
       poller.stop();
-      poller.start(next.pollIntervalMinutes * 60 * 1000, {
+      poller.start(clampIntervalMs(next.pollIntervalMinutes), {
         trustedSenders: next.trustedSenders,
-        onAutoSave: next.autoDownloadHighConfidence ? makeAutoSaver(next, graph) : undefined,
+        onAutoSave: next.autoDownloadHighConfidence
+          ? makeAutoSaver(next, mailClient)
+          : undefined,
       });
     }
 
-    return next;
+    return toPublic(next);
   });
 
   // ─── Auth ─────────────────────────────────────────────────────────────────
 
   ipcMain.handle('outlook:login', async () => {
     try {
-      const { auth: a } = getServices();
-      if (!a) return { success: true, account: { username: 'mock@example.com', name: 'Mock User' } };
-      const account = await a.login();
+      const raw = readRaw();
+      const { client, auth } = getOrCreateServices();
+
+      // IMAP — test the connection
+      if (raw.connectionType === 'imap') {
+        await (client as ImapClient).testConnection();
+        return { success: true, account: { username: raw.imapUser, name: raw.imapUser } };
+      }
+
+      // Mock
+      if (raw.connectionType === 'mock') {
+        return { success: true, account: { username: 'mock@example.com', name: 'Mock User' } };
+      }
+
+      // MSAL — interactive OAuth2 login (auth is guaranteed non-null here)
+      if (!auth) throw new Error('Azure Client ID is not configured. Please set it in Outlook Settings.');
+      const account = await auth.login();
       return { success: true, account };
     } catch (e: unknown) {
       return { success: false, error: toMessage(e) };
@@ -162,10 +404,8 @@ export function registerOutlookIpcHandlers(
   ipcMain.handle('outlook:logout', async () => {
     try {
       poller?.stop();
-      await auth?.logout();
-      auth = null;
-      graph = null;
-      poller = null;
+      if (msalAuth) await msalAuth.logout();
+      resetServices();
       return { success: true };
     } catch (e: unknown) {
       return { success: false, error: toMessage(e) };
@@ -174,12 +414,30 @@ export function registerOutlookIpcHandlers(
 
   ipcMain.handle('outlook:getAccount', async () => {
     try {
-      const { auth: a } = getServices();
-      if (!a) return { success: true, account: { username: 'mock@example.com', name: 'Mock User' } };
-      const account = await a.getLoggedInAccount();
+      const raw = readRaw();
+
+      // IMAP — return account from settings if credentials are stored
+      if (raw.connectionType === 'imap') {
+        if (raw.imapUser && raw.imapPasswordEnc) {
+          return { success: true, account: { username: raw.imapUser, name: raw.imapUser } };
+        }
+        return { success: true, account: null };
+      }
+
+      // Mock
+      if (raw.connectionType === 'mock') {
+        return { success: true, account: { username: 'mock@example.com', name: 'Mock User' } };
+      }
+
+      // MSAL — check cached token
+      if (!raw.clientId) return { success: true, account: null };
+      const { auth } = getOrCreateServices();
+      if (!auth) return { success: true, account: null };
+      const account = await auth.getLoggedInAccount();
       return { success: true, account };
     } catch (e: unknown) {
-      // If not configured yet just return null account rather than an error
+      // B6: log instead of silently swallowing — masks real bugs otherwise
+      console.warn('[outlook:getAccount]', e instanceof Error ? e.message : String(e));
       return { success: true, account: null };
     }
   });
@@ -188,17 +446,23 @@ export function registerOutlookIpcHandlers(
 
   ipcMain.handle('outlook:fetchEmails', async () => {
     try {
-      const { graph: g } = getServices();
-      const settings = readSettings();
+      const { client } = getOrCreateServices();
+      const settings = readRaw();
       const since = lastManualFetch ?? undefined;
       lastManualFetch = new Date();
-      const messages = await g.getRecentMessages(50, since);
-      const all = [];
+      const messages = await client.getRecentMessages(50, since);
+      const all: DetectedInvoice[] = [];
 
       for (const msg of messages) {
         if (!msg.hasAttachments) continue;
-        const attachments = await g.getAttachments(msg.id);
-        all.push(...detector.analyze(msg, attachments, settings.trustedSenders));
+        // B4: per-message try-catch mirrors the poller's resilience — a transient
+        // error on one message's attachment fetch must not abort the whole scan.
+        try {
+          const attachments = await client.getAttachments(msg.id);
+          all.push(...detector.analyze(msg, attachments, settings.trustedSenders));
+        } catch {
+          // Best-effort: skip this message
+        }
       }
 
       return { success: true, invoices: all };
@@ -226,8 +490,8 @@ export function registerOutlookIpcHandlers(
       },
     ) => {
       try {
-        const { graph: g } = getServices();
-        const settings = readSettings();
+        const { client } = getOrCreateServices();
+        const settings = readRaw();
 
         // Prevent path traversal: targetFolder must be inside the configured inbox root
         const resolvedTarget = path.resolve(targetFolder);
@@ -236,13 +500,14 @@ export function registerOutlookIpcHandlers(
           return { success: false, error: 'Target folder is outside the configured inbox folder.' };
         }
 
-        const buffer = await g.downloadAttachment(messageId, attachmentId);
+        const buffer = await client.downloadAttachment(messageId, attachmentId);
 
-        fs.mkdirSync(targetFolder, { recursive: true });
+        // Use the resolved path — consistent with the traversal check above
+        fs.mkdirSync(resolvedTarget, { recursive: true });
 
         // Strip characters that are invalid in Windows/macOS/Linux file names
         const safeName = filename.replace(/[<>:"/\\|?*\x00-\x1F]/g, '_');
-        const filePath = path.join(targetFolder, safeName);
+        const filePath = path.join(resolvedTarget, safeName);
 
         // Avoid silent overwrite — add a numeric suffix if the file exists
         const finalPath = uniquePath(filePath);
@@ -275,13 +540,28 @@ export function registerOutlookIpcHandlers(
 
   // ─── Polling control ──────────────────────────────────────────────────────
 
-  function makeAutoSaver(settings: OutlookSettings, graphInstance: Pick<GraphClient, 'downloadAttachment'>) {
+  function makeAutoSaver(settings: StoredSettings, clientInstance: IMailClient) {
     return async (inv: DetectedInvoice): Promise<void> => {
-      const buffer = await graphInstance.downloadAttachment(inv.messageId, inv.attachmentId);
-      const folder = path.join(settings.inboxFolder, inv.suggestedSubFolder);
-      fs.mkdirSync(folder, { recursive: true });
-      const safeName = inv.attachmentName.replace(/[<>:"/\\|?*\x00-\x1F]/g, '_');
-      const finalPath = uniquePath(path.join(folder, safeName));
+      // Resolve both paths to prevent path-traversal via a crafted suggestedSubFolder
+      const resolvedRoot   = path.resolve(settings.inboxFolder);
+      const resolvedFolder = path.resolve(path.join(settings.inboxFolder, inv.suggestedSubFolder));
+
+      if (
+        resolvedFolder !== resolvedRoot &&
+        !resolvedFolder.startsWith(resolvedRoot + path.sep)
+      ) {
+        const win = getWindow();
+        win?.webContents.send('outlook:autoSaveError', {
+          invoice: inv,
+          error: 'Auto-save path is outside the configured inbox folder — skipped.',
+        });
+        return;
+      }
+
+      const buffer = await clientInstance.downloadAttachment(inv.messageId, inv.attachmentId);
+      fs.mkdirSync(resolvedFolder, { recursive: true });
+      const safeName  = inv.attachmentName.replace(/[<>:"/\\|?*\x00-\x1F]/g, '_');
+      const finalPath = uniquePath(path.join(resolvedFolder, safeName));
       fs.writeFileSync(finalPath, buffer);
       getWindow()?.webContents.send('outlook:autoSaved', { invoice: inv, filePath: finalPath });
     };
@@ -289,11 +569,14 @@ export function registerOutlookIpcHandlers(
 
   ipcMain.handle('outlook:startPolling', async () => {
     try {
-      const { poller: p, graph: g } = getServices();
-      const settings = readSettings();
-      p.start(settings.pollIntervalMinutes * 60 * 1000, {
+      const { client } = getOrCreateServices();
+      if (!poller) poller = new MailPoller(client, getWindow, userDataPath, detector);
+      const settings = readRaw();
+      poller.start(clampIntervalMs(settings.pollIntervalMinutes), {
         trustedSenders: settings.trustedSenders,
-        onAutoSave: settings.autoDownloadHighConfidence ? makeAutoSaver(settings, g) : undefined,
+        onAutoSave: settings.autoDownloadHighConfidence
+          ? makeAutoSaver(settings, client)
+          : undefined,
       });
       return { success: true };
     } catch (e: unknown) {
@@ -309,6 +592,60 @@ export function registerOutlookIpcHandlers(
   ipcMain.handle('outlook:isPolling', () => {
     return { polling: poller?.running ?? false };
   });
+
+  // ─── Review-queue persistence ─────────────────────────────────────────────
+
+  const queueFile = path.join(userDataPath, 'outlook-review-queue.json');
+
+  ipcMain.handle('outlook:loadQueue', (): any[] => {
+    try {
+      const raw = JSON.parse(fs.readFileSync(queueFile, 'utf-8'));
+      if (!Array.isArray(raw)) return [];
+      // Keep only well-formed items — silently drop anything malformed
+      const VALID_STATUSES = new Set<InvoiceReviewStatus>(['pending', 'confirmed', 'rejected', 'saving', 'saved']);
+      return raw
+        .filter((item: any) =>
+          item !== null &&
+          typeof item === 'object' &&
+          VALID_STATUSES.has(item.status) &&
+          typeof item.invoice === 'object' &&
+          item.invoice !== null &&
+          typeof item.invoice.messageId === 'string' &&
+          typeof item.invoice.attachmentId === 'string',
+        )
+        .map((item: any) => ({
+          ...item,
+          // Items interrupted mid-save revert to pending so the user can retry
+          status: item.status === 'saving' ? 'pending' : item.status,
+        }));
+    } catch {
+      return [];
+    }
+  });
+
+  ipcMain.handle('outlook:saveQueue', (_, items: unknown): void => {
+    // Guard: only accept a plain array from the renderer
+    if (!Array.isArray(items)) return;
+    try {
+      // Sanitise before writing — apply the same shape validation as loadQueue
+      // so a corrupted or malicious renderer payload can't write arbitrary data.
+      const VALID_STATUSES = new Set<InvoiceReviewStatus>(['pending', 'confirmed', 'rejected', 'saving', 'saved']);
+      const sanitized = items.filter((item: any) =>
+        item !== null &&
+        typeof item === 'object' &&
+        VALID_STATUSES.has(item.status) &&
+        typeof item.invoice === 'object' &&
+        item.invoice !== null &&
+        typeof item.invoice.messageId === 'string' &&
+        typeof item.invoice.attachmentId === 'string',
+      );
+      const tmp = `${queueFile}.tmp`;
+      fs.writeFileSync(tmp, JSON.stringify(sanitized, null, 2), 'utf-8');
+      fs.renameSync(tmp, queueFile);
+    } catch {
+      // Non-fatal: worst case the queue is lost on next restart
+    }
+  });
 }
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
@@ -317,14 +654,38 @@ function toMessage(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
 
-/** Returns a path that does not already exist by appending (1), (2), … */
+/** Clamps poll interval to 1–60 minutes and converts to milliseconds. */
+function clampIntervalMs(minutes: number | undefined): number {
+  return Math.max(1, Math.min(60, minutes ?? 5)) * 60 * 1000;
+}
+
+/**
+ * Returns a path guaranteed not to exist at the moment of return by using
+ * exclusive-open (O_EXCL) semantics: the check and the file creation are one
+ * atomic OS operation, which eliminates the TOCTOU race between existsSync and
+ * the subsequent writeFileSync.  The empty placeholder file is created here
+ * and the caller must overwrite it (writeFileSync without the 'x' flag is fine
+ * since it already exists at that point).
+ */
 function uniquePath(filePath: string): string {
-  if (!fs.existsSync(filePath)) return filePath;
+  const ext  = path.extname(filePath);
+  const base = filePath.slice(0, filePath.length - ext.length);
+  const MAX_SUFFIX = 9_999; // B5: prevent unbounded looping in pathological cases
 
-  const ext = path.extname(filePath);
-  const base = filePath.slice(0, -ext.length);
-  let n = 1;
-
-  while (fs.existsSync(`${base} (${n})${ext}`)) n++;
-  return `${base} (${n})${ext}`;
+  for (let n = 0; n <= MAX_SUFFIX; n++) {
+    const candidate = n === 0 ? filePath : `${base} (${n})${ext}`;
+    try {
+      // 'wx' = write + exclusive-create; throws EEXIST if the file is already there
+      const fd = fs.openSync(candidate, 'wx');
+      fs.closeSync(fd);
+      return candidate;
+    } catch (e: any) {
+      if (e.code !== 'EEXIST') throw e;
+      // File exists — try the next suffix
+    }
+  }
+  throw new Error(
+    `Cannot create a unique filename for "${path.basename(filePath)}" — ` +
+    `${MAX_SUFFIX} duplicates already exist in the target folder.`,
+  );
 }

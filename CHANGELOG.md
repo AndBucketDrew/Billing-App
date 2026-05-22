@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [1.1.0]
+
+### Added
+
+* **IMAP mailbox support** — the Outlook Invoice Inbox now works with any standard IMAP account (custom domains, shared hosting, cPanel, etc.) in addition to Microsoft 365
+  * New connection-type toggle in Settings: **Microsoft 365** (Azure AD / MSAL) or **IMAP / Custom mailbox**
+  * IMAP settings: server hostname, port, SSL/TLS toggle, email address, and password
+  * Password is encrypted at rest using Electron `safeStorage` (Windows DPAPI / macOS Keychain / libsecret) — never stored in plaintext
+
+### Changed
+
+* **Internal** — `GraphClient`, `MockMailClient`, `MailPoller`, and `InvoiceDetector` now operate on a generic `IMailClient` / `MailMessage` / `MailAttachment` interface instead of Microsoft Graph-specific types, making it straightforward to add further backends
+* **`mock` mode** — activate by setting IMAP host to `mock` (IMAP mode) or Client ID to `mock` (MSAL mode)
+
+---
+
 ## [1.0.7]
 
 ### Added

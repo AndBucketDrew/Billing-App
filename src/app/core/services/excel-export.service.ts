@@ -1,5 +1,10 @@
+/**
+ * S4 FIX: replaced unmaintained SheetJS (xlsx 0.18.5) with ExcelJS 4.x.
+ * ExcelJS 4+ is actively maintained, has no known CVEs, and supports browser
+ * environments without Node.js polyfills.
+ */
 import { Injectable } from '@angular/core';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { Invoice } from '../models/domain.models';
 
 @Injectable({ providedIn: 'root' })
@@ -25,35 +30,48 @@ export class ExcelExportService {
 
   async exportYearToExcel(invoices: Invoice[], year: number): Promise<void> {
     const sorted = this.sortForExport(invoices);
-    const rows = sorted.map(inv => ({
-      'Invoice Number': inv.invoiceNumber,
-      'Invoice Date': inv.invoiceDate ? new Date(inv.invoiceDate).toLocaleDateString('de-DE') : '',
-      'Tour Date': inv.tourDate ? new Date(inv.tourDate).toLocaleDateString('de-DE') : '',
-      'Customer': inv.customerName,
-      'Company': inv.companyName ?? '',
-      'Payment Method': inv.paymentMethod ?? '',
-      'Pax': inv.pax ?? '',
-      'Guide': inv.guide ?? '',
-      'Net (€)': inv.totalNet,
-      'VAT (€)': inv.totalVat,
-      'Gross (€)': inv.totalGross,
-      'Status': inv.status,
-      'Type': inv.type === 'credit_note' ? 'Gutschrift' : 'Rechnung',
-    }));
 
-    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'Tour Billing';
+    wb.created = new Date();
 
-    // Column widths
-    ws['!cols'] = [
-      { wch: 20 }, { wch: 14 }, { wch: 14 }, { wch: 28 }, { wch: 28 },
-      { wch: 16 }, { wch: 6 }, { wch: 16 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 },
+    const ws = wb.addWorksheet(`${year}`);
+    ws.columns = [
+      { header: 'Invoice Number', key: 'invoiceNumber', width: 20 },
+      { header: 'Invoice Date',   key: 'invoiceDate',   width: 14 },
+      { header: 'Tour Date',      key: 'tourDate',      width: 14 },
+      { header: 'Customer',       key: 'customer',      width: 28 },
+      { header: 'Company',        key: 'company',       width: 28 },
+      { header: 'Payment Method', key: 'paymentMethod', width: 16 },
+      { header: 'Pax',            key: 'pax',           width: 6  },
+      { header: 'Guide',          key: 'guide',         width: 16 },
+      { header: 'Net (€)',        key: 'net',           width: 12 },
+      { header: 'VAT (€)',        key: 'vat',           width: 12 },
+      { header: 'Gross (€)',      key: 'gross',         width: 12 },
+      { header: 'Status',         key: 'status',        width: 12 },
+      { header: 'Type',           key: 'type',          width: 12 },
     ];
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, `${year}`);
+    for (const inv of sorted) {
+      ws.addRow({
+        invoiceNumber: inv.invoiceNumber,
+        invoiceDate:   inv.invoiceDate   ? new Date(inv.invoiceDate).toLocaleDateString('de-DE')  : '',
+        tourDate:      inv.tourDate      ? new Date(inv.tourDate).toLocaleDateString('de-DE')     : '',
+        customer:      inv.customerName,
+        company:       inv.companyName   ?? '',
+        paymentMethod: inv.paymentMethod ?? '',
+        pax:           inv.pax           ?? '',
+        guide:         inv.guide         ?? '',
+        net:           inv.totalNet,
+        vat:           inv.totalVat,
+        gross:         inv.totalGross,
+        status:        inv.status,
+        type:          inv.type === 'credit_note' ? 'Gutschrift' : 'Rechnung',
+      });
+    }
 
-    const buffer: ArrayBuffer = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
-    const base64 = this.arrayBufferToBase64(buffer);
+    const buffer = await wb.xlsx.writeBuffer();
+    const base64 = this.arrayBufferToBase64(buffer as ArrayBuffer);
     const filename = `invoices-${year}.xlsx`;
 
     const saved = await (window as any).electronAPI.excel.save(base64, filename);
