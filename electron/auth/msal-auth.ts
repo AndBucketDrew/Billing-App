@@ -37,6 +37,8 @@ export const GRAPH_SCOPES = [
 export class MsalAuthService {
   private pca: PublicClientApplication;
   private readonly cacheFile: string;
+  /** Pinned after login — used to select the correct account when multiple are cached. */
+  private loggedInAccountId: string | null = null;
 
   constructor(userDataPath: string, clientId: string) {
     this.cacheFile = path.join(userDataPath, '.outlook_cache.enc');
@@ -66,6 +68,13 @@ export class MsalAuthService {
             if (safeStorage.isEncryptionAvailable()) {
               const encrypted = safeStorage.encryptString(ctx.tokenCache.serialize());
               fs.writeFileSync(this.cacheFile, encrypted);
+            } else {
+              // safeStorage unavailable — intentionally NOT writing tokens in plaintext.
+              // The user will need to re-authenticate on the next launch.
+              console.warn(
+                '[MsalAuthService] safeStorage unavailable — MSAL token cache not persisted. ' +
+                'User will need to re-authenticate on next launch.',
+              );
             }
           },
         },
@@ -89,43 +98,45 @@ export class MsalAuthService {
       errorTemplate: errorHtml,
     });
 
+    this.loggedInAccountId = result.account?.homeAccountId ?? null;
     return this.accountToDto(result.account!);
   }
 
   /** Clears the encrypted token cache and signs the user out. */
   async logout(): Promise<void> {
+    this.loggedInAccountId = null;
     if (fs.existsSync(this.cacheFile)) {
       fs.unlinkSync(this.cacheFile);
     }
   }
 
   /**
-   * Returns a valid access token, refreshing silently if possible.
-   * Falls back to interactive login if the refresh token is expired.
-   * Throws 'NOT_AUTHENTICATED' if no account exists at all.
+   * Returns a valid access token via silent refresh.
+   * Throws a human-readable 'session expired' error if the refresh token is
+   * expired — callers must surface this to the user rather than popping up a
+   * browser window from a background context.
+   * Throws 'NOT_AUTHENTICATED' if no account is cached at all.
    */
   async getAccessToken(): Promise<string> {
     const accounts = await this.pca.getTokenCache().getAllAccounts();
     if (accounts.length === 0) throw new Error('NOT_AUTHENTICATED');
 
+    // Prefer the pinned account to avoid ambiguity when multiple accounts are cached
+    // (e.g. after a re-auth cycle that left a stale entry).
+    const account = this.loggedInAccountId
+      ? (accounts.find(a => a.homeAccountId === this.loggedInAccountId) ?? accounts[0])
+      : accounts[0];
+
     try {
-      const result = await this.pca.acquireTokenSilent({
-        scopes: GRAPH_SCOPES,
-        account: accounts[0],
-      });
+      const result = await this.pca.acquireTokenSilent({ scopes: GRAPH_SCOPES, account });
       if (!result) throw new Error('Silent token acquisition returned null');
       return result.accessToken;
     } catch {
-      // Silent refresh failed (e.g. refresh token expired) — re-authenticate interactively
-      await this.login();
-      const fresh = await this.pca.getTokenCache().getAllAccounts();
-      if (fresh.length === 0) throw new Error('NOT_AUTHENTICATED');
-      const result = await this.pca.acquireTokenSilent({
-        scopes: GRAPH_SCOPES,
-        account: fresh[0],
-      });
-      if (!result) throw new Error('Silent token acquisition returned null after re-authentication');
-      return result.accessToken;
+      // Do NOT open a browser window from a background poll — throw a typed error so
+      // the poller surfaces it as an actionable 'session expired' UI message instead.
+      throw new Error(
+        'Your Microsoft 365 session has expired — please sign in again in Outlook Settings.',
+      );
     }
   }
 
@@ -133,7 +144,10 @@ export class MsalAuthService {
   async getLoggedInAccount(): Promise<{ name: string; username: string } | null> {
     const accounts = await this.pca.getTokenCache().getAllAccounts();
     if (accounts.length === 0) return null;
-    return this.accountToDto(accounts[0]);
+    const account = this.loggedInAccountId
+      ? (accounts.find(a => a.homeAccountId === this.loggedInAccountId) ?? accounts[0])
+      : accounts[0];
+    return this.accountToDto(account);
   }
 
   // ─── Helpers ───────────────────────────────────────────────────────────────

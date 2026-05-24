@@ -9,7 +9,7 @@
  * as RxJS Observables so components can subscribe reactively.
  */
 
-import { Injectable, Inject, PLATFORM_ID, OnDestroy, NgZone } from '@angular/core';
+import { Injectable, Inject, PLATFORM_ID, NgZone } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Subject, Observable } from 'rxjs';
 import type { ElectronAPI } from '../../../../electron/preload';
@@ -36,11 +36,12 @@ export interface PollCompleteEvent {
 }
 
 @Injectable({ providedIn: 'root' })
-export class OutlookService implements OnDestroy {
-  // NOTE: Angular does NOT call ngOnDestroy on root (singleton) services —
-  // the service lives for the entire application lifetime.  ngOnDestroy is
-  // implemented here for correctness in case the service is ever scoped to a
-  // component or module, but it will not fire in the current configuration.
+export class OutlookService {
+  // NOTE: This service is intentionally long-lived (providedIn: 'root').
+  // Angular never calls ngOnDestroy on root-scoped services; IPC listeners
+  // registered in the constructor are valid for the entire process lifetime,
+  // which in Electron equals the app lifetime. No explicit cleanup is needed.
+
   // ── Push-event subjects ──────────────────────────────────────────────────────
   private readonly _invoicesDetected$ = new Subject<DetectedInvoice[]>();
   private readonly _pollComplete$ = new Subject<PollCompleteEvent>();
@@ -103,26 +104,6 @@ export class OutlookService implements OnDestroy {
       api.on('outlook:warning', this.onWarning);
       api.on('outlook:pollerStopped', this.onPollerStopped); // A3
     }
-  }
-
-  ngOnDestroy(): void {
-    if (this.isElectron()) {
-      const api = this.api;
-      api.off('outlook:invoicesDetected', this.onInvoicesDetected);
-      api.off('outlook:pollComplete', this.onPollComplete);
-      api.off('outlook:pollError', this.onPollError);
-      api.off('outlook:autoSaved', this.onAutoSaved);
-      api.off('outlook:autoSaveError', this.onAutoSaveError);
-      api.off('outlook:warning', this.onWarning);
-      api.off('outlook:pollerStopped', this.onPollerStopped); // A3
-    }
-    this._invoicesDetected$.complete();
-    this._pollComplete$.complete();
-    this._pollError$.complete();
-    this._autoSaved$.complete();
-    this._autoSaveError$.complete();
-    this._warning$.complete();
-    this._pollerStopped$.complete();
   }
 
   // ── Auth ─────────────────────────────────────────────────────────────────────
@@ -252,6 +233,7 @@ const MOCK_INVOICES: DetectedInvoice[] = [
     confidenceScore: 85,
     reasons: ['Filename contains "invoice"', 'Subject contains "invoice"', 'PDF attachment', 'Known commercial sender (amazon)'],
     suggestedSubFolder: '2024/04-April',
+    connectionType: 'mock',
   },
   {
     messageId: 'mock-2',
@@ -266,5 +248,6 @@ const MOCK_INVOICES: DetectedInvoice[] = [
     confidenceScore: 55,
     reasons: ['Filename contains "rechnung"', 'Subject contains "rechnung"', 'PDF attachment'],
     suggestedSubFolder: '2024/03-March',
+    connectionType: 'mock',
   },
 ];

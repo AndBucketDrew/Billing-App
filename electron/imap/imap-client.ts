@@ -36,6 +36,8 @@ export interface ImapConfig {
 
 /** Maximum number of UID→attachments entries kept in the in-process cache. */
 const CACHE_MAX = 500;
+/** Reject downloads above this size to prevent Buffer.concat() exhausting RAM on oversized attachments. */
+const MAX_DOWNLOAD_SIZE = 25 * 1024 * 1024; // 25 MB
 
 export class ImapClient implements IMailClient {
   /** Attachment metadata keyed by UID string, populated by getRecentMessages */
@@ -175,6 +177,19 @@ export class ImapClient implements IMailClient {
    * @param partNumber Body part number e.g. "2" or "1.2"
    */
   async downloadAttachment(messageId: string, partNumber: string): Promise<Buffer> {
+    // Guard against oversized attachments before opening a connection.
+    // Only applies on the hot path (cache populated by getRecentMessages).
+    const cached = this.cache.get(messageId);
+    if (cached) {
+      const att = cached.find(a => a.id === partNumber);
+      if (att && att.size > MAX_DOWNLOAD_SIZE) {
+        throw new Error(
+          `Attachment "${att.name}" is too large to download ` +
+          `(${(att.size / (1024 * 1024)).toFixed(1)} MB; limit is 25 MB).`,
+        );
+      }
+    }
+
     const client = this.createClient();
 
     try {

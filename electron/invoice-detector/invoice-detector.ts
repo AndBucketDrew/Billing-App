@@ -37,6 +37,12 @@ export interface DetectedInvoice {
   reasons: string[];
   /** Relative sub-folder suggestion, e.g. "2024/04-April" */
   suggestedSubFolder: string;
+  /**
+   * The mail backend that produced this invoice — 'msal', 'imap', or 'mock'.
+   * Persisted in the review queue so the UI can warn when the user has switched
+   * backends between sessions (a silent download failure otherwise).
+   */
+  connectionType: string;
 }
 
 // ─── Keyword lists ────────────────────────────────────────────────────────────
@@ -83,7 +89,13 @@ export class InvoiceDetector {
    * Analyses a single email + its attachment list.
    * Returns one DetectedInvoice per qualifying attachment (low confidence excluded).
    */
-  analyze(message: MailMessage, attachments: MailAttachment[], trustedSenders: string[] = []): DetectedInvoice[] {
+  analyze(
+    message: MailMessage,
+    attachments: MailAttachment[],
+    trustedSenders: string[] = [],
+    /** Stamped on every result — lets the UI warn when the backend has changed between sessions. */
+    connectionType = '',
+  ): DetectedInvoice[] {
     const results: DetectedInvoice[] = [];
 
     for (const att of attachments) {
@@ -108,6 +120,7 @@ export class InvoiceDetector {
         confidenceScore: score,
         reasons,
         suggestedSubFolder: this.suggestSubFolder(message.receivedDateTime),
+        connectionType,
       });
     }
 

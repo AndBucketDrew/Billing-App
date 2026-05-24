@@ -25,6 +25,8 @@ const FALLBACK_LOOKBACK_MS = 24 * 60 * 60 * 1000;
 export interface PollerOptions {
   trustedSenders?: string[];
   onAutoSave?: (invoice: DetectedInvoice) => Promise<void>;
+  /** Stamped on detected invoices — lets the UI warn on backend switch between sessions. */
+  connectionType?: string;
 }
 
 export class MailPoller {
@@ -34,6 +36,7 @@ export class MailPoller {
   private lastChecked: Date;
   private readonly stateFile: string;
   private trustedSenders: string[] = [];
+  private connectionType = '';
   private onAutoSave?: (invoice: DetectedInvoice) => Promise<void>;
 
   constructor(
@@ -53,6 +56,7 @@ export class MailPoller {
   start(intervalMs = 5 * 60 * 1000, options: PollerOptions = {}): void {
     if (this.isRunning) return;
     this.trustedSenders = options.trustedSenders ?? [];
+    this.connectionType = options.connectionType ?? '';
     this.onAutoSave = options.onAutoSave;
     this.isRunning = true;
 
@@ -61,17 +65,27 @@ export class MailPoller {
     this.timer = setInterval(() => this.poll(), intervalMs);
   }
 
-  stop(): void {
+  /**
+   * Stops the poller.
+   *
+   * @param silent  When true the 'outlook:pollerStopped' push event is suppressed.
+   *                Use this for internal config-only restarts where polling is
+   *                immediately resumed — emitting the event would leave the UI
+   *                stuck at isPolling=false even though polling continues. (B_NEW_2)
+   */
+  stop(silent = false): void {
     if (this.timer !== null) {
       clearInterval(this.timer);
       this.timer = null;
     }
     this.isRunning = false;
-    // A3: notify the renderer so its isPolling indicator stays in sync even
-    // when stop() is called from the main process (e.g. on settings reset).
-    const win = this.getWindow();
-    if (win && !win.isDestroyed()) {
-      win.webContents.send('outlook:pollerStopped');
+    // A3: notify the renderer so its isPolling indicator stays in sync when
+    // the poller is genuinely stopped (user-initiated or error-triggered).
+    if (!silent) {
+      const win = this.getWindow();
+      if (win && !win.isDestroyed()) {
+        win.webContents.send('outlook:pollerStopped');
+      }
     }
   }
 
@@ -105,10 +119,12 @@ export class MailPoller {
 
         try {
           const attachments = await this.client.getAttachments(msg.id);
-          detected.push(...this.detector.analyze(msg, attachments, this.trustedSenders));
+          detected.push(...this.detector.analyze(msg, attachments, this.trustedSenders, this.connectionType));
         } catch (attachErr: unknown) {
-          // B7: log the per-message error for diagnosability, but continue polling.
           // Best-effort: skip this message if its attachment fetch fails.
+          // Log for diagnosability without crashing the entire poll window. (B_NEW_3)
+          console.warn('[poll] attachment fetch failed for msg', msg.id,
+            attachErr instanceof Error ? attachErr.message : String(attachErr));
           // lastChecked was already advanced before the loop started, so this
           // message will NOT be retried on the next poll.  This is intentional —
           // a transient error on a single message should not stall the entire
@@ -137,11 +153,16 @@ export class MailPoller {
 
       this.saveLastChecked(this.lastChecked);
 
+      // B7 pattern extended: re-acquire the window — it may have been destroyed
+      // during the autoSave await loop (network I/O can take several seconds).
+      const finalWin = this.getWindow();
+      if (!finalWin || finalWin.isDestroyed()) return;
+
       if (detected.length > 0) {
-        win.webContents.send('outlook:invoicesDetected', detected);
+        finalWin.webContents.send('outlook:invoicesDetected', detected);
       }
 
-      win.webContents.send('outlook:pollComplete', {
+      finalWin.webContents.send('outlook:pollComplete', {
         checkedAt: this.lastChecked.toISOString(),
         found: detected.length,
       });

@@ -26,7 +26,9 @@
  *   outlook:pollComplete      — { checkedAt: string; found: number }
  *   outlook:pollError         — string
  *   outlook:autoSaved         — { invoice, filePath }
+ *   outlook:autoSaveError     — { invoice, error: string }
  *   outlook:warning           — string  (non-fatal advisory, e.g. insecure storage)
+ *   outlook:pollerStopped     — (no payload) emitted by MailPoller.stop()
  */
 
 import { ipcMain, dialog, BrowserWindow, app } from 'electron';
@@ -336,10 +338,12 @@ export function registerOutlookIpcHandlers(
       }
     }
 
-    // A4: clamp imapPort to a valid TCP port range server-side — HTML min/max are UI hints only
+    // A4: clamp imapPort to a valid TCP port range — HTML min/max are UI hints only.
+    // next was already spread from safeUpdates above, so we must write directly to next
+    // rather than back to sanitized (which is no longer consulted after this point).
     if ('imapPort' in sanitized) {
       const p = Number((sanitized as any).imapPort);
-      (sanitized as any).imapPort = isNaN(p) ? 993 : Math.max(1, Math.min(65535, Math.round(p)));
+      next.imapPort = isNaN(p) ? 993 : Math.max(1, Math.min(65535, Math.round(p)));
     }
 
     // B1 FIX: compare against current value — connectionType being present in the
@@ -360,11 +364,14 @@ export function registerOutlookIpcHandlers(
 
     writeRaw(next);
 
-    // Restart the poller so new trustedSenders / autoDownload changes take effect
+    // Restart the poller so new trustedSenders / autoDownload changes take effect.
+    // B_NEW_2: use stop(true) — the poller is immediately restarted so we must NOT
+    // emit pollerStopped, which would desync isPolling in the UI.
     if (!credChanged && poller?.running && mailClient) {
-      poller.stop();
+      poller.stop(true);
       poller.start(clampIntervalMs(next.pollIntervalMinutes), {
         trustedSenders: next.trustedSenders,
+        connectionType: next.connectionType,
         onAutoSave: next.autoDownloadHighConfidence
           ? makeAutoSaver(next, mailClient)
           : undefined,
@@ -395,6 +402,15 @@ export function registerOutlookIpcHandlers(
       // MSAL — interactive OAuth2 login (auth is guaranteed non-null here)
       if (!auth) throw new Error('Azure Client ID is not configured. Please set it in Outlook Settings.');
       const account = await auth.login();
+      // Warn the user if the token cache cannot be persisted — they will need to
+      // re-authenticate after every restart until safeStorage becomes available.
+      if (!safeStorage.isEncryptionAvailable()) {
+        getWindow()?.webContents.send(
+          'outlook:warning',
+          'Secure credential storage is not available on this system. ' +
+          'Your Microsoft 365 session cannot be persisted — you will need to sign in again after each restart.',
+        );
+      }
       return { success: true, account };
     } catch (e: unknown) {
       return { success: false, error: toMessage(e) };
@@ -459,7 +475,7 @@ export function registerOutlookIpcHandlers(
         // error on one message's attachment fetch must not abort the whole scan.
         try {
           const attachments = await client.getAttachments(msg.id);
-          all.push(...detector.analyze(msg, attachments, settings.trustedSenders));
+          all.push(...detector.analyze(msg, attachments, settings.trustedSenders, settings.connectionType));
         } catch {
           // Best-effort: skip this message
         }
@@ -492,6 +508,11 @@ export function registerOutlookIpcHandlers(
       try {
         const { client } = getOrCreateServices();
         const settings = readRaw();
+
+        // path.resolve('') returns CWD — reject before the traversal check can be bypassed.
+        if (!settings.inboxFolder) {
+          return { success: false, error: 'Inbox folder is not configured. Please set it in Outlook Settings.' };
+        }
 
         // Prevent path traversal: targetFolder must be inside the configured inbox root
         const resolvedTarget = path.resolve(targetFolder);
@@ -542,6 +563,16 @@ export function registerOutlookIpcHandlers(
 
   function makeAutoSaver(settings: StoredSettings, clientInstance: IMailClient) {
     return async (inv: DetectedInvoice): Promise<void> => {
+      // path.resolve('') returns CWD — reject before the traversal check can be bypassed.
+      if (!settings.inboxFolder) {
+        const win = getWindow();
+        win?.webContents.send('outlook:autoSaveError', {
+          invoice: inv,
+          error: 'Auto-save skipped — inbox folder is not configured.',
+        });
+        return;
+      }
+
       // Resolve both paths to prevent path-traversal via a crafted suggestedSubFolder
       const resolvedRoot   = path.resolve(settings.inboxFolder);
       const resolvedFolder = path.resolve(path.join(settings.inboxFolder, inv.suggestedSubFolder));
@@ -574,6 +605,7 @@ export function registerOutlookIpcHandlers(
       const settings = readRaw();
       poller.start(clampIntervalMs(settings.pollIntervalMinutes), {
         trustedSenders: settings.trustedSenders,
+        connectionType: settings.connectionType,
         onAutoSave: settings.autoDownloadHighConfidence
           ? makeAutoSaver(settings, client)
           : undefined,

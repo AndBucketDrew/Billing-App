@@ -5,7 +5,10 @@
  * in the mail poller and invoice detector pipeline.
  *
  * Uses Node's built-in fetch (available in Electron 29 / Node 20).
- * All network calls go through getAccessToken(), which auto-refreshes.
+ * All network calls go through getAccessToken(), which throws a typed
+ * 'session expired' error when the refresh token is stale so callers
+ * can surface it as an actionable UI message instead of opening a
+ * browser window from a background context.
  * Access tokens never leave the main process.
  *
  * Resilience:
@@ -111,7 +114,12 @@ export class GraphClient implements IMailClient {
     while (nextUrl && collected.length < top) {
       const res: GraphPagedResponse<GraphMessage> = await this.get(nextUrl);
       collected.push(...res.value);
-      nextUrl = res['@odata.nextLink'];
+      // Validate before following — only trust nextLink URLs that stay within the
+      // expected Graph API origin; a crafted response could otherwise redirect us elsewhere.
+      const candidate = res['@odata.nextLink'];
+      nextUrl = (typeof candidate === 'string' && candidate.startsWith(BASE))
+        ? candidate
+        : undefined;
     }
 
     return collected.slice(0, top);
