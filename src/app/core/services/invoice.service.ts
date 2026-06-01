@@ -4,7 +4,6 @@ import { ElectronService } from './electron.service';
 import { CalculationService } from './calculation.service';
 import type { Invoice, InvoiceLineItem, InvoiceType, PaymentMethod, VatRate } from '../models/domain.models';
 import { v4 as uuidv4 } from 'uuid';
-import { SettingsService } from './settings.service';
 
 @Injectable({
   providedIn: 'root'
@@ -16,7 +15,6 @@ export class InvoiceService {
   constructor(
     private electron: ElectronService,
     private calculation: CalculationService,
-    private settings: SettingsService,
   ) {
     this.loadInvoices();
   }
@@ -65,12 +63,11 @@ export class InvoiceService {
     try {
       const totals = this.calculation.calculateInvoiceTotals(invoiceData.lineItems);
 
-      const payload: Omit<Invoice, 'id' | 'createdAt' | 'updatedAt'> = {
+      // invoiceNumber is intentionally omitted — the main process sets it to null on
+      // creation and only assigns a real number atomically at finalization.
+      const payload: Omit<Invoice, 'id' | 'invoiceNumber' | 'createdAt' | 'updatedAt'> = {
         ...invoiceData,
-
-        //after the spread overrides the undefined from ...invoiceData and satisfies the 'herr' | 'frau' | 'divers' | null type.
         salutation: invoiceData.salutation ?? null,
-        invoiceNumber: await this.generateInvoiceNumber(),
         status: 'draft',
         vatBreakdown: totals.vatBreakdown,
         totalNet: totals.totalNet,
@@ -79,7 +76,6 @@ export class InvoiceService {
       };
 
       const newInvoice = await this.electron.api.invoice.create(payload);
-
       await this.loadInvoices();
       return newInvoice;
     } catch (error) {
@@ -87,7 +83,6 @@ export class InvoiceService {
       throw error;
     }
   }
-
 
   async updateInvoice(id: string, updates: Partial<Invoice>): Promise<Invoice | null> {
     try {
@@ -123,13 +118,28 @@ export class InvoiceService {
     }
   }
 
+  /**
+   * Atomically assigns an invoice number (from the settings counter) and flips the
+   * status to 'finalized'.  The number generation and the status update happen in a
+   * single write on the main process — no counter drift and no partial state.
+   */
   async finalizeInvoice(id: string): Promise<Invoice | null> {
-    return this.updateInvoice(id, { status: 'finalized' });
+    try {
+      const finalized = await this.electron.api.invoice.finalize(id);
+      if (finalized) {
+        await this.loadInvoices();
+      }
+      return finalized;
+    } catch (error) {
+      console.error('Error finalizing invoice:', error);
+      throw error;
+    }
   }
 
   /**
-   * Create a Gutschrift (credit note) that mirrors the original invoice
-   * with all amounts negated. The invoice number gets a 'G' suffix.
+   * Atomically creates a Gutschrift (credit note) that mirrors the original invoice
+   * with all amounts negated, AND marks the original as 'storniert' — both changes
+   * land in a single writeJsonFile call so a crash cannot leave them inconsistent.
    */
   async createCreditNote(originalInvoice: Invoice): Promise<Invoice> {
     try {
@@ -145,12 +155,13 @@ export class InvoiceService {
 
       const totals = this.calculation.calculateInvoiceTotals(creditLineItems);
 
-      // Destructure away the original's id/timestamps so electron assigns new ones
+      // Destructure away the original's id/timestamps so the main process assigns new ones
       const { id: _id, createdAt: _ca, updatedAt: _ua, ...rest } = originalInvoice;
 
-      const payload = {
+      const payload: Omit<Invoice, 'id' | 'createdAt' | 'updatedAt'> = {
         ...rest,
-        invoiceNumber: originalInvoice.invoiceNumber + 'G',
+        // Credit note number is derived from the original — it does NOT consume a counter slot
+        invoiceNumber: (originalInvoice.invoiceNumber ?? '') + 'G',
         type: 'credit_note' as InvoiceType,
         creditNoteForInvoiceNumber: originalInvoice.invoiceNumber,
         status: 'draft' as const,
@@ -161,19 +172,17 @@ export class InvoiceService {
         totalGross: totals.totalGross,
       };
 
-      const newInvoice = await this.electron.api.invoice.create(payload);
-
-      // Mark the original invoice as storniert (cancelled by this credit note)
-      await this.electron.api.invoice.update(originalInvoice.id, {
-        status: 'storniert'
-      } as any);
-
+      const newInvoice = await this.electron.api.invoice.createCreditNote(originalInvoice.id, payload);
       await this.loadInvoices();
       return newInvoice;
     } catch (error) {
       console.error('Error creating credit note:', error);
       throw error;
     }
+  }
+
+  async togglePaid(invoice: Invoice): Promise<Invoice | null> {
+    return this.updateInvoice(invoice.id, { isPaid: !invoice.isPaid });
   }
 
   createLineItem(data: {
@@ -210,26 +219,5 @@ export class InvoiceService {
     );
 
     return { ...item, ...totals };
-  }
-
-  private async generateInvoiceNumber(): Promise<string> {
-    const now = new Date();
-
-    const pad = (n: number, length = 2): string =>
-      String(n).padStart(length, '0');
-
-    const yy = String(now.getFullYear()).slice(-2);
-    const mm = pad(now.getMonth() + 1);
-    const dd = pad(now.getDate());
-    const hh = pad(now.getHours());
-    const min = pad(now.getMinutes());
-
-    const settings = this.settings.getSettings();
-    const index = settings.invoiceCounter ?? 1;
-
-    // Increment counter and save
-    await this.settings.updateSettings({ invoiceCounter: index + 1 });
-
-    return `${yy}${mm}${dd}-${hh}${min}-${pad(index, 3)}`;
   }
 }

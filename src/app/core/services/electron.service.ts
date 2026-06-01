@@ -43,9 +43,16 @@ export class ElectronService {
       invoice: {
         getAll: async () => [],
         getById: async () => null,
-        create: async (inv) => ({ ...inv, id: 'mock', invoiceNumber: 'MOCK-001', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }),
+        create: async (inv) => ({ ...inv, id: 'mock', invoiceNumber: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }),
         update: async () => null,
-        delete: async () => false
+        delete: async () => false,
+        finalize: async () => null,
+        createCreditNote: async (_originalId: string, payload: any) => ({
+          ...payload,
+          id: 'mock-cn',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }),
       },
       settings: {
         get: async () => ({

@@ -58,6 +58,10 @@ export interface ElectronAPI {
     create: (invoice: Omit<Invoice, 'id' | 'invoiceNumber' | 'createdAt' | 'updatedAt'>) => Promise<Invoice>;
     update: (id: string, updates: Partial<Invoice>) => Promise<Invoice | null>;
     delete: (id: string) => Promise<boolean>;
+    /** Atomically assigns an invoice number (from the counter) and sets status to 'finalized'. */
+    finalize: (id: string) => Promise<Invoice | null>;
+    /** Atomically creates a credit note AND marks the original invoice as 'storniert' in one write. */
+    createCreditNote: (originalId: string, payload: Omit<Invoice, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Invoice>;
   };
 
   // Settings operations
@@ -158,12 +162,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   invoice: {
     getAll: () => ipcRenderer.invoke('invoice:getAll'),
     getById: (id: string) => ipcRenderer.invoke('invoice:getById', id),
-    create: (invoice: Omit<Invoice, 'id' | 'invoiceNumber' | 'createdAt' | 'updatedAt'>) => 
+    create: (invoice: Omit<Invoice, 'id' | 'invoiceNumber' | 'createdAt' | 'updatedAt'>) =>
       ipcRenderer.invoke('invoice:create', invoice),
-    update: (id: string, updates: Partial<Invoice>) => 
+    update: (id: string, updates: Partial<Invoice>) =>
       ipcRenderer.invoke('invoice:update', id, updates),
-    delete: (id: string) => 
-      ipcRenderer.invoke('invoice:delete', id)
+    delete: (id: string) =>
+      ipcRenderer.invoke('invoice:delete', id),
+    finalize: (id: string) =>
+      ipcRenderer.invoke('invoice:finalize', id),
+    createCreditNote: (originalId: string, payload: Omit<Invoice, 'id' | 'createdAt' | 'updatedAt'>) =>
+      ipcRenderer.invoke('invoice:createCreditNote', originalId, payload),
   },
 
   settings: {

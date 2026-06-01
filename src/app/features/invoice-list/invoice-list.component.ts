@@ -115,6 +115,17 @@ export class InvoiceListComponent implements OnInit {
     }
   }
 
+  async togglePaid(invoice: Invoice): Promise<void> {
+    const confirmKey = invoice.isPaid ? 'INVOICE.MARK_UNPAID_CONFIRM' : 'INVOICE.MARK_PAID_CONFIRM';
+    if (!confirm(this.translate.instant(confirmKey))) return;
+    try {
+      await this.invoiceService.togglePaid(invoice);
+    } catch (error) {
+      this.showMessage(this.translate.instant('MESSAGES.ERROR'), 'error');
+      console.error('Error toggling paid status:', error);
+    }
+  }
+
   async createCreditNote(invoice: Invoice): Promise<void> {
     const msg = this.translate.instant('INVOICE.CREATE_CREDIT_NOTE_CONFIRM', {
       invoiceNumber: invoice.invoiceNumber
@@ -159,16 +170,21 @@ export class InvoiceListComponent implements OnInit {
       );
     }
 
-    // Newest first — credit notes (026G) always sit directly after their parent (026)
+    // Drafts (no number yet) always float to the top; then newest first;
+    // credit notes (026G) always sit directly after their parent (026)
     result = [...result].sort((a, b) => {
+      const aIsDraft = !a.invoiceNumber;
+      const bIsDraft = !b.invoiceNumber;
+      if (aIsDraft !== bIsDraft) return aIsDraft ? -1 : 1;             // drafts first
+
       const baseA = (a.invoiceNumber ?? '').replace(/G$/i, '').replace(/\D/g, '');
       const baseB = (b.invoiceNumber ?? '').replace(/G$/i, '').replace(/\D/g, '');
       const numA = parseInt(baseA || '0', 10);
       const numB = parseInt(baseB || '0', 10);
-      if (numA !== numB) return numB - numA;                              // descending
+      if (numA !== numB) return numB - numA;                            // descending
       const isGA = (a.invoiceNumber ?? '').toUpperCase().endsWith('G') ? 1 : 0;
       const isGB = (b.invoiceNumber ?? '').toUpperCase().endsWith('G') ? 1 : 0;
-      return isGA - isGB;                                                 // regular before G
+      return isGA - isGB;                                               // regular before G
     });
 
     return result;

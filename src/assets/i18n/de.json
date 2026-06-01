@@ -142,7 +142,12 @@
     "CREDIT_NOTE_REFERENCE": "Gutschrift für Rechnung Nr.",
     "CREATE_CREDIT_NOTE": "Gutschrift erstellen",
     "CREATE_CREDIT_NOTE_CONFIRM": "Gutschrift für Rechnung {{invoiceNumber}} erstellen?",
-    "CREDIT_NOTE_CREATED": "Gutschrift wurde erstellt"
+    "CREDIT_NOTE_CREATED": "Gutschrift wurde erstellt",
+    "STATUS_PAID": "Bezahlt",
+    "MARK_PAID": "Als bezahlt markieren",
+    "MARK_UNPAID": "Als unbezahlt markieren",
+    "MARK_PAID_CONFIRM": "Rechnung als bezahlt markieren?",
+    "MARK_UNPAID_CONFIRM": "Bezahlt-Markierung von dieser Rechnung entfernen?"
   },
   "SETTINGS": {
     "TITLE": "Einstellungen",

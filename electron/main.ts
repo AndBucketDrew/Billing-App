@@ -47,6 +47,11 @@ function ensureDataFiles(): void {
     fs.mkdirSync(USER_DATA_PATH, { recursive: true });
   }
 
+  // Recover any saves that were interrupted between .tmp write and final rename
+  recoverOrphanedTmp(INVOICES_FILE);
+  recoverOrphanedTmp(TOURS_FILE);
+  recoverOrphanedTmp(SETTINGS_FILE);
+
   if (!fs.existsSync(TOURS_FILE)) {
     const initialData: ToursData = { tours: [] };
     fs.writeFileSync(TOURS_FILE, JSON.stringify(initialData, null, 2));
@@ -78,6 +83,43 @@ function ensureDataFiles(): void {
       invoiceFooterText: ''
     };
     fs.writeFileSync(SETTINGS_FILE, JSON.stringify(initialSettings, null, 2));
+  }
+}
+
+// ============================================
+// INVOICE NUMBER GENERATION
+// ============================================
+
+// Pure helper — builds the invoice number string from the current wall-clock time
+// and the given counter value.  Format: YYMMDD-HHmm-NNN  (e.g. 260601-1423-007)
+function buildInvoiceNumber(counter: number): string {
+  const pad = (n: number, len = 2): string => String(n).padStart(len, '0');
+  const now = new Date();
+  const yy  = String(now.getFullYear()).slice(-2);
+  const mm  = pad(now.getMonth() + 1);
+  const dd  = pad(now.getDate());
+  const hh  = pad(now.getHours());
+  const min = pad(now.getMinutes());
+  return `${yy}${mm}${dd}-${hh}${min}-${pad(counter, 3)}`;
+}
+
+// ============================================
+// ORPHAN .TMP RECOVERY
+// ============================================
+
+// If a previous run died between writing .tmp and the final rename, the .tmp
+// holds data we meant to commit.  Finish the rename on the next startup so that
+// save is not silently lost.
+function recoverOrphanedTmp(filePath: string): void {
+  const tmpPath = filePath + '.tmp';
+  if (fs.existsSync(tmpPath)) {
+    console.warn(`[data] Orphaned .tmp found for ${path.basename(filePath)} — finishing rename`);
+    try {
+      fs.renameSync(tmpPath, filePath);
+      console.warn(`[data] Recovered ${path.basename(filePath)} from orphaned .tmp`);
+    } catch (err) {
+      console.error(`[data] Could not recover .tmp for ${path.basename(filePath)}`, err);
+    }
   }
 }
 
@@ -236,13 +278,14 @@ ipcMain.handle('invoice:getById', async (_, id: string): Promise<Invoice | null>
 
 ipcMain.handle('invoice:create', async (
   _,
-  invoice: Omit<Invoice, 'id' | 'createdAt' | 'updatedAt'>
+  invoice: Omit<Invoice, 'id' | 'invoiceNumber' | 'createdAt' | 'updatedAt'>
 ): Promise<Invoice> => {
   const data = readJsonFile<InvoicesData>(INVOICES_FILE);
 
   const newInvoice: Invoice = {
     ...invoice,
     id: uuidv4(),
+    invoiceNumber: null,   // assigned atomically at finalization, never on draft creation
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
@@ -281,6 +324,92 @@ ipcMain.handle('invoice:delete', async (_, id: string): Promise<boolean> => {
     return true;
   }
   return false;
+});
+
+// Atomic finalization — assigns an invoice number from the counter and sets status
+// to 'finalized' in a single consistent operation:
+//   1. Generate number from counter (in memory — nothing written yet)
+//   2. Update the invoice record
+//   3. Write settings.json  ← counter increment FIRST; if this fails nothing is written
+//                             yet and the next finalize retries with the same counter slot
+//   4. Write invoices.json  ← if this fails, the counter was bumped but no invoice carries
+//                             that number yet — a gap in the sequence, not a duplicate
+// Credit notes already carry a derived number (originalNumber + 'G') — they skip
+// counter allocation and just flip their status to 'finalized'.
+ipcMain.handle('invoice:finalize', async (_, id: string): Promise<Invoice | null> => {
+  const invoiceData = readJsonFile<InvoicesData>(INVOICES_FILE);
+  const index = invoiceData.invoices.findIndex(inv => inv.id === id);
+  if (index === -1) return null;
+
+  const invoice = invoiceData.invoices[index];
+
+  if (invoice.invoiceNumber) {
+    // Credit note (or already numbered) — just flip the status
+    invoiceData.invoices[index] = {
+      ...invoice,
+      status: 'finalized',
+      updatedAt: new Date().toISOString()
+    };
+    writeJsonFile(INVOICES_FILE, invoiceData);
+    return invoiceData.invoices[index];
+  }
+
+  // Regular draft invoice — generate number atomically with finalization
+  const settings = readJsonFile<CompanySettings>(SETTINGS_FILE);
+  const counter = settings.invoiceCounter ?? 1;
+  const invoiceNumber = buildInvoiceNumber(counter);
+
+  invoiceData.invoices[index] = {
+    ...invoice,
+    invoiceNumber,
+    status: 'finalized',
+    updatedAt: new Date().toISOString()
+  };
+
+  writeJsonFile(SETTINGS_FILE, { ...settings, invoiceCounter: counter + 1 }); // bump counter first — a failed invoice write leaves a gap, not a duplicate
+  writeJsonFile(INVOICES_FILE, invoiceData);
+
+  return invoiceData.invoices[index];
+});
+
+// Atomic credit-note creation — both the new credit note and the 'storniert' update
+// on the original invoice are written in ONE writeJsonFile call, so a crash cannot
+// leave the two records in an inconsistent state.
+ipcMain.handle('invoice:createCreditNote', async (
+  _,
+  originalId: string,
+  payload: Omit<Invoice, 'id' | 'createdAt' | 'updatedAt'>
+): Promise<Invoice> => {
+  const data = readJsonFile<InvoicesData>(INVOICES_FILE);
+
+  const newInvoice: Invoice = {
+    ...payload,
+    id: uuidv4(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  // Mark the original as storniert in the same in-memory array
+  const originalIdx = data.invoices.findIndex(inv => inv.id === originalId);
+  if (originalIdx !== -1) {
+    const originalInvoiceNumber = data.invoices[originalIdx].invoiceNumber;
+    if (originalInvoiceNumber !== payload.creditNoteForInvoiceNumber) {
+      throw new Error(
+        `creditNoteForInvoiceNumber mismatch: payload has "${payload.creditNoteForInvoiceNumber}" but original invoice has "${originalInvoiceNumber}"`
+      );
+    }
+    data.invoices[originalIdx] = {
+      ...data.invoices[originalIdx],
+      status: 'storniert',
+      updatedAt: new Date().toISOString()
+    };
+  }
+
+  data.invoices.push(newInvoice);
+
+  // Single write — both changes land together or neither does
+  writeJsonFile(INVOICES_FILE, data);
+  return newInvoice;
 });
 
 // ============================================

@@ -39,7 +39,7 @@ export class PdfGeneratorService {
         try {
           pdfDocGenerator.getBase64(async (data: string) => {
             try {
-              const filename = `${invoice.invoiceNumber}.pdf`;
+              const filename = `${invoice.invoiceNumber ?? 'draft'}.pdf`;
               await this.electron.api.pdf.save(data, filename);
               resolve();
             } catch (err) {
@@ -120,7 +120,7 @@ export class PdfGeneratorService {
     content.push({ text: docTitle, style: 'header', margin: [0, 0, 0, 10] });
 
     const infoStack: any[] = [
-      { text: `${t('INVOICE.NUMBER')}: ${invoice.invoiceNumber}`, style: 'invoiceInfo' },
+      { text: `${t('INVOICE.NUMBER')}: ${invoice.invoiceNumber ?? '—'}`, style: 'invoiceInfo' },
       { text: `${t('INVOICE.DATE')}: ${this.formatDate(invoice.invoiceDate, lang)}`, style: 'invoiceInfo' },
     ];
 
@@ -376,13 +376,13 @@ export class PdfGeneratorService {
     // Generate QR code when payment method is bank and bank details are available
     // Skip for credit notes — there is nothing to pay
     let qrDataUrl: string | null = null;
-    if (!isCreditNote && invoice.paymentMethod === 'bank' && settings.iban && settings.bic && settings.accountHolder) {
+    if (!isCreditNote && invoice.invoiceNumber && invoice.paymentMethod === 'bank' && settings.iban && settings.bic && settings.accountHolder) {
       qrDataUrl = await this.generateEpcQrCode(
         settings.bic,
         settings.accountHolder,
         settings.iban,
         invoice.totalGross,
-        invoice.invoiceNumber
+        invoice.invoiceNumber   // narrowed to string by the guard above
       );
     }
 

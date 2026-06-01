@@ -71,7 +71,7 @@
             <th mat-header-cell *matHeaderCellDef>{{ 'INVOICE.NUMBER' | translate }}</th>
             <td mat-cell *matCellDef="let invoice" class="invoice-number-cell">
               <div class="number-cell-inner">
-                <strong>{{ invoice.invoiceNumber }}</strong>
+                <strong>{{ invoice.invoiceNumber ?? '—' }}</strong>
                 <span *ngIf="isCreditNote(invoice)" class="credit-note-ref">
                   {{ invoice.creditNoteForInvoiceNumber }}
                 </span>
@@ -118,6 +118,9 @@
                 <mat-chip [class]="getStatusClass(invoice.status)">
                   {{ getStatusLabel(invoice.status) }}
                 </mat-chip>
+                <mat-chip *ngIf="invoice.isPaid" class="status-paid">
+                  {{ 'INVOICE.STATUS_PAID' | translate }}
+                </mat-chip>
               </div>
             </td>
           </ng-container>
@@ -132,14 +135,15 @@
               <button mat-icon-button
                       [matTooltip]="'COMMON.EDIT' | translate"
                       (click)="editInvoice(invoice)"
-                      [disabled]="invoice.status !== 'draft'">
+                      *ngIf="invoice.status === 'draft'">
                 <mat-icon>edit</mat-icon>
               </button>
               
-              <button mat-icon-button 
+              <button mat-icon-button
                       color="primary"
                       [matTooltip]="'INVOICE.GENERATE_PDF' | translate"
-                      (click)="generatePDF(invoice)">
+                      (click)="generatePDF(invoice)"
+                      [disabled]="!invoice.invoiceNumber">
                 <mat-icon>picture_as_pdf</mat-icon>
               </button>
               
@@ -149,6 +153,15 @@
                       (click)="finalizeInvoice(invoice)"
                       *ngIf="invoice.status === 'draft'">
                 <mat-icon>check_circle</mat-icon>
+              </button>
+
+              <!-- Mark as paid / unpaid — only for finalized regular invoices (not credit notes) -->
+              <button mat-icon-button
+                      [class.paid-active]="invoice.isPaid"
+                      [matTooltip]="(invoice.isPaid ? 'INVOICE.MARK_UNPAID' : 'INVOICE.MARK_PAID') | translate"
+                      (click)="togglePaid(invoice)"
+                      *ngIf="invoice.status === 'finalized' && !isCreditNote(invoice)">
+                <mat-icon>{{ invoice.isPaid ? 'payments' : 'payment' }}</mat-icon>
               </button>
 
               <!-- Gutschrift (credit note) button — only for finalized regular invoices -->
@@ -162,7 +175,7 @@
                       color="warn"
                       [matTooltip]="'COMMON.DELETE' | translate"
                       (click)="deleteInvoice(invoice)"
-                      [disabled]="invoice.status !== 'draft'">
+                      *ngIf="invoice.status === 'draft'">
                 <mat-icon>delete</mat-icon>
               </button>
             </td>

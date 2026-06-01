@@ -40,7 +40,7 @@ export type InvoiceType = 'invoice' | 'credit_note';
 
 export interface Invoice {
   id: string;
-  invoiceNumber: string;
+  invoiceNumber: string | null;   // null while the invoice is a draft; assigned on finalization
   invoiceDate: string;
   salutation: string | null;
   customerName: string;
@@ -65,6 +65,7 @@ export interface Invoice {
 
   type?: InvoiceType | null;                     // undefined/null = regular invoice (backward compat)
   creditNoteForInvoiceNumber?: string | null;    // original invoice number this credit note refers to
+  isPaid?: boolean | null;
 
   language: 'de' | 'en';
   status: 'draft' | 'finalized' | 'storniert';

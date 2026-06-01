@@ -140,7 +140,12 @@
     "CREDIT_NOTE_REFERENCE": "Credit Note for Invoice No.",
     "CREATE_CREDIT_NOTE": "Create Credit Note",
     "CREATE_CREDIT_NOTE_CONFIRM": "Create a credit note for invoice {{invoiceNumber}}?",
-    "CREDIT_NOTE_CREATED": "Credit note created successfully"
+    "CREDIT_NOTE_CREATED": "Credit note created successfully",
+    "STATUS_PAID": "Paid",
+    "MARK_PAID": "Mark as paid",
+    "MARK_UNPAID": "Mark as unpaid",
+    "MARK_PAID_CONFIRM": "Mark this invoice as paid?",
+    "MARK_UNPAID_CONFIRM": "Remove the paid mark from this invoice?"
   },
   "SETTINGS": {
     "TITLE": "Settings",

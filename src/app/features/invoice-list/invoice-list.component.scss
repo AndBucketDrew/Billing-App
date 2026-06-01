@@ -261,6 +261,15 @@
         text-decoration: line-through;
         opacity: 0.8;
       }
+
+      // Paid — teal/cyan
+      &.status-paid {
+        @include m.badge(
+          #e6f6f6,
+          #0a7368,
+          rgba(10, 115, 104, 0.2)
+        );
+      }
     }
   }
 
@@ -272,6 +281,10 @@
   .actions-cell {
     button[mat-icon-button] { @include m.icon-btn; }
 
+    button[mat-icon-button].paid-active {
+      color: #0a7368;
+    }
+
     // Plain <button> — no mat-icon-button directive so we own the centering 100%
     .gutschrift-btn {
       display: inline-flex;
@@ -281,6 +294,8 @@
       height: 32px;
       padding: 0;
       margin: 0 2px;
+      position: relative;
+      top: -5px;
       border: 1px solid transparent;
       border-radius: var(--radius-md);
       background: transparent;

@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [1.1.1]
+
+### Added
+
+* **Mark invoice as paid / unpaid**  finalized invoices now have a payment icon button in the actions column to toggle the paid state
+
+### Changed
+
+* **Action buttons for non-draft invoices**  the edit (pencil) and delete (trash) buttons are now hidden entirely for finalized and storniert invoices instead of being shown as disabled
+
+### Fixed
+
+* **Invoice number assigned at finalization, not on draft creation** — drafts no longer consume an invoice-counter slot. The number is generated atomically together with the `finalized` status in a single main-process write, so a failed save can never produce a gap in the numbering sequence or leave a draft with a "consumed" number that was never actually used.
+
+* **Credit note creation is now a single atomic write** — previously, creating a Gutschrift issued two separate `writeJsonFile` calls (one to create the credit note, one to mark the original as `storniert`). A crash between the two could leave the original still showing as `finalized` while the credit note already existed a double-billing inconsistency. Both changes now land in one write.
+
+
+---
+
 ## [1.1.0]
 
 ### Added
