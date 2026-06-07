@@ -59,6 +59,23 @@
   <code>%AppData%\Good Vienna TOurs\</code>.
 </app-banner>
 
+<!-- Update available — downloading in background -->
+<app-banner
+  *ngIf="updateAvailable && !updateReady"
+  icon="system_update"
+  (dismissed)="updateAvailable = null">
+  Version <strong>{{ updateAvailable }}</strong> is downloading in the background…
+</app-banner>
+
+<!-- Update ready — prompt restart -->
+<app-banner
+  *ngIf="updateReady"
+  icon="system_update_alt"
+  (dismissed)="updateReady = null">
+  Version <strong>{{ updateReady }}</strong> is ready —
+  <button mat-button color="primary" (click)="installUpdate()">Restart &amp; update</button>
+</app-banner>
+
 <!-- Main Content -->
 <div class="app-container">
   <router-outlet></router-outlet>

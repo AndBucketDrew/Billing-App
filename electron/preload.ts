@@ -87,6 +87,13 @@ export interface ElectronAPI {
     off: (event: 'data:restoredFromBackup', handler: (filename: string) => void) => void;
   };
 
+  // Auto-update push events (main → renderer)
+  update: {
+    on:  (event: 'update:available' | 'update:downloaded', handler: (version: string) => void) => void;
+    off: (event: 'update:available' | 'update:downloaded', handler: (version: string) => void) => void;
+    install: () => void;
+  };
+
   // ── Outlook / Microsoft Graph ───────────────────────────────────────────────
   outlook: {
     // Auth
@@ -205,6 +212,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
     off: (event: string, handler: (...args: any[]) => void) => {
       _removeWrapper(event, handler);
     },
+  },
+
+  update: {
+    on: (event: string, handler: (version: string) => void) => {
+      const allowed = ['update:available', 'update:downloaded'];
+      if (allowed.includes(event)) {
+        const wrapper = (_ipcEvent: Electron.IpcRendererEvent, version: string) => handler(version);
+        _addWrapper(event, handler, wrapper);
+        ipcRenderer.on(event, wrapper);
+      }
+    },
+    off: (event: string, handler: (version: string) => void) => {
+      _removeWrapper(event, handler);
+    },
+    install: () => ipcRenderer.send('update:install'),
   },
 
   // ── Outlook ──────────────────────────────────────────────────────────────────

@@ -22,6 +22,8 @@ export class AppComponent implements OnInit {
   title = 'Tour Billing';
   logoUrl: string | null = null;
   backupWarning: string | null = null;
+  updateAvailable: string | null = null;
+  updateReady: string | null = null;
 
   constructor(
     private settingsService: SettingsService,
@@ -44,6 +46,17 @@ export class AppComponent implements OnInit {
     this.electronService.api.data.on('data:restoredFromBackup', (filename) => {
       this.backupWarning = filename;
     });
+
+    this.electronService.api.update.on('update:available', (version) => {
+      this.updateAvailable = version;
+    });
+    this.electronService.api.update.on('update:downloaded', (version) => {
+      this.updateReady = version;
+    });
+  }
+
+  installUpdate(): void {
+    this.electronService.api.update.install();
   }
 
   private async loadLogo(): Promise<void> {

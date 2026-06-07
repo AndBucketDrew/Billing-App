@@ -106,6 +106,11 @@ export class ElectronService {
         on:  () => {},
         off: () => {},
       },
+      update: {
+        on:      () => {},
+        off:     () => {},
+        install: () => {},
+      },
       outlook: {
         login:          async () => ({ success: false as const, error: 'Not in Electron' }),
         logout:         async () => ({ success: true as const }),

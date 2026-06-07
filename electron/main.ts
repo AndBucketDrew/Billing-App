@@ -1,4 +1,5 @@
 import { app, BrowserWindow, ipcMain, dialog, Menu } from 'electron';
+import { autoUpdater } from 'electron-updater';
 import * as path from 'path';
 import * as fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
@@ -474,6 +475,36 @@ ipcMain.handle('excel:save', async (_, excelBase64: string, filename: string): P
 });
 
 // ============================================
+// AUTO-UPDATER
+// ============================================
+
+function setupAutoUpdater(): void {
+  autoUpdater.logger = null;
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+
+  autoUpdater.on('update-available', (info: { version: string }) => {
+    mainWindow?.webContents.send('update:available', info.version);
+  });
+
+  autoUpdater.on('update-downloaded', (info: { version: string }) => {
+    mainWindow?.webContents.send('update:downloaded', info.version);
+  });
+
+  autoUpdater.on('error', (err: Error) => {
+    console.error('[updater]', err.message);
+  });
+
+  autoUpdater.checkForUpdates().catch((err: Error) => {
+    console.error('[updater] checkForUpdates failed:', err.message);
+  });
+}
+
+ipcMain.on('update:install', () => {
+  autoUpdater.quitAndInstall();
+});
+
+// ============================================
 // APP LIFECYCLE
 // ============================================
 
@@ -489,6 +520,10 @@ app.whenReady().then(() => {
   }
 
   createWindow();
+
+  if (app.isPackaged) {
+    setupAutoUpdater();
+  }
 
   // ── Outlook / MS Graph integration ──────────────────────────────────────
   registerOutlookIpcHandlers(
