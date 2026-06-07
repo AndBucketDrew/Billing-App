@@ -356,7 +356,9 @@ ipcMain.handle('invoice:finalize', async (_, id: string): Promise<Invoice | null
 
   // Regular draft invoice — generate number atomically with finalization
   const settings = readJsonFile<CompanySettings>(SETTINGS_FILE);
-  const counter = settings.invoiceCounter ?? 1;
+  const currentYear = new Date().getFullYear();
+  const yearChanged = settings.invoiceCounterYear !== undefined && settings.invoiceCounterYear !== currentYear;
+  const counter = yearChanged ? 1 : (settings.invoiceCounter ?? 1);
   const invoiceNumber = buildInvoiceNumber(counter);
 
   invoiceData.invoices[index] = {
@@ -366,7 +368,7 @@ ipcMain.handle('invoice:finalize', async (_, id: string): Promise<Invoice | null
     updatedAt: new Date().toISOString()
   };
 
-  writeJsonFile(SETTINGS_FILE, { ...settings, invoiceCounter: counter + 1 }); // bump counter first — a failed invoice write leaves a gap, not a duplicate
+  writeJsonFile(SETTINGS_FILE, { ...settings, invoiceCounter: counter + 1, invoiceCounterYear: currentYear }); // bump counter first — a failed invoice write leaves a gap, not a duplicate
   writeJsonFile(INVOICES_FILE, invoiceData);
 
   return invoiceData.invoices[index];
@@ -477,6 +479,15 @@ ipcMain.handle('excel:save', async (_, excelBase64: string, filename: string): P
 
 app.whenReady().then(() => {
   ensureDataFiles();
+
+  // Migration: anchor invoiceCounterYear for installs that pre-date the field.
+  // Without this, existing users would never trigger the year-rollover reset
+  // because the undefined check in invoice:finalize treats absent as "same year".
+  const s = readJsonFile<CompanySettings>(SETTINGS_FILE);
+  if (s.invoiceCounterYear === undefined) {
+    writeJsonFile(SETTINGS_FILE, { ...s, invoiceCounterYear: new Date().getFullYear() });
+  }
+
   createWindow();
 
   // ── Outlook / MS Graph integration ──────────────────────────────────────

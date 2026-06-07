@@ -40,4 +40,6 @@ export interface IMailClient {
   getRecentMessages(top: number, since?: Date): Promise<MailMessage[]>;
   getAttachments(messageId: string): Promise<MailAttachment[]>;
   downloadAttachment(messageId: string, attachmentId: string): Promise<Buffer>;
+  /** Fetches the plain-text body of a message (HTML tags stripped). */
+  getMessageBody(messageId: string): Promise<string>;
 }

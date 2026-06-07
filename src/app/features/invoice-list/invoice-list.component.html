@@ -143,7 +143,7 @@
                       color="primary"
                       [matTooltip]="'INVOICE.GENERATE_PDF' | translate"
                       (click)="generatePDF(invoice)"
-                      [disabled]="!invoice.invoiceNumber">
+                      *ngIf="invoice.status !== 'draft'">
                 <mat-icon>picture_as_pdf</mat-icon>
               </button>
               

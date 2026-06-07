@@ -80,7 +80,10 @@ export class ImapClient implements IMailClient {
 
         // Guard moved inside the try so the lock is always released before returning
         if (uids && uids.length > 0) {
-          // IMAP UIDs are ascending — take the last `top` to get the most recent
+          // IMAP UIDs are ascending — take the last `top` to get the most recent.
+          // NOTE: IMAP SINCE searches by date only (no time), so on busy days this
+          // window may contain more UIDs than `top`. Callers should pass a large
+          // enough `top` to avoid silently dropping older-in-day messages.
           const recentUids = uids.slice(-top);
           // imapflow fetch requires a sequence string, not an array
           const uidSeq = recentUids.join(',');
@@ -89,6 +92,9 @@ export class ImapClient implements IMailClient {
             uid: true,
             envelope: true,
             bodyStructure: true,
+            // Fetch the actual server-side delivery timestamp for accurate
+            // datetime filtering (IMAP SINCE is date-only, not datetime).
+            internalDate: true,
             // B3: fetch first MIME part (usually text/plain) for body preview scoring.
             // Part '1' covers simple and multipart/alternative messages; falls back
             // gracefully to '' when not present (e.g. HTML-only emails).
@@ -97,6 +103,18 @@ export class ImapClient implements IMailClient {
             const uid = String(msg.uid);
             const env = msg.envelope as any;
             const from = env?.from?.[0];
+
+            // Use the server-recorded delivery time (internalDate) when available —
+            // it is more reliable than the Date: header for accurate deduplication.
+            const internalDate = (msg as any).internalDate as Date | undefined;
+            const receivedAt = internalDate instanceof Date ? internalDate
+              : (env?.date instanceof Date ? env.date : new Date());
+
+            // IMAP SINCE is date-granular: it returns all messages from the given
+            // date, including ones received before the exact `since` timestamp earlier
+            // that same day.  Skip those so we don't re-detect already-processed mail.
+            if (since && receivedAt < since) continue;
+
             const attachments = this.extractAttachments((msg as any).bodyStructure);
 
             // Extract a short plain-text preview (max 200 chars) for heuristic scoring
@@ -115,7 +133,7 @@ export class ImapClient implements IMailClient {
                 name: from?.name ?? from?.address ?? '',
                 address: from?.address ?? '',
               },
-              receivedDateTime: (env?.date instanceof Date ? env.date : new Date()).toISOString(),
+              receivedDateTime: receivedAt.toISOString(),
               hasAttachments: attachments.length > 0,
               bodyPreview,
             });
@@ -176,6 +194,39 @@ export class ImapClient implements IMailClient {
    * @param messageId  IMAP UID string
    * @param partNumber Body part number e.g. "2" or "1.2"
    */
+  async getMessageBody(messageId: string): Promise<string> {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const lock = await client.getMailboxLock('INBOX');
+      try {
+        // Try HTML parts first (richer structure for RTF conversion), then plain text.
+        // Common MIME layouts:
+        //   multipart/alternative  → part 1 = text/plain, part 2 = text/html
+        //   multipart/mixed → multipart/alternative → part 1.1 = plain, 1.2 = html
+        for (const part of ['2', '1.2', '1', '1.1'] as const) {
+          try {
+            const dl = await client.download(messageId, part, { uid: true });
+            if (!dl) continue;
+            const chunks: Buffer[] = [];
+            for await (const chunk of dl.content) {
+              chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as Uint8Array));
+            }
+            const text = Buffer.concat(chunks).toString('utf-8');
+            if (text.trim().length > 0) return text; // return raw — htmlToRtf handles conversion
+          } catch { /* try next part */ }
+        }
+        return '';
+      } finally {
+        lock.release();
+      }
+    } catch {
+      return '';
+    } finally {
+      await client.logout().catch(() => {});
+    }
+  }
+
   async downloadAttachment(messageId: string, partNumber: string): Promise<Buffer> {
     // Guard against oversized attachments before opening a connection.
     // Only applies on the hot path (cache populated by getRecentMessages).
@@ -295,22 +346,47 @@ export class ImapClient implements IMailClient {
       for (const child of structure.childNodes) {
         this.extractAttachments(child, results);
       }
+    } else if (structure.type === 'message' && structure.subtype === 'rfc822') {
+      // "Forward as attachment" embeds the original email as message/rfc822.
+      // imapflow exposes the inner body structure in childNodes (handled above)
+      // OR in a separate property depending on the version — try both fallbacks
+      // so nested PDFs are not silently missed.
+      const inner = structure.message?.bodyStructure ?? structure.bodyStructure;
+      if (inner) this.extractAttachments(inner, results);
     } else if (structure.part) {
+      // Normalise MIME type: imapflow may put the full "type/subtype" string in
+      // `structure.type` (leaving `structure.subtype` undefined), or split them
+      // across both fields.  Build a canonical "type/subtype" contentType string
+      // that works correctly in either case.
+      const rawType    = (structure.type    ?? 'application').toLowerCase();
+      const rawSubtype = (structure.subtype ?? '').toLowerCase();
+      const contentType = rawSubtype
+        ? `${rawType}/${rawSubtype}`
+        : rawType.includes('/') ? rawType : `${rawType}/octet-stream`;
+
       // Filename can live in disposition params or content-type params.
       // The `filename*` variant is RFC 2231 encoded (e.g. "UTF-8''Rechnung%20M%C3%A4rz.pdf")
       // and must be decoded; plain `filename` is already a decoded string.
-      const filename: string =
+      let filename: string =
         structure.dispositionParameters?.filename
         ?? decodeRfc2231(structure.dispositionParameters?.['filename*'])
         ?? structure.parameters?.name
         ?? decodeRfc2231(structure.parameters?.['name*'])
         ?? '';
 
-      if (filename) {
-        const contentType =
-          `${structure.type ?? 'application'}/${structure.subtype ?? 'octet-stream'}`.toLowerCase();
-        const disposition = (structure.disposition ?? '').toLowerCase();
+      // TNEF blobs (Outlook Rich Text emails) arrive without any filename header.
+      // Assign a synthetic name so the part is not silently dropped — the invoice
+      // detector recognises 'winmail.dat' and applies the TNEF scoring path.
+      if (!filename && (
+        contentType === 'application/ms-tnef' ||
+        contentType === 'application/vnd.ms-tnef' ||
+        contentType === 'application/tnef'
+      )) {
+        filename = 'winmail.dat';
+      }
 
+      if (filename) {
+        const disposition = (structure.disposition ?? '').toLowerCase();
         results.push({
           id: structure.part,
           name: filename,

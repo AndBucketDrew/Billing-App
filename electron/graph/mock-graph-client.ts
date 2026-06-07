@@ -118,6 +118,10 @@ export class MockMailClient implements IMailClient {
     if (!att) throw new Error(`Mock: attachment ${attachmentId} not found`);
     return att.contentType === 'application/pdf' ? FAKE_PDF : FAKE_IMG;
   }
+
+  async getMessageBody(_messageId: string): Promise<string> {
+    return 'Mock email body.';
+  }
 }
 
 /** @deprecated Use MockMailClient — kept as alias to avoid import-not-found errors during migration */

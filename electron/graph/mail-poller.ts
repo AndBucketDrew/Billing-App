@@ -9,18 +9,39 @@
  *   'outlook:pollComplete'      — { checkedAt: string; found: number }
  *   'outlook:pollError'         — string (error message)
  *
- * The poller keeps track of the last check time so it never re-processes
- * emails it has already seen in the current session.
+ * Duplicate-save protection uses two independent mechanisms:
+ *   1. lastChecked timestamp — the poller only fetches emails newer than this.
+ *   2. savedIds set — per-invoice record that survives timestamp resets
+ *      (fresh install, state file deleted, crash before saveState completes).
+ *      Both are persisted together in the state file on every successful poll.
  */
 
 import { BrowserWindow } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
-import type { IMailClient } from '../imap/email-types';
+import type { IMailClient, MailAttachment } from '../imap/email-types';
 import { InvoiceDetector, DetectedInvoice } from '../invoice-detector/invoice-detector';
+import { isTnef, extractTnef, extractMapiAttachments } from '../imap/tnef-extractor';
 
 const STATE_FILENAME = 'outlook-poll-state.json';
-const FALLBACK_LOOKBACK_MS = 24 * 60 * 60 * 1000;
+
+function guessMime(filename: string): string {
+  const ext = path.extname(filename).toLowerCase();
+  const map: Record<string, string> = {
+    '.pdf':  'application/pdf',
+    '.jpg':  'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png':  'image/png',
+    '.tiff': 'image/tiff',
+    '.tif':  'image/tiff',
+    '.doc':  'application/msword',
+    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  };
+  return map[ext] ?? 'application/octet-stream';
+}
+const FALLBACK_LOOKBACK_MS = 30 * 24 * 60 * 60 * 1000; // 30 days on first run
+// Keeps memory and disk footprint bounded; oldest entries are evicted first.
+const MAX_SAVED_IDS = 2000;
 
 export interface PollerOptions {
   trustedSenders?: string[];
@@ -34,6 +55,7 @@ export class MailPoller {
   private isRunning = false;
   private pollInProgress = false;
   private lastChecked: Date;
+  private savedIds = new Set<string>();
   private readonly stateFile: string;
   private trustedSenders: string[] = [];
   private connectionType = '';
@@ -48,16 +70,21 @@ export class MailPoller {
     private readonly detector: InvoiceDetector,
   ) {
     this.stateFile = path.join(stateDir, STATE_FILENAME);
-    this.lastChecked = this.loadLastChecked();
+    this.lastChecked = this.loadState();
   }
 
-  // ─── Control ───────────────────────────────────────────────────────────────
+  // --- Control ---------------------------------------------------------------
 
-  start(intervalMs = 5 * 60 * 1000, options: PollerOptions = {}): void {
-    if (this.isRunning) return;
+  /** Applies poller options without starting the interval timer. */
+  applyOptions(options: PollerOptions): void {
     this.trustedSenders = options.trustedSenders ?? [];
     this.connectionType = options.connectionType ?? '';
     this.onAutoSave = options.onAutoSave;
+  }
+
+  start(intervalMs = 5 * 60 * 1000, options: PollerOptions = {}): void {
+    if (this.isRunning) return;
+    this.applyOptions(options);
     this.isRunning = true;
 
     // Fire immediately, then on each interval
@@ -65,22 +92,12 @@ export class MailPoller {
     this.timer = setInterval(() => this.poll(), intervalMs);
   }
 
-  /**
-   * Stops the poller.
-   *
-   * @param silent  When true the 'outlook:pollerStopped' push event is suppressed.
-   *                Use this for internal config-only restarts where polling is
-   *                immediately resumed — emitting the event would leave the UI
-   *                stuck at isPolling=false even though polling continues. (B_NEW_2)
-   */
   stop(silent = false): void {
     if (this.timer !== null) {
       clearInterval(this.timer);
       this.timer = null;
     }
     this.isRunning = false;
-    // A3: notify the renderer so its isPolling indicator stays in sync when
-    // the poller is genuinely stopped (user-initiated or error-triggered).
     if (!silent) {
       const win = this.getWindow();
       if (win && !win.isDestroyed()) {
@@ -93,11 +110,15 @@ export class MailPoller {
     return this.isRunning;
   }
 
-  // ─── Poll ──────────────────────────────────────────────────────────────────
+  resetAndRescan(since: Date): void {
+    this.lastChecked = since;
+    this.saveState();
+    this.poll();
+  }
+
+  // --- Poll ------------------------------------------------------------------
 
   async poll(): Promise<void> {
-    // Skip if a poll is already in-flight — prevents overlapping network calls
-    // when the interval fires before the previous poll completes.
     if (this.pollInProgress) return;
     this.pollInProgress = true;
 
@@ -108,41 +129,53 @@ export class MailPoller {
     }
 
     const since = this.lastChecked;
-    this.lastChecked = new Date(); // advance before await to avoid duplicate window
+    this.lastChecked = new Date();
 
     try {
-      const messages = await this.client.getRecentMessages(50, since);
+      const messages = await this.client.getRecentMessages(1000, since);
       const detected: DetectedInvoice[] = [];
 
       for (const msg of messages) {
         if (!msg.hasAttachments) continue;
 
         try {
-          const attachments = await this.client.getAttachments(msg.id);
+          const raw = await this.client.getAttachments(msg.id);
+          const attachments = await this.expandTnef(msg.id, raw);
           detected.push(...this.detector.analyze(msg, attachments, this.trustedSenders, this.connectionType));
         } catch (attachErr: unknown) {
-          // Best-effort: skip this message if its attachment fetch fails.
-          // Log for diagnosability without crashing the entire poll window. (B_NEW_3)
-          console.warn('[poll] attachment fetch failed for msg', msg.id,
-            attachErr instanceof Error ? attachErr.message : String(attachErr));
-          // lastChecked was already advanced before the loop started, so this
-          // message will NOT be retried on the next poll.  This is intentional —
-          // a transient error on a single message should not stall the entire
-          // polling window.  If the outer getRecentMessages() call itself throws,
-          // lastChecked is rolled back in the catch block below and the whole
-          // window is retried.
+          const errMsg = attachErr instanceof Error ? attachErr.message : String(attachErr);
+          console.warn('[poll] attachment fetch failed for msg', msg.id, errMsg);
+          // Fallback: score on subject/sender/body alone — an email confirmed to have
+          // attachments (hasAttachments = true) may still qualify on subject/body keywords
+          // alone (e.g. subject "invoice" + body preview = 35 pts → medium).
+          const fallback = this.detector.analyze(msg, [], this.trustedSenders, this.connectionType);
+          detected.push(...fallback);
+          if (fallback.length === 0) {
+            const w = this.getWindow();
+            if (w && !w.isDestroyed()) {
+              w.webContents.send('outlook:warning',
+                `Could not read attachments for an email from ${msg.from.address} — ` +
+                `"${msg.subject ?? '(no subject)'}". It may be a missed invoice. ` +
+                `Error: ${errMsg}`);
+            }
+          }
         }
       }
 
-      // Auto-save high-confidence invoices before notifying the UI
       if (this.onAutoSave) {
         for (const inv of detected) {
           if (inv.confidence === 'high') {
+            const key = inv.messageId + '::' + inv.attachmentId;
+            if (this.savedIds.has(key)) continue;
             try {
               await this.onAutoSave(inv);
+              this.savedIds.add(key);
+              if (this.savedIds.size > MAX_SAVED_IDS) {
+                const oldest = this.savedIds.values().next().value;
+                if (oldest !== undefined) this.savedIds.delete(oldest);
+              }
             } catch (err: unknown) {
               const message = err instanceof Error ? err.message : String(err);
-              // B7: re-check — window may have closed while auto-save was in flight
               if (!win.isDestroyed()) {
                 win.webContents.send('outlook:autoSaveError', { invoice: inv, error: message });
               }
@@ -151,10 +184,8 @@ export class MailPoller {
         }
       }
 
-      this.saveLastChecked(this.lastChecked);
+      this.saveState();
 
-      // B7 pattern extended: re-acquire the window — it may have been destroyed
-      // during the autoSave await loop (network I/O can take several seconds).
       const finalWin = this.getWindow();
       if (!finalWin || finalWin.isDestroyed()) return;
 
@@ -167,7 +198,6 @@ export class MailPoller {
         found: detected.length,
       });
     } catch (err: unknown) {
-      // Roll back so the failed window is retried on the next poll
       this.lastChecked = since;
       const message = err instanceof Error ? err.message : String(err);
       const w = this.getWindow();
@@ -177,25 +207,82 @@ export class MailPoller {
     }
   }
 
-  // ─── Persistence ───────────────────────────────────────────────────────────
+  /**
+   * Expands any winmail.dat attachment in the list by downloading the blob and
+   * extracting the real filenames inside. Each extracted file becomes a synthetic
+   * MailAttachment that keeps the original TNEF attachment ID so that the
+   * existing download + resolveTnef path in the IPC layer still works correctly.
+   * If extraction fails or yields nothing, the original stub is passed through
+   * unchanged so the detector's TNEF fallback can still fire.
+   */
+  private async expandTnef(messageId: string, attachments: MailAttachment[]): Promise<MailAttachment[]> {
+    const result: MailAttachment[] = [];
+    for (const att of attachments) {
+      const isTnefAtt =
+        att.contentType === 'application/ms-tnef' ||
+        att.name.toLowerCase() === 'winmail.dat';
 
-  private loadLastChecked(): Date {
+      if (!isTnefAtt) {
+        result.push(att);
+        continue;
+      }
+
+      try {
+        const buf = await this.client.downloadAttachment(messageId, att.id);
+        if (!isTnef(buf)) { result.push(att); continue; }
+
+        const files = (() => {
+          const classic = extractTnef(buf);
+          return classic.length > 0 ? classic : extractMapiAttachments(buf);
+        })();
+
+        if (files.length === 0) { result.push(att); continue; }
+
+        for (const f of files) {
+          result.push({
+            id: att.id,             // keep original ID — download still fetches the TNEF blob
+            name: f.name,
+            contentType: guessMime(f.name),
+            size: f.data.length,
+            isInline: false,
+          });
+        }
+      } catch {
+        result.push(att);           // download failed — let detector's TNEF fallback handle it
+      }
+    }
+    return result;
+  }
+
+  // --- Persistence -----------------------------------------------------------
+
+  private loadState(): Date {
     try {
       const raw = fs.readFileSync(this.stateFile, 'utf-8');
-      const { lastChecked } = JSON.parse(raw);
-      const d = new Date(lastChecked);
+      const parsed = JSON.parse(raw);
+
+      if (Array.isArray(parsed.savedIds)) {
+        this.savedIds = new Set(
+          parsed.savedIds.filter((id: unknown) => typeof id === 'string'),
+        );
+      }
+
+      const d = new Date(parsed.lastChecked);
       if (!isNaN(d.getTime())) return d;
     } catch {
-      // file absent or corrupt — fall through to default
+      // file absent or corrupt
     }
     return new Date(Date.now() - FALLBACK_LOOKBACK_MS);
   }
 
-  private saveLastChecked(d: Date): void {
+  private saveState(): void {
     try {
-      fs.writeFileSync(this.stateFile, JSON.stringify({ lastChecked: d.toISOString() }));
+      fs.writeFileSync(
+        this.stateFile,
+        JSON.stringify({ lastChecked: this.lastChecked.toISOString(), savedIds: [...this.savedIds] }),
+      );
     } catch {
-      // non-fatal: worst case we re-scan a small window on next restart
+      // non-fatal
     }
   }
 }

@@ -41,7 +41,53 @@ import { MockMailClient } from '../graph/mock-graph-client';
 import { ImapClient } from '../imap/imap-client';
 import { MailPoller } from '../graph/mail-poller';
 import { InvoiceDetector, DetectedInvoice } from '../invoice-detector/invoice-detector';
+import { isTnef, extractTnef, extractMapiAttachments, extractRtfBody } from '../imap/tnef-extractor';
 import type { IMailClient } from '../imap/email-types';
+
+const EXTRACTABLE_EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png', '.tiff', '.doc', '.docx'];
+
+
+/**
+ * Resolves a downloaded attachment buffer through three stages:
+ *  1. Classic TNEF (ATTACHTITLE / ATTACHDATA attributes)
+ *  2. MAPI-encoded TNEF (PR_ATTACH_DATA_BIN — Exchange / Outlook 2007+)
+ *  3. RTF body extraction (body-only winmail.dat with no file attachment)
+ *
+ * Returns the resolved buffer and filename, or null if nothing was extractable.
+ */
+function resolveTnef(
+  buffer: Buffer,
+  fallbackName: string,
+  subject?: string,
+): { buffer: Buffer; name: string } | null {
+  if (!isTnef(buffer)) return null;
+
+  // Stage 1 — classic TNEF attributes
+  let files = extractTnef(buffer);
+
+  // Stage 2 — MAPI property stream (newer Outlook/Exchange format)
+  if (files.length === 0) files = extractMapiAttachments(buffer);
+
+  if (files.length > 0) {
+    const match = files.find(f =>
+      EXTRACTABLE_EXTENSIONS.some(ext => f.name.toLowerCase().endsWith(ext)),
+    );
+    const chosen = match ?? files[0];
+    return { buffer: chosen.data, name: chosen.name || fallbackName };
+  }
+
+  // Stage 3 — body-only winmail.dat: use the email subject as filename so the
+  // saved RTF is human-readable instead of "winmail.rtf".
+  const rtf = extractRtfBody(buffer);
+  if (rtf) {
+    const base = subject
+      ? subject.replace(/[<>:"/\\|?*\x00-\x1F]/g, '_').trim().slice(0, 80) || 'email-body'
+      : fallbackName.replace(/\.dat$/i, '') || 'email-body';
+    return { buffer: rtf, name: `${base}.rtf` };
+  }
+
+  return null;
+}
 
 // ─── Settings types ───────────────────────────────────────────────────────────
 
@@ -232,7 +278,6 @@ export function registerOutlookIpcHandlers(
   let msalAuth: MsalAuthService | null = null;
   let mailClient: IMailClient | null = null;
   let poller: MailPoller | null = null;
-  let lastManualFetch: Date | null = null;
   const detector = new InvoiceDetector(app.getLocale());
 
   /**
@@ -463,25 +508,24 @@ export function registerOutlookIpcHandlers(
   ipcMain.handle('outlook:fetchEmails', async () => {
     try {
       const { client } = getOrCreateServices();
-      const settings = readRaw();
-      const since = lastManualFetch ?? undefined;
-      lastManualFetch = new Date();
-      const messages = await client.getRecentMessages(50, since);
-      const all: DetectedInvoice[] = [];
-
-      for (const msg of messages) {
-        if (!msg.hasAttachments) continue;
-        // B4: per-message try-catch mirrors the poller's resilience — a transient
-        // error on one message's attachment fetch must not abort the whole scan.
-        try {
-          const attachments = await client.getAttachments(msg.id);
-          all.push(...detector.analyze(msg, attachments, settings.trustedSenders, settings.connectionType));
-        } catch {
-          // Best-effort: skip this message
-        }
+      if (!poller) {
+        poller = new MailPoller(client, getWindow, userDataPath, detector);
       }
-
-      return { success: true, invoices: all };
+      const settings = readRaw();
+      // Apply current settings (trusted senders, auto-save) so the one-off poll
+      // uses the same options the user configured, even if the poller isn't running.
+      poller.applyOptions({
+        trustedSenders: settings.trustedSenders,
+        connectionType: settings.connectionType,
+        onAutoSave: settings.autoDownloadHighConfidence
+          ? makeAutoSaver(settings, client)
+          : undefined,
+      });
+      // Fire-and-forget: results arrive via outlook:invoicesDetected + outlook:pollComplete
+      // push events.  Returning immediately prevents the renderer from blocking on a
+      // potentially long IMAP fetch (SEARCH + FETCH for hundreds of messages).
+      void poller.poll();
+      return { success: true };
     } catch (e: unknown) {
       return { success: false, error: toMessage(e) };
     }
@@ -497,11 +541,13 @@ export function registerOutlookIpcHandlers(
         messageId,
         attachmentId,
         filename,
+        subject,
         targetFolder,
       }: {
         messageId: string;
         attachmentId: string;
         filename: string;
+        subject?: string;
         targetFolder: string;
       },
     ) => {
@@ -521,14 +567,35 @@ export function registerOutlookIpcHandlers(
           return { success: false, error: 'Target folder is outside the configured inbox folder.' };
         }
 
-        const buffer = await client.downloadAttachment(messageId, attachmentId);
+        let buffer = await client.downloadAttachment(messageId, attachmentId);
+        let resolvedFilename = filename;
+
+        // TNEF (winmail.dat): Outlook Rich Text Format emails embed attachments
+        // inside a single TNEF blob.  Extract the first processable file so the
+        // user gets the actual PDF instead of the raw winmail.dat container.
+        // When the poller's TNEF expansion already resolved the real filename
+        // (e.g. "invoice_2026000056.pdf"), keep it — only fall back to the
+        // extractor's name when we still have the raw container name.
+        const resolved = resolveTnef(buffer, resolvedFilename, subject);
+        if (resolved) {
+          buffer = resolved.buffer;
+          if (resolvedFilename.toLowerCase() === 'winmail.dat') {
+            resolvedFilename = resolved.name;
+          }
+        }
 
         // Use the resolved path — consistent with the traversal check above
         fs.mkdirSync(resolvedTarget, { recursive: true });
 
         // Strip characters that are invalid in Windows/macOS/Linux file names
-        const safeName = filename.replace(/[<>:"/\\|?*\x00-\x1F]/g, '_');
+        const safeName = resolvedFilename.replace(/[<>:"/\\|?*\x00-\x1F]/g, '_');
         const filePath = path.join(resolvedTarget, safeName);
+
+        // Re-validate after TNEF extraction — an embedded filename may contain dot-segments
+        // (e.g. '..') that survive the sanitization regex and escape the inbox folder.
+        if (!path.resolve(filePath).startsWith(resolvedRoot + path.sep)) {
+          return { success: false, error: 'Attachment filename escapes the inbox folder.' };
+        }
 
         // Avoid silent overwrite — add a numeric suffix if the file exists
         const finalPath = uniquePath(filePath);
@@ -589,10 +656,30 @@ export function registerOutlookIpcHandlers(
         return;
       }
 
-      const buffer = await clientInstance.downloadAttachment(inv.messageId, inv.attachmentId);
+
+      let buffer = await clientInstance.downloadAttachment(inv.messageId, inv.attachmentId);
+      let attachName = inv.attachmentName;
+
+      // Same logic as saveAttachment: keep the already-resolved filename when
+      // the poller's TNEF expansion already gave us the real name.
+      const resolved = resolveTnef(buffer, attachName, inv.subject);
+      if (resolved) {
+        buffer = resolved.buffer;
+        if (attachName.toLowerCase() === 'winmail.dat') attachName = resolved.name;
+      }
+
       fs.mkdirSync(resolvedFolder, { recursive: true });
-      const safeName  = inv.attachmentName.replace(/[<>:"/\\|?*\x00-\x1F]/g, '_');
-      const finalPath = uniquePath(path.join(resolvedFolder, safeName));
+      const safeName     = attachName.replace(/[<>:"/\\|?*\x00-\x1F]/g, '_');
+      const candidatePath = path.join(resolvedFolder, safeName);
+
+      // Re-validate after TNEF extraction — embedded filename may contain dot-segments.
+      if (!path.resolve(candidatePath).startsWith(resolvedRoot + path.sep)) {
+        const win = getWindow();
+        win?.webContents.send('outlook:autoSaveError', { invoice: inv, error: 'Attachment filename escapes the inbox folder.' });
+        return;
+      }
+
+      const finalPath = uniquePath(candidatePath);
       fs.writeFileSync(finalPath, buffer);
       getWindow()?.webContents.send('outlook:autoSaved', { invoice: inv, filePath: finalPath });
     };
@@ -619,6 +706,58 @@ export function registerOutlookIpcHandlers(
   ipcMain.handle('outlook:stopPolling', async () => {
     poller?.stop();
     return { success: true };
+  });
+
+  ipcMain.handle('outlook:resetScan', (_, lookbackDays: number = 7) => {
+    try {
+      const days = Math.max(1, Math.min(365, Number(lookbackDays) || 7));
+      const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+      // Write the state file directly — this works regardless of whether the poller
+      // is running and avoids the race condition where an in-flight poll overwrites
+      // a lastChecked that was set via the poller instance's in-memory state.
+      const stateFile = path.join(userDataPath, 'outlook-poll-state.json');
+      // Preserve savedIds so the rescan doesn't re-auto-save invoices already saved previously.
+      let existingSavedIds: string[] = [];
+      try {
+        const existing = JSON.parse(fs.readFileSync(stateFile, 'utf-8'));
+        if (Array.isArray(existing.savedIds)) existingSavedIds = existing.savedIds;
+      } catch {}
+      fs.writeFileSync(stateFile, JSON.stringify({ lastChecked: since.toISOString(), savedIds: existingSavedIds }));
+
+      // Always recreate the poller so its in-memory lastChecked reflects the new
+      // state file value — even when the interval timer isn't running.
+      // Without this, a subsequent "Fetch Now" would use the stale in-memory date
+      // and silently skip emails that arrived before the old lastChecked.
+      if (mailClient) {
+        const wasRunning = poller?.running ?? false;
+        if (wasRunning) poller!.stop(true);
+
+        const settings = readRaw();
+        poller = new MailPoller(mailClient, getWindow, userDataPath, detector);
+        const opts = {
+          trustedSenders: settings.trustedSenders,
+          connectionType: settings.connectionType,
+          onAutoSave: settings.autoDownloadHighConfidence
+            ? makeAutoSaver(settings, mailClient)
+            : undefined,
+        };
+
+        if (wasRunning) {
+          // Resume the interval and fire immediately
+          poller.start(clampIntervalMs(settings.pollIntervalMinutes), opts);
+        } else {
+          // Not polling — apply options and fire one immediate scan so the user
+          // sees results without having to click "Fetch Now" separately.
+          poller.applyOptions(opts);
+          void poller.poll();
+        }
+      }
+
+      return { success: true };
+    } catch (e: unknown) {
+      return { success: false, error: toMessage(e) };
+    }
   });
 
   ipcMain.handle('outlook:isPolling', () => {

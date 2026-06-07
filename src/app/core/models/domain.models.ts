@@ -81,6 +81,7 @@ export interface Invoice {
 export interface CompanySettings {
   language: 'de' | 'en';
   invoiceCounter: number;
+  invoiceCounterYear?: number;
   companyName: string;
   companyAddress: string;
   cityCountry: string;

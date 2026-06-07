@@ -125,9 +125,13 @@ export class OutlookService {
 
   // ── Email detection ──────────────────────────────────────────────────────────
 
-  fetchEmails(): Promise<DetectedInvoice[]> {
-    if (!this.isElectron()) return Promise.resolve(MOCK_INVOICES);
-    return this.api.fetchEmails().then(r => (r.success ? r.invoices : []));
+  /** Triggers an immediate poll cycle. Results arrive via invoicesDetected$. */
+  fetchEmails(): Promise<void> {
+    if (!this.isElectron()) {
+      this._invoicesDetected$.next(MOCK_INVOICES);
+      return Promise.resolve();
+    }
+    return this.api.fetchEmails().then(() => undefined);
   }
 
   // ── File operations ──────────────────────────────────────────────────────────
@@ -136,6 +140,7 @@ export class OutlookService {
     messageId: string;
     attachmentId: string;
     filename: string;
+    subject?: string;
     targetFolder: string;
   }): Promise<{ success: boolean; filePath?: string; error?: string }> {
     if (!this.isElectron()) return Promise.resolve({ success: false, error: 'Not in Electron' });
@@ -162,6 +167,12 @@ export class OutlookService {
   isPolling(): Promise<boolean> {
     if (!this.isElectron()) return Promise.resolve(false);
     return this.api.isPolling().then(r => r.polling);
+  }
+
+  /** Resets the scan window to `lookbackDays` ago and triggers an immediate re-poll. */
+  resetScan(lookbackDays = 7): Promise<{ success: boolean; error?: string }> {
+    if (!this.isElectron()) return Promise.resolve({ success: true });
+    return this.api.resetScan(lookbackDays) as any;
   }
 
   // ── Settings ─────────────────────────────────────────────────────────────────

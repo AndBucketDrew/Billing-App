@@ -31,6 +31,11 @@
               <mat-icon>refresh</mat-icon>
               Fetch Now
             </button>
+            <button mat-stroked-button (click)="resetScan()" [disabled]="isLoading"
+              matTooltip="Clear pending items and rescan the last 30 days">
+              <mat-icon>history</mat-icon>
+              Rescan
+            </button>
             <button mat-stroked-button
               [class.polling-active]="isPolling"
               (click)="togglePolling()">

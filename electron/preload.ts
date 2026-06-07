@@ -94,14 +94,15 @@ export interface ElectronAPI {
     logout: () => Promise<IpcResult>;
     getAccount: () => Promise<IpcResult<{ account: OutlookAccount | null }>>;
 
-    // Email detection
-    fetchEmails: () => Promise<IpcResult<{ invoices: DetectedInvoice[] }>>;
+    // Email detection — triggers an immediate poll; results arrive via invoicesDetected push event
+    fetchEmails: () => Promise<IpcResult>;
 
     // File save
     saveAttachment: (args: {
       messageId: string;
       attachmentId: string;
       filename: string;
+      subject?: string;
       targetFolder: string;
     }) => Promise<IpcResult<{ filePath: string }>>;
 
@@ -112,6 +113,7 @@ export interface ElectronAPI {
     startPolling: () => Promise<IpcResult>;
     stopPolling: () => Promise<IpcResult>;
     isPolling: () => Promise<{ polling: boolean }>;
+    resetScan: (lookbackDays?: number) => Promise<IpcResult>;
 
     // Outlook-specific settings
     getSettings: () => Promise<OutlookSettings>;
@@ -215,7 +217,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
     saveAttachment: (args: {
       messageId: string; attachmentId: string;
-      filename: string; targetFolder: string;
+      filename: string; subject?: string; targetFolder: string;
     }) => ipcRenderer.invoke('outlook:saveAttachment', args),
 
     chooseFolder: () => ipcRenderer.invoke('outlook:chooseFolder'),
@@ -223,6 +225,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     startPolling: () => ipcRenderer.invoke('outlook:startPolling'),
     stopPolling: () => ipcRenderer.invoke('outlook:stopPolling'),
     isPolling: () => ipcRenderer.invoke('outlook:isPolling'),
+    resetScan: (lookbackDays?: number) => ipcRenderer.invoke('outlook:resetScan', lookbackDays ?? 7),
 
     getSettings: () => ipcRenderer.invoke('outlook:getSettings'),
     saveSettings: (updates: Partial<OutlookSettings>) =>

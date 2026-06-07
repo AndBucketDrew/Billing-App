@@ -1,6 +1,6 @@
 {
   "name": "billing-app",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "main": "dist-electron/electron/main.js",
   "private": true,
   "scripts": {
@@ -32,6 +32,7 @@
     "@angular/platform-server": "^19.2.0",
     "@angular/router": "^19.2.0",
     "@azure/msal-node": "^5.1.2",
+    "@kenjiuno/decompressrtf": "^0.1.4",
     "@ngx-translate/core": "^15.0.0",
     "@ngx-translate/http-loader": "^8.0.0",
     "exceljs": "^4.4.0",

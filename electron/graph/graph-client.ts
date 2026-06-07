@@ -27,6 +27,7 @@ const MAX_RETRIES = 3;
 const GRAPH_PAGE_SIZE = 50;
 /** Hard ceiling on any Retry-After delay — prevents a server from stalling the poller indefinitely */
 const MAX_RETRY_DELAY_MS = 5 * 60 * 1000; // 5 minutes
+const MAX_DOWNLOAD_SIZE = 25 * 1024 * 1024; // 25 MB — matches the IMAP cap
 
 // ─── Graph-API-specific DTOs (internal only) ─────────────────────────────────
 
@@ -89,7 +90,28 @@ export class GraphClient implements IMailClient {
     const token = await this.auth.getAccessToken();
     const url = `${BASE}/me/messages/${enc(messageId)}/attachments/${enc(attachmentId)}/$value`;
     const response = await this.fetchWithRetry(url, token);
-    return Buffer.from(await response.arrayBuffer());
+    const contentLength = Number(response.headers.get('content-length') ?? 0);
+    if (contentLength > MAX_DOWNLOAD_SIZE) {
+      throw new Error(
+        `Attachment is too large to download ` +
+        `(${(contentLength / (1024 * 1024)).toFixed(1)} MB; limit is 25 MB).`,
+      );
+    }
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (buffer.length > MAX_DOWNLOAD_SIZE) {
+      throw new Error(
+        `Attachment is too large to download ` +
+        `(${(buffer.length / (1024 * 1024)).toFixed(1)} MB; limit is 25 MB).`,
+      );
+    }
+    return buffer;
+  }
+
+  async getMessageBody(messageId: string): Promise<string> {
+    const data = await this.get<{ body?: { contentType?: string; content?: string } }>(
+      `${BASE}/me/messages/${enc(messageId)}?$select=body`,
+    );
+    return data.body?.content ?? '';
   }
 
   // ─── Internal Graph helpers ────────────────────────────────────────────────

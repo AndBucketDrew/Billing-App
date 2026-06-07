@@ -48,15 +48,35 @@ export interface DetectedInvoice {
 // ─── Keyword lists ────────────────────────────────────────────────────────────
 
 const FILENAME_KEYWORDS = [
-  'invoice', 'rechnung', 'bill', 'faktura', 'factura', 'fattura',
-  'quittung', 'receipt', 'zahlungsbeleg', 'gutschrift',
+  'invoice', 'rechnung', 're nr',  // 're nr' = Austrian abbrev. for "Rechnung Nr."
+  'bill', 'faktura', 'factura', 'fattura',
+  'quittung', 'receipt', 'zahlungsbeleg', 'gutschrift', 'abrechnung', 'honorarnote',
 ];
 
 const SUBJECT_KEYWORDS = [
   'invoice', 'rechnung', 'bill', 'payment', 'zahlung', 'faktura',
   'your order', 'ihre bestellung', 'purchase', 'kauf', 'receipt',
-  'order confirmation', 'bestellbestätigung',
+  'order confirmation', 'bestellbestätigung', 'bestellung', 'abrechnung', 'honorarnote',
 ];
+
+/**
+ * Subset of SUBJECT_KEYWORDS that are unambiguous invoice terms.
+ * When one of these appears in the email *body* it earns a larger bonus (+20)
+ * so that emails like "Beiliegend finden Sie die Rechnung AR260259" + PDF
+ * reach the 35-pt medium threshold even with no keyword in subject/filename.
+ * Weaker terms ("payment", "zahlung", "kauf"…) keep the original +5 bonus.
+ */
+const STRONG_BODY_KEYWORDS = new Set([
+  'invoice', 'rechnung', 'faktura', 'factura', 'fattura',
+  'honorarnote', 'gutschrift', 'abrechnung', 'quittung', 'zahlungsbeleg',
+  'receipt',  // PayPal-style body-only receipts: "Your recent transaction receipt"
+]);
+
+/**
+ * Subject prefixes that indicate a forwarded email.
+ * A forwarded PDF is almost always intentional, so it warrants a higher baseline score.
+ */
+const FORWARD_PREFIXES = ['fwd:', 'fw:', 'wg:', 'weitergeleitet:', 'tr:', 'vl:'];
 
 /**
  * Known commercial sender domains — full registrable domain (e.g. "stripe.com").
@@ -76,9 +96,24 @@ const COMMERCIAL_DOMAINS = [
   'booking.com', 'airbnb.com',
 ];
 
+/**
+ * Brand-name labels for the brands already in COMMERCIAL_DOMAINS.
+ * Used as a fallback to match international TLD variants (paypal.at, paypal.de, …)
+ * that are not listed explicitly above. The scorer extracts the registerable-domain
+ * label from the sender and checks it against this set.
+ */
+const INTERNATIONAL_BRANDS = new Set([
+  'paypal', 'amazon', 'ebay', 'stripe', 'paddle', 'fastspring',
+  'booking', 'airbnb', 'microsoft', 'google', 'apple',
+]);
+
 const PDF_MIME = 'application/pdf';
-const ALLOWED_EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png', '.tiff'];
-const ALLOWED_MIMES = [PDF_MIME, 'image/jpeg', 'image/png', 'image/tiff'];
+const DOCX_MIMES = [
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/msword',
+];
+const ALLOWED_EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png', '.tiff', '.docx', '.doc'];
+const ALLOWED_MIMES = [PDF_MIME, ...DOCX_MIMES, 'image/jpeg', 'image/png', 'image/tiff'];
 
 // ─── Detector ─────────────────────────────────────────────────────────────────
 
@@ -99,7 +134,10 @@ export class InvoiceDetector {
     const results: DetectedInvoice[] = [];
 
     for (const att of attachments) {
-      if (att.isInline) continue;
+      // Only skip inline image attachments (embedded logos/signatures in HTML body).
+      // Documents (PDFs, Word files) are never genuinely inline — some mail clients
+      // mis-set the disposition flag but the file is always a real attachment.
+      if (att.isInline && att.contentType.startsWith('image/')) continue;
       if (!this.isProcessableFile(att)) continue;
 
       const { score, reasons } = this.score(message, att, trustedSenders);
@@ -122,6 +160,77 @@ export class InvoiceDetector {
         suggestedSubFolder: this.suggestSubFolder(message.receivedDateTime),
         connectionType,
       });
+    }
+
+    // ── TNEF fallback ─────────────────────────────────────────────────────────
+    // Outlook (even on Gmail accounts) sometimes sends Rich Text Format emails
+    // that wrap attachments inside a winmail.dat (TNEF) file.  The actual PDF
+    // is invisible to standard MIME parsing.  When no processable attachment
+    // was found but a TNEF blob is present, score the message on subject/sender
+    // alone and surface it in the queue so the user knows to open it manually.
+    if (results.length === 0) {
+      const tnef = attachments.find(a =>
+        !a.isInline && (
+          a.contentType === 'application/ms-tnef' ||
+          a.name.toLowerCase() === 'winmail.dat'
+        )
+      );
+      if (tnef) {
+        // Score with an empty-name placeholder — only subject/sender/body fire.
+        const phantom: MailAttachment = { ...tnef, name: '', contentType: '' };
+        const { score, reasons } = this.score(message, phantom, trustedSenders);
+        // TNEF containers always hold at least one real attachment inside.
+        // A 10-pt bonus ensures that an "invoice"-subject email (30 pts from
+        // subject alone) clears the 35-pt medium threshold rather than being
+        // silently dropped as low confidence.
+        const adjustedScore = Math.min(score + 10, 100);
+        const confidence = this.toConfidence(adjustedScore);
+        if (confidence !== 'low') {
+          results.push({
+            messageId: message.id,
+            attachmentId: tnef.id,
+            senderName: message.from.name,
+            senderEmail: message.from.address,
+            subject: message.subject ?? '(no subject)',
+            receivedAt: message.receivedDateTime,
+            attachmentName: tnef.name,
+            attachmentSize: tnef.size,
+            confidence,
+            confidenceScore: adjustedScore,
+            reasons: [...reasons, 'Attachment is TNEF-encoded (winmail.dat) — open in Outlook to extract the actual file'],
+            suggestedSubFolder: this.suggestSubFolder(message.receivedDateTime),
+            connectionType,
+          });
+        }
+      }
+    }
+
+    // ── No-attachment fallback ────────────────────────────────────────────────
+    // Called when the server confirms there ARE attachments (message.hasAttachments)
+    // but none could be retrieved (empty list passed by the caller after a fetch
+    // failure).  Score on subject/sender/body only.  "invoice" in subject alone
+    // gives 30 pts; with a matching body-preview keyword it reaches 35 → medium.
+    if (results.length === 0 && message.hasAttachments && attachments.length === 0) {
+      const phantom: MailAttachment = { id: '', name: '', contentType: '', size: 0, isInline: false };
+      const { score, reasons } = this.score(message, phantom, trustedSenders);
+      const confidence = this.toConfidence(score);
+      if (confidence !== 'low') {
+        results.push({
+          messageId: message.id,
+          attachmentId: '',
+          senderName: message.from.name,
+          senderEmail: message.from.address,
+          subject: message.subject ?? '(no subject)',
+          receivedAt: message.receivedDateTime,
+          attachmentName: '(attachment details unavailable)',
+          attachmentSize: 0,
+          confidence,
+          confidenceScore: score,
+          reasons: [...reasons, 'Attachment details could not be retrieved — confirm manually before saving'],
+          suggestedSubFolder: this.suggestSubFolder(message.receivedDateTime),
+          connectionType,
+        });
+      }
     }
 
     return results;
@@ -175,14 +284,43 @@ export class InvoiceDetector {
     if (domain) {
       total += 10;
       reasons.push(`Known commercial sender (${domain})`);
+    } else {
+      // Brand-name match across any TLD: paypal.at, paypal.de, amazon.at, etc.
+      // Extract the registerable-domain label: the label just before the TLD,
+      // or one level higher for 2-letter SLD + 2-letter TLD pairs (e.g. co.uk).
+      const parts = senderDomain.split('.');
+      const last       = parts[parts.length - 1] ?? '';
+      const secondLast = parts[parts.length - 2] ?? '';
+      const brandLabel =
+        last.length === 2 && secondLast.length === 2 && parts.length >= 3
+          ? parts[parts.length - 3]   // amazon.co.uk → 'amazon'
+          : secondLast;               // paypal.at → 'paypal'
+      if (brandLabel && INTERNATIONAL_BRANDS.has(brandLabel)) {
+        total += 10;
+        reasons.push(`Known commercial sender (${brandLabel}.*)`);
+      }
     }
 
-    // ── Body preview keyword (0–5) ───────────────────────────────────────────
+    // ── Body preview keyword (0–20) ─────────────────────────────────────────
+    // Strong terms ("rechnung", "invoice" …) earn +20 so that a plain
+    // PDF(15) + body(20) = 35 reaches the medium threshold even when the
+    // subject and filename carry no invoice signal.  Weaker terms keep +5.
     const lowerBody = (message.bodyPreview ?? '').toLowerCase();
     const bodyKw = SUBJECT_KEYWORDS.find(kw => lowerBody.includes(kw));
     if (bodyKw) {
-      total += 5;
+      const bodyBonus = STRONG_BODY_KEYWORDS.has(bodyKw) ? 20 : 5;
+      total += bodyBonus;
       reasons.push('Invoice keyword in email body');
+    }
+
+    // ── Forwarded email (0–20) ───────────────────────────────────────────────
+    // Users forward invoices intentionally to their monitored address.
+    // A forwarded PDF with no other signals gets 15 (PDF) + 20 = 35, exactly
+    // at the medium threshold so it surfaces for manual confirmation.
+    const isForwarded = FORWARD_PREFIXES.some(p => lowerSubject.startsWith(p));
+    if (isForwarded) {
+      total += 20;
+      reasons.push('Forwarded email');
     }
 
     return { score: Math.min(total, 100), reasons };

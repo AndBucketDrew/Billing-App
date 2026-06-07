@@ -6,14 +6,14 @@ import {
   ChangeDetectionStrategy,
 } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { Subscription } from 'rxjs';
+import { Subscription, merge } from 'rxjs';
+import { take } from 'rxjs/operators';
 import { OutlookService, AutoSavedEvent, AutoSaveErrorEvent } from '../../core/services/outlook.service';
 import {
   DetectedInvoice,
   OutlookAccount,
   OutlookSettings,
   InvoiceReviewItem,
-  InvoiceReviewStatus,
 } from '../../core/models/outlook.models';
 
 @Component({
@@ -91,8 +91,9 @@ export class OutlookInboxComponent implements OnInit, OnDestroy {
         if (existing) {
           existing.status = 'saved';
           existing.savedPath = filePath;
+          this.items = [...this.items]; // new reference so mat-table re-renders the updated row
         } else {
-          this.items.unshift({ invoice, status: 'saved', savedPath: filePath });
+          this.items = [{ invoice, status: 'saved', savedPath: filePath }, ...this.items];
         }
         this.persistQueue();
         this.snack.open(`Auto-saved: ${invoice.attachmentName}`, undefined, { duration: 3000 });
@@ -108,10 +109,11 @@ export class OutlookInboxComponent implements OnInit, OnDestroy {
         if (existing) {
           existing.status = 'pending';
           existing.error = error;
+          this.items = [...this.items];
         } else {
           // autoSaveError fires before invoicesDetected — pre-insert as pending
           // so mergeInvoices will skip it as a duplicate when invoicesDetected arrives.
-          this.items.unshift({ invoice, status: 'pending', error });
+          this.items = [{ invoice, status: 'pending', error }, ...this.items];
         }
         this.persistQueue();
         this.snack.open(`Auto-save failed: ${error}`, 'Dismiss', { duration: 6000 });
@@ -183,17 +185,72 @@ export class OutlookInboxComponent implements OnInit, OnDestroy {
     this.cd.markForCheck();
 
     try {
-      const invoices = await this.outlook.fetchEmails();
-      this.mergeInvoices(invoices);
-      this.persistQueue();
-      this.snack.open(`${invoices.length} invoice(s) found`, undefined, { duration: 3000 });
+      await this.outlook.fetchEmails(); // triggers an immediate poll, returns right away
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       this.snack.open(`Fetch failed: ${msg}`, 'Dismiss', { duration: 5000 });
-    } finally {
       this.isLoading = false;
       this.cd.markForCheck();
+      return;
     }
+
+    // Stop the spinner when the poll finishes (complete or error).
+    // A 120-second safety-net timeout guards against a poll that never responds.
+    const timeout = setTimeout(() => {
+      this.isLoading = false;
+      this.cd.markForCheck();
+    }, 120_000);
+
+    merge(this.outlook.pollComplete$, this.outlook.pollError$)
+      .pipe(take(1))
+      .subscribe(() => {
+        clearTimeout(timeout);
+        this.isLoading = false;
+        this.cd.markForCheck();
+      });
+  }
+
+  async resetScan(): Promise<void> {
+    if (!confirm('Clear all pending items and rescan the last 30 days? This cannot be undone.')) return;
+
+    this.isLoading = true;
+    this.cd.markForCheck();
+
+    // Drop pending and rejected items so the rescan can re-detect them.
+    // Saved items are kept so the user retains a record of what was already filed.
+    this.items = this.items.filter(i => i.status === 'saved' || i.status === 'saving');
+    this.persistQueue();
+
+    try {
+      const result = await this.outlook.resetScan(30);
+      if (!result.success) {
+        this.snack.open(`Rescan failed: ${result.error}`, 'Dismiss', { duration: 5000 });
+        this.isLoading = false;
+        this.cd.markForCheck();
+        return;
+      }
+      this.snack.open('Rescanning last 30 days…', undefined, { duration: 3000 });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.snack.open(`Rescan failed: ${msg}`, 'Dismiss', { duration: 5000 });
+      this.isLoading = false;
+      this.cd.markForCheck();
+      return;
+    }
+
+    // Keep the spinner up until the rescan poll finishes, same as fetchNow().
+    const timeout = setTimeout(() => {
+      this.isLoading = false;
+      this.cd.markForCheck();
+    }, 120_000);
+
+    merge(this.outlook.pollComplete$, this.outlook.pollError$)
+      .pipe(take(1))
+      .subscribe(() => {
+        clearTimeout(timeout);
+        this.isLoading = false;
+        this.cd.markForCheck();
+      });
   }
 
   async togglePolling(): Promise<void> {
@@ -231,6 +288,7 @@ export class OutlookInboxComponent implements OnInit, OnDestroy {
       messageId: item.invoice.messageId,
       attachmentId: item.invoice.attachmentId,
       filename: item.invoice.attachmentName,
+      subject: item.invoice.subject,
       targetFolder: folder,
     });
 
@@ -341,13 +399,15 @@ export class OutlookInboxComponent implements OnInit, OnDestroy {
   }
 
   private mergeInvoices(invoices: DetectedInvoice[]): void {
-    for (const inv of invoices) {
-      const exists = this.items.some(
-        i => i.invoice.messageId === inv.messageId && i.invoice.attachmentId === inv.attachmentId,
-      );
-      if (!exists) {
-        this.items.unshift({ invoice: inv, status: 'pending' });
-      }
+    const existingKeys = new Set(
+      this.items.map(i => i.invoice.messageId + '::' + i.invoice.attachmentId),
+    );
+    const incoming = invoices
+      .filter(inv => !existingKeys.has(inv.messageId + '::' + inv.attachmentId))
+      .sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime());
+    if (incoming.length > 0) {
+      // Spread to create a new reference — mat-table requires a new array to detect row additions.
+      this.items = [...incoming.map(inv => ({ invoice: inv, status: 'pending' as const })), ...this.items];
     }
   }
 }
