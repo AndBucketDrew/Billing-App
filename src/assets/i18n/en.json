@@ -121,6 +121,7 @@
     "DELETE_CONFIRM": "Do you really want to delete this invoice?",
     "NO_INVOICES": "No invoices available. Create your first invoice!",
     "GENERATE_PDF": "Generate PDF",
+    "PREVIEW_PDF": "Preview PDF",
     "FINALIZE": "Finalize",
     "FINALIZE_CONFIRM": "Do you really want to finalize this invoice? It cannot be edited afterwards.",
     "SELECT_TOUR": "Select Tour",

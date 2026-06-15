@@ -295,6 +295,10 @@
       <button mat-stroked-button type="button" (click)="cancel()">
         {{ 'COMMON.CANCEL' | translate }}
       </button>
+      <button mat-stroked-button type="button" color="primary" (click)="previewPdf()" [disabled]="isSaving">
+        <mat-icon>visibility</mat-icon>
+        {{ 'INVOICE.PREVIEW_PDF' | translate }}
+      </button>
       <button mat-raised-button type="button" color="primary" (click)="saveDraft()" [disabled]="isSaving">
         <mat-icon>save</mat-icon>
         {{ 'COMMON.SAVE' | translate }}

@@ -4,41 +4,35 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## [1.2.0] — 2026-06-07
+## [1.2.1]
 
 ### Added
 
-* **Rescan button** — new header action clears all pending/rejected items and re-scans the last 30 days; saved items are preserved so the filing history is not lost
+* **PDF preview on invoice creation** — a "Preview PDF" button is now shown at the bottom of the invoice editor. Clicking it opens a live PDF preview built from the current form state without saving or assigning an invoice number, so you can spot mistakes before finalizing.
+
+---
+
+## [1.2.0] 
+
+### Added
+
 * **TNEF / winmail.dat extraction** — Outlook Rich-Text-Format emails that wrap attachments inside a `winmail.dat` blob are now properly handled end-to-end
-  * The poller downloads and unpacks the TNEF container before handing filenames to the detector, so the real PDF name (e.g. `invoice_2026000056.pdf`) is shown in the UI instead of `winmail.dat`
-  * Saving a TNEF-sourced invoice extracts the actual file from the blob — the user receives the real PDF, not the raw container
-  * RTF body-only winmail.dat (no embedded file) is extracted as an `.rtf` named after the email subject
   * Added `@kenjiuno/decompressrtf` dependency for RTF decompression
-* **Duplicate-save protection** — a `savedIds` set is now persisted alongside `lastChecked` in the poll-state file; high-confidence invoices are never auto-saved twice even after a timestamp reset or crash
-* **No-attachment fallback scoring** — when the server confirms `hasAttachments: true` but the attachment fetch fails, the message is scored on subject/sender/body alone and surfaced as medium confidence with a "confirm manually" note
 * **Forwarded-email bonus** — emails with `Fwd:`, `WG:`, `Wg:`, `Weitergeleitet:`, `TR:`, `VL:` subject prefixes receive +20 pts, so a forwarded PDF with no other signals clears the medium threshold
-* **International brand matching** — commercial-sender bonus now fires for any TLD variant (e.g. `paypal.at`, `amazon.de`) via a brand-name set, without requiring every country TLD to be listed explicitly
 * **DOCX / DOC support** — Word documents are now accepted by the detector and saved correctly alongside PDFs
 * **Invoice counter year reset** — the invoice counter automatically resets to 1 at the start of each new year; a startup migration anchors the year field for existing installs so the reset triggers correctly
 
 ### Changed
 
 * **Fetch Now is now fire-and-forget** — the IPC call returns immediately; detected invoices arrive via the existing `invoicesDetected` push event and the spinner stays up until `pollComplete` or `pollError` fires (120 s safety timeout). This prevents the renderer from blocking on large mailboxes
-* **Messages per poll raised from 50 → 1000** — avoids silently missing emails on busy accounts
 * **First-run lookback extended from 24 h → 30 days** — new installs scan the last month on the very first poll
-* **Body-keyword bonus split into strong/weak tiers** — unambiguous invoice terms (`rechnung`, `invoice`, `honorarnote`, …) earn +20; weaker terms (`payment`, `zahlung`, `kauf`, …) keep +5, so PDFs with an invoice keyword in the body but nothing in the subject/filename still clear the medium threshold
-* **Inline attachment filter tightened** — only inline *images* (embedded logos / signatures) are skipped; PDFs and Word documents with `inline` disposition are always processed, since some mail clients mis-set this flag for real attachments
-* **IMAP datetime deduplication** — `internalDate` (server delivery time) is used instead of the `Date:` header for accurate sub-day filtering; IMAP SINCE is date-granular, so messages delivered earlier the same day are now correctly skipped
-* **`mergeInvoices` refactored** — uses a `Set` for O(1) duplicate lookup and sorts incoming invoices by received date descending before prepending to the list; array spread ensures mat-table detects the change
 * **Attachment fetch failure emits a warning** — if a message's attachments cannot be retrieved, a non-fatal `outlook:warning` push event is sent to the renderer so the user can investigate manually
-* **`subject` passed to `saveAttachment`** — used as filename fallback when TNEF extraction yields an RTF body with no embedded filename
 
 ### Fixed
 
-* **Path traversal after TNEF extraction** — extracted filenames are re-validated against the inbox root after sanitisation; an embedded filename containing `..` segments can no longer escape the configured folder
+* **Path traversal after TNEF extraction** — extracted filenames are re-validated against the inbox root after sanitisation an embedded filename containing `..` segments can no longer escape the configured folder
 * **Auto-save used raw `winmail.dat` filename** — the auto-saver now resolves the real attachment name from the TNEF blob before writing to disk, matching the behaviour of the manual save path
 * **`isPolling` UI state after `fetchNow`** — the spinner is now controlled by `pollComplete` / `pollError` events rather than the `fetchEmails` return value, so it reflects actual poll completion even on slow connections
-* **Mat-table row updates not rendering** — `autoSaved` and `autoSaveError` handlers now replace the array reference with a spread copy so Angular's OnPush change detection picks up the updated row
 
 ---
 

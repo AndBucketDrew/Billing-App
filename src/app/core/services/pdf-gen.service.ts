@@ -60,6 +60,24 @@ export class PdfGeneratorService {
   }
 
   /**
+   * Open PDF preview in a new window without saving
+   */
+  async previewInvoicePDF(
+    invoice: Invoice,
+    companySettings: CompanySettings
+  ): Promise<void> {
+    try {
+      const docDefinition = await this.createInvoiceDocument(invoice, companySettings);
+      pdfMake.createPdf(docDefinition).open();
+    } catch (error: any) {
+      const message = error?.message ?? JSON.stringify(error);
+      alert(`PDF Error: ${message}`);
+      console.error('Error previewing PDF:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Create PDF document definition
    */
   private async createInvoiceDocument(

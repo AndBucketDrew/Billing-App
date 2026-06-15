@@ -123,6 +123,7 @@
     "DELETE_CONFIRM": "Möchten Sie diese Rechnung wirklich löschen?",
     "NO_INVOICES": "Keine Rechnungen vorhanden. Erstellen Sie Ihre erste Rechnung!",
     "GENERATE_PDF": "PDF generieren",
+    "PREVIEW_PDF": "PDF Vorschau",
     "FINALIZE": "Finalisieren",
     "FINALIZE_CONFIRM": "Möchten Sie diese Rechnung wirklich finalisieren? Sie kann danach nicht mehr bearbeitet werden.",
     "SELECT_TOUR": "Tour auswählen",

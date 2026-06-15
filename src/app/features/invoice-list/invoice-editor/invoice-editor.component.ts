@@ -8,7 +8,9 @@ import { startWith, map } from 'rxjs/operators';
 import { InvoiceService } from '../../../core/services/invoice.service';
 import { SettingsService } from '../../../core/services/settings.service';
 import { TourService } from '../../../core/services/tour.service';
-import { InvoiceLineItem, VatRate, Tour } from '../../../core/models/domain.models';
+import { PdfGeneratorService } from '../../../core/services/pdf-gen.service';
+import { CalculationService } from '../../../core/services/calculation.service';
+import { InvoiceLineItem, Invoice, VatRate, Tour } from '../../../core/models/domain.models';
 import { TourSelectorDialogComponent } from '../../components/tour-selector-dialog/tour-selector-dialog.component';
 import { TranslateService } from '@ngx-translate/core';
 
@@ -48,6 +50,8 @@ export class InvoiceEditorComponent implements OnInit {
     private invoiceService: InvoiceService,
     private settingsService: SettingsService,
     private tourService: TourService,
+    private pdfGenerator: PdfGeneratorService,
+    private calculation: CalculationService,
     private dialog: MatDialog,
     private snackBar: MatSnackBar,
     private translate: TranslateService
@@ -437,6 +441,38 @@ export class InvoiceEditorComponent implements OnInit {
       console.error('Error finalizing invoice:', error);
     } finally {
       this.isSaving = false;
+    }
+  }
+
+  /**
+   * Open a PDF preview from the current form state without saving or finalizing
+   */
+  async previewPdf(): Promise<void> {
+    if (this.invoiceForm.invalid || this.lineItems.length === 0) {
+      this.invoiceForm.markAllAsTouched();
+      this.showMessage(this.translate.instant('MESSAGES.REQUIRED_FIELD'), 'error');
+      return;
+    }
+
+    const payload = this.buildInvoicePayload();
+    const settings = this.settingsService.getSettings();
+    const totals = this.calculation.calculateInvoiceTotals(this.lineItems);
+
+    const previewInvoice: Invoice = {
+      id: 'preview',
+      invoiceNumber: null,
+      status: 'draft',
+      customerAddress: '',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      ...payload,
+      ...totals,
+    };
+
+    try {
+      await this.pdfGenerator.previewInvoicePDF(previewInvoice, settings);
+    } catch (error) {
+      console.error('Error previewing PDF:', error);
     }
   }
 
