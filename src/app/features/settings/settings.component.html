@@ -181,6 +181,16 @@
       </mat-card-header>
       <mat-card-content>
 
+        <!-- Brand Color -->
+        <div class="brand-color-row">
+          <label class="brand-color-label">{{ 'SETTINGS.BRAND_COLOR' | translate }}</label>
+          <div class="brand-color-input">
+            <input type="color" formControlName="brandColor" id="brandColor" class="color-picker-input">
+            <span class="brand-color-value">{{ settingsForm.get('brandColor')?.value }}</span>
+          </div>
+          <p class="brand-color-hint">{{ 'SETTINGS.BRAND_COLOR_HINT' | translate }}</p>
+        </div>
+
         <!-- Invoice Footer Text -->
         <mat-form-field appearance="outline" class="form-field-full">
           <mat-label>{{ 'SETTINGS.INVOICE_FOOTER_TEXT' | translate }}</mat-label>
@@ -188,6 +198,54 @@
             [placeholder]="'SETTINGS.INVOICE_FOOTER_PLACEHOLDER' | translate" rows="4"></textarea>
           <mat-icon matPrefix>notes</mat-icon>
           <mat-hint>{{ 'SETTINGS.INVOICE_FOOTER_HINT' | translate }}</mat-hint>
+        </mat-form-field>
+
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Email Template Card -->
+    <mat-card>
+      <mat-card-header>
+        <mat-card-title>
+          <mat-icon>email</mat-icon>
+          Email Template
+        </mat-card-title>
+        <mat-card-subtitle>Use these keywords in your template — they will be replaced with the actual values when the email is sent.</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+
+        <div class="keyword-chips">
+          <span class="keyword-chip" *ngFor="let v of emailTemplateVarList"
+            [matTooltip]="v.tooltip" matTooltipPosition="above">{{ v.label }}</span>
+        </div>
+
+        <p class="template-hint">Leave empty to use the default template. Fill in to override.</p>
+
+        <div class="form-row">
+          <mat-form-field appearance="outline" class="form-field-half">
+            <mat-label>Subject (DE)</mat-label>
+            <input matInput formControlName="emailSubjectDe" [placeholder]="'Rechnung Nr. {invoiceNumber} – {companyName}'">
+            <mat-icon matPrefix>subject</mat-icon>
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="form-field-half">
+            <mat-label>Subject (EN)</mat-label>
+            <input matInput formControlName="emailSubjectEn" [placeholder]="'Invoice No. {invoiceNumber} – {companyName}'">
+            <mat-icon matPrefix>subject</mat-icon>
+          </mat-form-field>
+        </div>
+
+        <mat-form-field appearance="outline" class="form-field-full">
+          <mat-label>Body (DE)</mat-label>
+          <textarea matInput formControlName="emailBodyDe" rows="8"
+            [placeholder]="'Sehr geehrte/r {customer},\n\nim Anhang finden Sie Ihre Rechnung Nr. {invoiceNumber} vom {date}.\n\nGesamtbetrag: {total}\n\nMit freundlichen Grüßen\n{companyName}'"></textarea>
+          <mat-icon matPrefix>article</mat-icon>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="form-field-full">
+          <mat-label>Body (EN)</mat-label>
+          <textarea matInput formControlName="emailBodyEn" rows="8"
+            [placeholder]="'Dear {customer},\n\nPlease find attached your invoice no. {invoiceNumber} dated {date}.\n\nTotal: {total}\n\nKind regards,\n{companyName}'"></textarea>
+          <mat-icon matPrefix>article</mat-icon>
         </mat-form-field>
 
       </mat-card-content>

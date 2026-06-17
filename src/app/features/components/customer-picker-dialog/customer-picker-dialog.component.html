@@ -1,0 +1,42 @@
+<h2 mat-dialog-title>{{ 'INVOICE.SELECT_CUSTOMER' | translate }}</h2>
+
+<mat-dialog-content>
+
+  <mat-form-field appearance="outline" class="search-field">
+    <mat-label>{{ 'COMMON.SEARCH' | translate }}</mat-label>
+    <input matInput [(ngModel)]="searchText" [placeholder]="'COMMON.SEARCH' | translate" autofocus>
+    <mat-icon matPrefix>search</mat-icon>
+  </mat-form-field>
+
+  <div class="section-label" *ngIf="!isSearchActive()">
+    {{ 'INVOICE.RECENT_CUSTOMERS' | translate }}
+  </div>
+
+  <div class="customer-list">
+
+    <div *ngFor="let customer of getDisplayedCustomers()"
+         class="customer-row"
+         (click)="select(customer)">
+      <div class="row-icon-wrap">
+        <mat-icon>person</mat-icon>
+      </div>
+      <div class="row-info">
+        <span class="customer-name">{{ customer.customerName }}</span>
+        <span class="customer-meta" *ngIf="customer.customerEmail">{{ customer.customerEmail }}</span>
+        <span class="customer-meta" *ngIf="!customer.customerEmail && customer.companyName">{{ customer.companyName }}</span>
+      </div>
+      <mat-icon class="row-arrow">chevron_right</mat-icon>
+    </div>
+
+    <div class="empty-state" *ngIf="getDisplayedCustomers().length === 0">
+      <mat-icon>search_off</mat-icon>
+      <p>{{ 'INVOICE.NO_CUSTOMERS_FOUND' | translate }}</p>
+    </div>
+
+  </div>
+
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="cancel()">{{ 'COMMON.CANCEL' | translate }}</button>
+</mat-dialog-actions>

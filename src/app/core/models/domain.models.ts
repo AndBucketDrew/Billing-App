@@ -98,8 +98,15 @@ export interface CompanySettings {
   headquarters: string;
   courtRegistry: string;
   registrationNumber: string;
+  // Branding
+  brandColor?: string;
   // Invoice footer
   invoiceFooterText: string;
+  // Email templates (supports variables: {invoiceNumber}, {date}, {total}, {customer}, {companyName}, {paymentMethod}, {docType}, {filename})
+  emailSubjectDe?: string;
+  emailSubjectEn?: string;
+  emailBodyDe?: string;
+  emailBodyEn?: string;
 }
 
 export interface ToursData {

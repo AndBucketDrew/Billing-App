@@ -171,6 +171,15 @@
                       (click)="createCreditNote(invoice)"
                       *ngIf="invoice.status === 'finalized' && !isCreditNote(invoice)">G</button>
 
+              <!-- Send Mail — opens default mail client with invoice attached -->
+              <button mat-icon-button
+                      color="primary"
+                      matTooltip="Send via email"
+                      (click)="sendMail(invoice)"
+                      *ngIf="invoice.status === 'finalized'">
+                <mat-icon>email</mat-icon>
+              </button>
+
               <button mat-icon-button
                       color="warn"
                       [matTooltip]="'COMMON.DELETE' | translate"

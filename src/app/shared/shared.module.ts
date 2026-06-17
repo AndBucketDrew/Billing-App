@@ -26,6 +26,7 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { NgxMatTimepickerModule } from 'ngx-mat-timepicker';
 
 // Shared Components
 import { LanguageSwitcherComponent } from './components/language-switcher/language-switcher.component';
@@ -53,7 +54,8 @@ const MATERIAL_MODULES = [
   MatChipsModule,
   MatAutocompleteModule,
   MatButtonToggleModule,
-  MatCheckboxModule
+  MatCheckboxModule,
+  NgxMatTimepickerModule
 ];
 
 @NgModule({

@@ -97,7 +97,10 @@ export class ElectronService {
         selectLogo: async () => null
       },
       pdf: {
-        save: async () => null
+        save: async () => null,
+      },
+      mail: {
+        openDraft: async () => {},
       },
       excel: {
         save: async () => null

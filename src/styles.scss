@@ -98,3 +98,20 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+// ─── Form Field Typography Override ───────────────────────────────────────────
+// Angular Material MDC applies its own font tokens to inputs/textareas/selects,
+// which can override the body font. Force our design tokens everywhere.
+
+input.mat-mdc-input-element,
+textarea.mat-mdc-input-element {
+  font-family: var(--font-family-base) !important;
+  font-size: var(--font-size-md) !important;
+  color: var(--color-fg-default) !important;
+}
+
+.mat-mdc-select-value-text {
+  font-family: var(--font-family-base) !important;
+  font-size: var(--font-size-md) !important;
+  color: var(--color-fg-default) !important;
+}

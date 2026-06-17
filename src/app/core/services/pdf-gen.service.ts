@@ -59,6 +59,19 @@ export class PdfGeneratorService {
     }
   }
 
+  async getInvoicePdfBase64(invoice: Invoice, companySettings: CompanySettings): Promise<string> {
+    const docDefinition = await this.createInvoiceDocument(invoice, companySettings);
+    return new Promise<string>((resolve, reject) => {
+      try {
+        pdfMake.createPdf(docDefinition).getBase64((data: string) => {
+          if (data) { resolve(data); } else { reject(new Error('PDF generation returned empty data')); }
+        });
+      } catch (err) {
+        reject(err);
+      }
+    });
+  }
+
   /**
    * Open PDF preview in a new window without saving
    */
@@ -259,7 +272,7 @@ export class PdfGeneratorService {
     });
 
     // ── 4. LINE ITEMS TABLE ───────────────────────────────────────────────────
-    const HEADER_BG = '#8a9a6a';
+    const HEADER_BG = settings.brandColor ?? '#8a9a6a';
     const HEADER_FG = '#ffffff';
     const OUTER_BORDER_COLOR = '#888888';
 

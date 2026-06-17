@@ -7,6 +7,7 @@ import { InvoiceEditorComponent } from './invoice-editor/invoice-editor.componen
 import { LineItemsTableComponent } from '../components/line-items-table/line-items-table.component';
 import { VatSummaryComponent } from '../components/vat-summary/vat-summary.component';
 import { TourSelectorDialogComponent } from '../components/tour-selector-dialog/tour-selector-dialog.component';
+import { CustomerPickerDialogComponent } from '../components/customer-picker-dialog/customer-picker-dialog.component';
 import { LineItemTextImport } from '../components/line-items-table/line-item-text-import/line-item-text-import.component';
 
 const routes: Routes = [
@@ -31,6 +32,7 @@ const routes: Routes = [
     LineItemsTableComponent,
     VatSummaryComponent,
     TourSelectorDialogComponent,
+    CustomerPickerDialogComponent,
     LineItemTextImport
 
   ],

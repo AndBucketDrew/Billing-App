@@ -21,6 +21,39 @@ export class SettingsComponent implements OnInit {
   currentLogoPath: string = '';
   isLoading: boolean = false;
 
+  readonly emailTemplateVarList = [
+    { label: '{invoiceNumber}', tooltip: 'Invoice number (e.g. 260610-1323-022)' },
+    { label: '{date}',          tooltip: 'Invoice date (e.g. 16.06.2026)' },
+    { label: '{total}',         tooltip: 'Total amount including VAT (e.g. €1.234,00)' },
+    { label: '{customer}',      tooltip: 'Customer name (e.g. Max Mustermann)' },
+    { label: '{companyName}',   tooltip: 'Your company name (e.g. Muster GmbH)' },
+    { label: '{paymentMethod}', tooltip: 'Payment method (e.g. Bank Transfer)' },
+    { label: '{docType}',       tooltip: 'Document type (e.g. Invoice or Credit Note)' },
+    { label: '{filename}',      tooltip: 'PDF attachment filename (e.g. Invoice_260610-1323-022.pdf)' },
+  ];
+  private static readonly TEMPLATE_KEYWORDS = ['invoiceNumber', 'date', 'total', 'customer', 'companyName', 'paymentMethod', 'docType', 'filename'];
+
+  private static readonly DEFAULT_SUBJECT_DE = 'Rechnung Nr. {invoiceNumber} – {companyName}';
+  private static readonly DEFAULT_SUBJECT_EN = 'Invoice No. {invoiceNumber} – {companyName}';
+  private static readonly DEFAULT_BODY_DE =
+`Sehr geehrte/r {customer},
+
+anbei erhalten Sie Ihre {docType} Nr. {invoiceNumber} vom {date}.
+
+Bei Fragen stehen wir Ihnen gerne zur Verfügung.
+
+Mit freundlichen Grüßen
+{companyName}`;
+  private static readonly DEFAULT_BODY_EN =
+`Dear {customer},
+
+please find enclosed your {docType} no. {invoiceNumber} dated {date}.
+
+Should you have any questions, please don't hesitate to contact us.
+
+Kind regards,
+{companyName}`;
+
   vatOptions: VatOption[] = [
     { value: 0, label: 'VAT.RATE_0' },
     { value: 10, label: 'VAT.RATE_10' },
@@ -63,9 +96,16 @@ export class SettingsComponent implements OnInit {
       registrationNumber: [''],
 
       // Invoice settings
+      brandColor: ['#8a9a6a'],
       invoiceFooterText: [''],
       defaultVatPercentage: [13, [Validators.required]],
-      language: ['de', [Validators.required]]
+      language: ['de', [Validators.required]],
+
+      // Email templates
+      emailSubjectDe: [''],
+      emailSubjectEn: [''],
+      emailBodyDe: [''],
+      emailBodyEn: [''],
     });
   }
 
@@ -97,9 +137,14 @@ export class SettingsComponent implements OnInit {
           headquarters: settings.headquarters,
           courtRegistry: settings.courtRegistry,
           registrationNumber: settings.registrationNumber,
+          brandColor: settings.brandColor ?? '#8a9a6a',
           invoiceFooterText: settings.invoiceFooterText,
           defaultVatPercentage: settings.defaultVatPercentage,
-          language: settings.language
+          language: settings.language,
+          emailSubjectDe: settings.emailSubjectDe ?? SettingsComponent.DEFAULT_SUBJECT_DE,
+          emailSubjectEn: settings.emailSubjectEn ?? SettingsComponent.DEFAULT_SUBJECT_EN,
+          emailBodyDe: settings.emailBodyDe ?? SettingsComponent.DEFAULT_BODY_DE,
+          emailBodyEn: settings.emailBodyEn ?? SettingsComponent.DEFAULT_BODY_EN,
         });
 
         this.currentLogoPath = settings.logoPath || '';
@@ -126,6 +171,18 @@ export class SettingsComponent implements OnInit {
     try {
       const formValue = this.settingsForm.value;
 
+      const emailSubjectDe = this.parseTemplateVariables(formValue.emailSubjectDe || undefined);
+      const emailSubjectEn = this.parseTemplateVariables(formValue.emailSubjectEn || undefined);
+      const emailBodyDe = this.parseTemplateVariables(formValue.emailBodyDe || undefined);
+      const emailBodyEn = this.parseTemplateVariables(formValue.emailBodyEn || undefined);
+
+      this.settingsForm.patchValue({
+        emailSubjectDe: emailSubjectDe ?? '',
+        emailSubjectEn: emailSubjectEn ?? '',
+        emailBodyDe: emailBodyDe ?? '',
+        emailBodyEn: emailBodyEn ?? '',
+      }, { emitEvent: false });
+
       await this.settingsService.updateSettings({
         invoiceCounter: formValue.invoiceCounter,
         companyName: formValue.companyName,
@@ -140,9 +197,14 @@ export class SettingsComponent implements OnInit {
         headquarters: formValue.headquarters,
         courtRegistry: formValue.courtRegistry,
         registrationNumber: formValue.registrationNumber,
+        brandColor: formValue.brandColor || '#8a9a6a',
         invoiceFooterText: formValue.invoiceFooterText,
         defaultVatPercentage: formValue.defaultVatPercentage,
-        language: formValue.language
+        language: formValue.language,
+        emailSubjectDe,
+        emailSubjectEn,
+        emailBodyDe,
+        emailBodyEn,
       });
 
       this.showMessage(this.translate.instant('SETTINGS.SAVE_SUCCESS'));
@@ -232,6 +294,15 @@ export class SettingsComponent implements OnInit {
     }
 
     return '';
+  }
+
+  private parseTemplateVariables(text: string | undefined): string | undefined {
+    if (!text) return undefined;
+    let result = text;
+    for (const kw of SettingsComponent.TEMPLATE_KEYWORDS) {
+      result = result.replace(new RegExp(`(?<!\\{)\\b${kw}\\b(?!\\})`, 'g'), `{${kw}}`);
+    }
+    return result;
   }
 
   /**

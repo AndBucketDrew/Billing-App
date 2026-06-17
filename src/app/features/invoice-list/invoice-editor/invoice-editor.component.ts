@@ -3,8 +3,6 @@ import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatDialog } from '@angular/material/dialog';
-import { Observable } from 'rxjs';
-import { startWith, map } from 'rxjs/operators';
 import { InvoiceService } from '../../../core/services/invoice.service';
 import { SettingsService } from '../../../core/services/settings.service';
 import { TourService } from '../../../core/services/tour.service';
@@ -12,19 +10,8 @@ import { PdfGeneratorService } from '../../../core/services/pdf-gen.service';
 import { CalculationService } from '../../../core/services/calculation.service';
 import { InvoiceLineItem, Invoice, VatRate, Tour } from '../../../core/models/domain.models';
 import { TourSelectorDialogComponent } from '../../components/tour-selector-dialog/tour-selector-dialog.component';
+import { CustomerPickerDialogComponent, CustomerProfile } from '../../components/customer-picker-dialog/customer-picker-dialog.component';
 import { TranslateService } from '@ngx-translate/core';
-
-interface CustomerProfile {
-  customerName: string;
-  salutation: string | null;
-  customerEmail: string | null;
-  companyName: string | null;
-  companyAddress: string | null;
-  companyCityCountry: string | null;
-  companyTaxId: string | null;
-  companyCustomerName: string | null;
-  purchaseOrderNumber: string | null;
-}
 
 @Component({
   selector: 'app-invoice-editor',
@@ -41,7 +28,7 @@ export class InvoiceEditorComponent implements OnInit {
   isSaving: boolean = false;
   salutationOptions: { value: string; key: string }[] = [];
   knownCustomers: CustomerProfile[] = [];
-  filteredCustomers$!: Observable<CustomerProfile[]>;
+  recentCustomers: CustomerProfile[] = [];
 
   constructor(
     private fb: FormBuilder,
@@ -56,12 +43,11 @@ export class InvoiceEditorComponent implements OnInit {
     private snackBar: MatSnackBar,
     private translate: TranslateService
   ) {
-    const today = new Date().toISOString().split('T')[0];
     const settings = this.settingsService.getSettings();
 
     // Initialize form
     this.invoiceForm = this.fb.group({
-      invoiceDate: [today, [Validators.required]],
+      invoiceDate: [new Date(), [Validators.required]],
       language: [settings.language, [Validators.required]],
 
       // Customer
@@ -78,7 +64,8 @@ export class InvoiceEditorComponent implements OnInit {
       purchaseOrderNumber: [''],
 
       // Tour details
-      tourDate: [''],   // Am – optional
+      tourDate: [null],
+      tourTime: [''],
       meetingPoint: [''],  // Treffpunkt - can be auto-filled from tours
       pax: [null, [Validators.min(1)]], // optional
       guide: [''],      // optional
@@ -90,11 +77,7 @@ export class InvoiceEditorComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.knownCustomers = this.buildKnownCustomers();
-    this.filteredCustomers$ = this.invoiceForm.get('customerName')!.valueChanges.pipe(
-      startWith(''),
-      map(value => this.filterCustomers(value ?? ''))
-    );
+    this.buildCustomerLists();
 
     this.invoiceForm.get('civitatisId')?.valueChanges.subscribe(value => {
       if (value && value.trim() !== '') {
@@ -146,7 +129,7 @@ export class InvoiceEditorComponent implements OnInit {
         }
 
         this.invoiceForm.patchValue({
-          invoiceDate: invoice.invoiceDate,
+          invoiceDate: this.parseDate(invoice.invoiceDate),
           language: invoice.language,
           salutation: invoice.salutation ?? null,
           customerName: invoice.customerName,
@@ -157,7 +140,8 @@ export class InvoiceEditorComponent implements OnInit {
           companyTaxId: invoice.companyTaxId ?? '',
           companyCustomerName: invoice.companyCustomerName ?? '',
           purchaseOrderNumber: invoice.purchaseOrderNumber ?? '',
-          tourDate: invoice.tourDate ?? '',
+          tourDate: invoice.tourDate ? this.parseDate(invoice.tourDate) : null,
+          tourTime: invoice.tourDate?.includes('T') ? invoice.tourDate.split('T')[1].substring(0, 5) : '',
           meetingPoint: invoice.meetingPoint ?? '',
           pax: invoice.pax ?? null,
           guide: invoice.guide ?? '',
@@ -177,13 +161,15 @@ export class InvoiceEditorComponent implements OnInit {
     }
   }
 
-  private buildKnownCustomers(): CustomerProfile[] {
-    const customerMap = new Map<string, CustomerProfile>();
-    [...this.invoiceService.getInvoices()]
-      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-      .forEach(inv => {
-        if (inv.customerName) {
-          customerMap.set(inv.customerName.toLowerCase(), {
+  private buildCustomerLists(): void {
+    const customerMap = new Map<string, { profile: CustomerProfile; lastDate: string }>();
+    for (const inv of this.invoiceService.getInvoices()) {
+      if (!inv.customerName) continue;
+      const key = inv.customerName.toLowerCase();
+      const existing = customerMap.get(key);
+      if (!existing || inv.createdAt > existing.lastDate) {
+        customerMap.set(key, {
+          profile: {
             customerName: inv.customerName,
             salutation: inv.salutation ?? null,
             customerEmail: inv.customerEmail ?? null,
@@ -193,31 +179,41 @@ export class InvoiceEditorComponent implements OnInit {
             companyTaxId: inv.companyTaxId ?? null,
             companyCustomerName: inv.companyCustomerName ?? null,
             purchaseOrderNumber: inv.purchaseOrderNumber ?? null,
-          });
-        }
+          },
+          lastDate: inv.createdAt,
+        });
+      }
+    }
+    const entries = Array.from(customerMap.values());
+    this.knownCustomers = entries
+      .map(e => e.profile)
+      .sort((a, b) => a.customerName.localeCompare(b.customerName));
+    this.recentCustomers = [...entries]
+      .sort((a, b) => b.lastDate.localeCompare(a.lastDate))
+      .slice(0, 10)
+      .map(e => e.profile);
+  }
+
+  openCustomerPicker(): void {
+    const dialogRef = this.dialog.open(CustomerPickerDialogComponent, {
+      width: '580px',
+      maxHeight: '80vh',
+      data: { customers: this.knownCustomers, recentCustomers: this.recentCustomers },
+    });
+
+    dialogRef.afterClosed().subscribe((customer: CustomerProfile | undefined) => {
+      if (!customer) return;
+      this.invoiceForm.patchValue({
+        customerName: customer.customerName,
+        salutation: customer.salutation,
+        customerEmail: customer.customerEmail ?? '',
+        companyName: customer.companyName ?? '',
+        companyAddress: customer.companyAddress ?? '',
+        companyCityCountry: customer.companyCityCountry ?? '',
+        companyTaxId: customer.companyTaxId ?? '',
+        companyCustomerName: customer.companyCustomerName ?? '',
+        purchaseOrderNumber: customer.purchaseOrderNumber ?? '',
       });
-    return Array.from(customerMap.values()).sort((a, b) => a.customerName.localeCompare(b.customerName));
-  }
-
-  private filterCustomers(value: string): CustomerProfile[] {
-    if (!value) return this.knownCustomers;
-    const filter = value.toLowerCase();
-    return this.knownCustomers.filter(c => c.customerName.toLowerCase().includes(filter));
-  }
-
-  onCustomerSelected(customerName: string): void {
-    const customer = this.knownCustomers.find(c => c.customerName === customerName);
-    if (!customer) return;
-    this.invoiceForm.patchValue({
-      customerName: customer.customerName,
-      salutation: customer.salutation,
-      customerEmail: customer.customerEmail ?? '',
-      companyName: customer.companyName ?? '',
-      companyAddress: customer.companyAddress ?? '',
-      companyCityCountry: customer.companyCityCountry ?? '',
-      companyTaxId: customer.companyTaxId ?? '',
-      companyCustomerName: customer.companyCustomerName ?? '',
-      purchaseOrderNumber: customer.purchaseOrderNumber ?? '',
     });
   }
 
@@ -336,8 +332,9 @@ export class InvoiceEditorComponent implements OnInit {
    */
   private buildInvoicePayload() {
     const v = this.invoiceForm.value;
+    const tourDateStr = v.tourDate ? this.formatDate(v.tourDate) : null;
     return {
-      invoiceDate: v.invoiceDate,
+      invoiceDate: this.formatDate(v.invoiceDate),
       language: v.language,
       salutation: v.salutation || null,
       customerName: v.customerName,
@@ -348,7 +345,7 @@ export class InvoiceEditorComponent implements OnInit {
       companyTaxId: v.companyTaxId || null,
       companyCustomerName: v.companyCustomerName || null,
       purchaseOrderNumber: v.purchaseOrderNumber || null,
-      tourDate: v.tourDate || null,
+      tourDate: tourDateStr ? (v.tourTime ? `${tourDateStr}T${v.tourTime}` : tourDateStr) : null,
       meetingPoint: v.meetingPoint || null,
       pax: v.pax ?? null,
       guide: v.guide || null,
@@ -356,6 +353,22 @@ export class InvoiceEditorComponent implements OnInit {
       lineItems: this.lineItems,
       paymentMethod: v.paymentMethod || null,
     };
+  }
+
+  private parseDate(dateStr: string | null | undefined): Date | null {
+    if (!dateStr) return null;
+    const parts = dateStr.split('T')[0].split('-').map(Number);
+    if (parts.length < 3) return null;
+    const d = new Date(parts[0], parts[1] - 1, parts[2]);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  private formatDate(date: Date | null): string {
+    if (!date) return '';
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
   }
 
   /**

@@ -1,188 +1,196 @@
 <div class="dashboard-container">
 
   <!-- Header -->
-  <mat-card class="header-card">
-    <mat-card-content>
-      <div class="header-content">
-        <div class="title-section">
-          <h1 class="page-title">{{ 'DASHBOARD.TITLE' | translate }}</h1>
-          <p class="page-subtitle">{{ today | date:'EEEE, d MMMM yyyy' }}</p>
+  <div class="dash-header">
+    <div class="title-section">
+      <h1 class="page-title">{{ 'DASHBOARD.TITLE' | translate }}</h1>
+      <p class="page-subtitle">{{ today | date:'EEEE, d MMMM yyyy' }}</p>
+    </div>
+    <div class="header-actions">
+      <!-- Year-picker menu for Excel export -->
+      <mat-menu #exportMenu="matMenu">
+        <ng-container *ngIf="getAvailableYears().length > 0; else noYears">
+          <button mat-menu-item *ngFor="let year of getAvailableYears()" (click)="exportYear(year)">
+            <mat-icon>calendar_today</mat-icon>
+            {{ year }}
+          </button>
+        </ng-container>
+        <ng-template #noYears>
+          <button mat-menu-item disabled>{{ 'DASHBOARD.EXPORT_NO_DATA' | translate }}</button>
+        </ng-template>
+      </mat-menu>
+
+      <button mat-stroked-button class="export-btn"
+        [matMenuTriggerFor]="exportMenu" [disabled]="isExporting">
+        <mat-icon *ngIf="!isExporting">download</mat-icon>
+        <mat-progress-spinner *ngIf="isExporting" diameter="16" mode="indeterminate"></mat-progress-spinner>
+        {{ 'DASHBOARD.EXPORT_EXCEL' | translate }}
+      </button>
+
+      <button mat-raised-button color="primary" (click)="navigate('/invoices')">
+        <mat-icon>add</mat-icon>
+        {{ 'INVOICE.CREATE' | translate }}
+      </button>
+    </div>
+  </div>
+
+  <!-- KPI Grid -->
+  <div class="kpi-grid">
+    <div *ngFor="let kpi of kpis" class="kpi-card" [ngClass]="'kpi-' + kpi.variant">
+      <div class="kpi-top">
+        <span class="kpi-label">{{ kpi.labelKey | translate }}</span>
+        <span class="kpi-icon"><mat-icon>{{ kpi.icon }}</mat-icon></span>
+      </div>
+
+      <div class="kpi-value">{{ kpi.value }}</div>
+
+      <div class="kpi-bottom">
+        <span class="kpi-trend"
+          [class.up]="kpi.trend !== null && kpi.trend >= 0"
+          [class.down]="kpi.trend !== null && kpi.trend < 0"
+          *ngIf="kpi.trend !== null; else noTrend">
+          <mat-icon>{{ kpi.trend >= 0 ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+          {{ (kpi.trend >= 0 ? kpi.trend : -kpi.trend) | number:'1.0-1' }}%
+        </span>
+        <ng-template #noTrend><span class="kpi-trend muted">—</span></ng-template>
+        <span class="kpi-trend-label">{{ 'DASHBOARD.VS_LAST_MONTH' | translate }}</span>
+      </div>
+
+      <svg class="kpi-spark" viewBox="0 0 100 30" preserveAspectRatio="none">
+        <path class="spark-area" [attr.d]="kpi.sparkArea"></path>
+        <path class="spark-line" [attr.d]="kpi.spark"></path>
+      </svg>
+    </div>
+  </div>
+
+  <!-- Charts Row -->
+  <div class="charts-row">
+
+    <!-- Monthly Revenue bar chart -->
+    <mat-card class="chart-card revenue-chart">
+      <mat-card-content>
+        <div class="section-header">
+          <h2 class="section-title">
+            <mat-icon>bar_chart</mat-icon>
+            {{ 'DASHBOARD.MONTHLY_REVENUE' | translate }}
+          </h2>
+          <div class="legend">
+            <span class="legend-item"><i class="dot net"></i>{{ 'DASHBOARD.NET' | translate }}</span>
+            <span class="legend-item"><i class="dot vat"></i>{{ 'DASHBOARD.VAT' | translate }}</span>
+          </div>
         </div>
-        <button mat-raised-button color="primary" (click)="navigate('/invoices')">
-          <mat-icon>add</mat-icon>
-          {{ 'INVOICE.CREATE' | translate }}
+
+        <div class="bar-chart" *ngIf="hasData; else noChartData">
+          <div *ngFor="let bar of bars" class="bar-col" [matTooltip]="bar.label + ': ' + formatCurrency(bar.gross)">
+            <div class="bar-stack">
+              <div class="bar-seg vat" [style.height.%]="bar.vatPct"></div>
+              <div class="bar-seg net" [style.height.%]="bar.netPct"></div>
+            </div>
+            <div class="bar-label">{{ bar.label }}</div>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Invoice status donut -->
+    <mat-card class="chart-card status-chart">
+      <mat-card-content>
+        <div class="section-header">
+          <h2 class="section-title">
+            <mat-icon>donut_large</mat-icon>
+            {{ 'DASHBOARD.INVOICE_STATUS' | translate }}
+          </h2>
+        </div>
+
+        <div class="donut-wrap" *ngIf="donutTotal > 0; else noChartData">
+          <svg class="donut" viewBox="0 0 140 140">
+            <g transform="rotate(-90 70 70)">
+              <circle class="donut-track" cx="70" cy="70" [attr.r]="donutR"></circle>
+              <circle *ngFor="let seg of donut"
+                cx="70" cy="70" [attr.r]="donutR"
+                [attr.stroke]="seg.color"
+                [attr.stroke-dasharray]="seg.dashArray"
+                [attr.stroke-dashoffset]="seg.dashOffset"
+                class="donut-seg"></circle>
+            </g>
+            <text x="70" y="64" class="donut-total">{{ donutTotal }}</text>
+            <text x="70" y="82" class="donut-total-label">{{ 'DASHBOARD.TOTAL' | translate }}</text>
+          </svg>
+
+          <div class="donut-legend">
+            <div *ngFor="let seg of donut" class="donut-legend-item">
+              <i class="dot" [style.background]="seg.color"></i>
+              <span class="legend-label">{{ seg.labelKey | translate }}</span>
+              <span class="legend-count">{{ seg.count }}</span>
+              <span class="legend-pct">{{ seg.pct | number:'1.0-1' }}%</span>
+            </div>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+  </div>
+
+  <!-- Recent Invoices -->
+  <mat-card class="recent-card">
+    <mat-card-content>
+      <div class="section-header">
+        <h2 class="section-title">
+          <mat-icon>history</mat-icon>
+          {{ 'DASHBOARD.RECENT_INVOICES' | translate }}
+        </h2>
+        <button mat-button class="see-all-btn" (click)="navigate('/invoices')">
+          {{ 'DASHBOARD.SEE_ALL' | translate }}
+          <mat-icon>chevron_right</mat-icon>
         </button>
       </div>
+
+      <table class="recent-table" *ngIf="recentInvoices.length > 0; else noInvoices">
+        <thead>
+          <tr>
+            <th>{{ 'INVOICE.NUMBER' | translate }}</th>
+            <th>{{ 'INVOICE.CUSTOMER_NAME' | translate }}</th>
+            <th>{{ 'INVOICE.DATE' | translate }}</th>
+            <th class="status-col">{{ 'INVOICE.STATUS' | translate }}</th>
+            <th class="amount-col">{{ 'DASHBOARD.AMOUNT' | translate }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let invoice of recentInvoices" (click)="navigateToInvoice(invoice)">
+            <td class="num-cell">{{ invoice.invoiceNumber || ('INVOICE.STATUS_DRAFT' | translate) }}</td>
+            <td class="customer-cell">{{ invoice.customerName }}</td>
+            <td class="date-cell">{{ invoice.invoiceDate | date:'mediumDate' }}</td>
+            <td class="status-col">
+              <span class="status-badge"
+                [class.finalized]="invoice.status === 'finalized' && invoice.isPaid"
+                [class.unpaid]="invoice.status === 'finalized' && !invoice.isPaid"
+                [class.draft]="invoice.status === 'draft'"
+                [class.cancelled]="invoice.status === 'storniert'">
+                {{ (invoice.status === 'storniert' ? 'DASHBOARD.STATUS_CANCELLED'
+                    : invoice.status === 'draft' ? 'INVOICE.STATUS_DRAFT'
+                    : invoice.isPaid ? 'DASHBOARD.STATUS_PAID'
+                    : 'DASHBOARD.OUTSTANDING') | translate }}
+              </span>
+            </td>
+            <td class="amount-col">{{ formatCurrency(invoice.totalGross) }}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <ng-template #noInvoices>
+        <div class="no-data">
+          <mat-icon>receipt_long</mat-icon>
+          <p>{{ 'INVOICE.NO_INVOICES' | translate }}</p>
+        </div>
+      </ng-template>
     </mat-card-content>
   </mat-card>
 
-  <!-- Stats Grid -->
-  <div class="stats-grid">
-
-    <mat-card class="stat-card stat-tours">
-      <mat-card-content>
-        <div class="stat-inner">
-          <div class="stat-icon"><mat-icon>tour</mat-icon></div>
-          <div class="stat-info">
-            <div class="stat-value">{{ tourCount }}</div>
-            <div class="stat-label">{{ 'DASHBOARD.TOURS' | translate }}</div>
-          </div>
-        </div>
-      </mat-card-content>
-    </mat-card>
-
-    <mat-card class="stat-card stat-invoices">
-      <mat-card-content>
-        <div class="stat-inner">
-          <div class="stat-icon"><mat-icon>receipt_long</mat-icon></div>
-          <div class="stat-info">
-            <div class="stat-value">{{ totalInvoices }}</div>
-            <div class="stat-label">{{ 'DASHBOARD.TOTAL_INVOICES' | translate }}</div>
-          </div>
-        </div>
-      </mat-card-content>
-    </mat-card>
-
-    <mat-card class="stat-card stat-drafts">
-      <mat-card-content>
-        <div class="stat-inner">
-          <div class="stat-icon"><mat-icon>edit_note</mat-icon></div>
-          <div class="stat-info">
-            <div class="stat-value">{{ draftCount }}</div>
-            <div class="stat-label">{{ 'DASHBOARD.DRAFTS' | translate }}</div>
-          </div>
-        </div>
-      </mat-card-content>
-    </mat-card>
-
-    <mat-card class="stat-card stat-revenue">
-      <mat-card-content>
-        <div class="stat-inner">
-          <div class="stat-icon"><mat-icon>payments</mat-icon></div>
-          <div class="stat-info">
-            <div class="stat-value revenue-value">{{ formatCurrency(totalRevenue) }}</div>
-            <div class="stat-label">{{ 'DASHBOARD.REVENUE' | translate }}</div>
-          </div>
-        </div>
-      </mat-card-content>
-    </mat-card>
-
-  </div>
-
-  <!-- Bottom Row -->
-  <div class="bottom-row">
-
-    <!-- Recent Invoices -->
-    <mat-card class="recent-card">
-      <mat-card-content>
-        <div class="section-header">
-          <h2 class="section-title">
-            <mat-icon>history</mat-icon>
-            {{ 'DASHBOARD.RECENT_INVOICES' | translate }}
-          </h2>
-          <button mat-button class="see-all-btn" (click)="navigate('/invoices')">
-            {{ 'DASHBOARD.SEE_ALL' | translate }}
-            <mat-icon>chevron_right</mat-icon>
-          </button>
-        </div>
-
-        <div class="recent-list" *ngIf="recentInvoices.length > 0; else noInvoices">
-          <div *ngFor="let invoice of recentInvoices" class="recent-item" (click)="navigateToInvoice(invoice)">
-            <div class="recent-item-left">
-              <div class="invoice-num">{{ invoice.invoiceNumber }}</div>
-              <div class="customer-name">{{ invoice.customerName }}</div>
-            </div>
-            <div class="recent-item-right">
-              <div class="invoice-amount">{{ formatCurrency(invoice.totalGross) }}</div>
-              <span class="status-badge"
-                [class.finalized]="invoice.status === 'finalized'"
-                [class.draft]="invoice.status === 'draft'">
-                {{ invoice.status === 'finalized'
-                  ? ('INVOICE.STATUS_FINALIZED' | translate)
-                  : ('INVOICE.STATUS_DRAFT' | translate) }}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <ng-template #noInvoices>
-          <div class="no-data">
-            <mat-icon>receipt_long</mat-icon>
-            <p>{{ 'INVOICE.NO_INVOICES' | translate }}</p>
-          </div>
-        </ng-template>
-
-      </mat-card-content>
-    </mat-card>
-
-    <!-- Quick Actions -->
-    <mat-card class="actions-card">
-      <mat-card-content>
-        <div class="section-header">
-          <h2 class="section-title">
-            <mat-icon>bolt</mat-icon>
-            {{ 'DASHBOARD.QUICK_ACTIONS' | translate }}
-          </h2>
-        </div>
-
-        <!-- Year-picker menu for Excel export -->
-        <mat-menu #exportMenu="matMenu">
-          <ng-container *ngIf="getAvailableYears().length > 0; else noYears">
-            <button mat-menu-item *ngFor="let year of getAvailableYears()" (click)="exportYear(year)">
-              <mat-icon>calendar_today</mat-icon>
-              {{ year }}
-            </button>
-          </ng-container>
-          <ng-template #noYears>
-            <button mat-menu-item disabled>{{ 'DASHBOARD.EXPORT_NO_DATA' | translate }}</button>
-          </ng-template>
-        </mat-menu>
-
-        <div class="quick-actions-list">
-
-          <button mat-button class="action-btn"
-            [matMenuTriggerFor]="exportMenu"
-            [disabled]="isExporting">
-            <mat-icon *ngIf="!isExporting" class="action-icon icon-export">download</mat-icon>
-            <mat-progress-spinner *ngIf="isExporting" diameter="16" mode="indeterminate" class="action-spinner icon-export"></mat-progress-spinner>
-            <div class="action-text">
-              <div class="action-title">{{ 'DASHBOARD.EXPORT_EXCEL' | translate }}</div>
-              <div class="action-sub">{{ 'DASHBOARD.ACTION_EXPORT_SUB' | translate }}</div>
-            </div>
-            <mat-icon class="action-chevron">expand_more</mat-icon>
-          </button>
-
-          <button mat-button class="action-btn" (click)="navigate('/invoices')">
-            <mat-icon class="action-icon icon-invoice">add_circle_outline</mat-icon>
-            <div class="action-text">
-              <div class="action-title">{{ 'INVOICE.CREATE' | translate }}</div>
-              <div class="action-sub">{{ 'DASHBOARD.ACTION_INVOICE_SUB' | translate }}</div>
-            </div>
-            <mat-icon class="action-chevron">chevron_right</mat-icon>
-          </button>
-
-          <button mat-button class="action-btn" (click)="navigate('/tours')">
-            <mat-icon class="action-icon icon-tour">tour</mat-icon>
-            <div class="action-text">
-              <div class="action-title">{{ 'DASHBOARD.MANAGE_TOURS' | translate }}</div>
-              <div class="action-sub">{{ 'DASHBOARD.ACTION_TOURS_SUB' | translate }}</div>
-            </div>
-            <mat-icon class="action-chevron">chevron_right</mat-icon>
-          </button>
-
-          <button mat-button class="action-btn" (click)="navigate('/settings')">
-            <mat-icon class="action-icon icon-settings">settings</mat-icon>
-            <div class="action-text">
-              <div class="action-title">{{ 'NAV.SETTINGS' | translate }}</div>
-              <div class="action-sub">{{ 'DASHBOARD.ACTION_SETTINGS_SUB' | translate }}</div>
-            </div>
-            <mat-icon class="action-chevron">chevron_right</mat-icon>
-          </button>
-
-        </div>
-      </mat-card-content>
-    </mat-card>
-
-  </div>
+  <ng-template #noChartData>
+    <div class="no-data chart-empty">
+      <mat-icon>insights</mat-icon>
+      <p>{{ 'INVOICE.NO_INVOICES' | translate }}</p>
+    </div>
+  </ng-template>
 
 </div>

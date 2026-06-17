@@ -41,8 +41,10 @@
           <!-- Invoice Date -->
           <mat-form-field appearance="outline" class="form-field-half">
             <mat-label>{{ 'INVOICE.DATE' | translate }}</mat-label>
-            <input matInput type="date" formControlName="invoiceDate" required>
+            <input matInput [matDatepicker]="invoiceDatePicker" formControlName="invoiceDate" required>
             <mat-icon matPrefix>calendar_today</mat-icon>
+            <mat-datepicker-toggle matSuffix [for]="invoiceDatePicker"></mat-datepicker-toggle>
+            <mat-datepicker #invoiceDatePicker></mat-datepicker>
             <mat-error *ngIf="invoiceForm.get('invoiceDate')?.invalid">
               {{ 'MESSAGES.REQUIRED_FIELD' | translate }}
             </mat-error>
@@ -91,18 +93,16 @@
           <!-- Customer Name (required) -->
           <mat-form-field appearance="outline" class="form-field-half">
             <mat-label>{{ 'INVOICE.CUSTOMER_NAME' | translate }}</mat-label>
-            <input matInput formControlName="customerName" required [matAutocomplete]="customerAuto">
+            <input matInput formControlName="customerName" required>
             <mat-icon matPrefix>person</mat-icon>
+            <button class="customer-picker-btn" matSuffix type="button" (click)="openCustomerPicker()"
+                    [matTooltip]="'INVOICE.SELECT_CUSTOMER' | translate">
+              <mat-icon>person_search</mat-icon>
+            </button>
             <mat-error *ngIf="invoiceForm.get('customerName')?.invalid">
               {{ 'MESSAGES.REQUIRED_FIELD' | translate }}
             </mat-error>
           </mat-form-field>
-          <mat-autocomplete #customerAuto="matAutocomplete" (optionSelected)="onCustomerSelected($event.option.value)">
-            <mat-option *ngFor="let customer of filteredCustomers$ | async" [value]="customer.customerName">
-              <span>{{ customer.customerName }}</span>
-              <span *ngIf="customer.customerEmail" class="customer-option-hint"> — {{ customer.customerEmail }}</span>
-            </mat-option>
-          </mat-autocomplete>
 
           <!-- Email (optional) -->
           <mat-form-field appearance="outline" class="form-field-half">
@@ -186,13 +186,26 @@
       <mat-card-content>
 
         <div class="form-row">
-          <!-- Am – Tour date & time -->
+          <!-- Tour Date -->
           <mat-form-field appearance="outline" class="form-field-half">
             <mat-label>{{ 'INVOICE.TOUR_DATE' | translate }} ({{ 'COMMON.OPTIONAL' | translate }})</mat-label>
-            <input matInput type="datetime-local" formControlName="tourDate">
+            <input matInput [matDatepicker]="tourDatePicker" formControlName="tourDate">
             <mat-icon matPrefix>event</mat-icon>
+            <mat-datepicker-toggle matSuffix [for]="tourDatePicker"></mat-datepicker-toggle>
+            <mat-datepicker #tourDatePicker></mat-datepicker>
           </mat-form-field>
 
+          <!-- Tour Time -->
+          <mat-form-field appearance="outline" class="form-field-half">
+            <mat-label>{{ 'INVOICE.TOUR_TIME' | translate }} ({{ 'COMMON.OPTIONAL' | translate }})</mat-label>
+            <input matInput [ngxMatTimepicker]="tourTimePicker" formControlName="tourTime" [format]="24" readonly>
+            <mat-icon matPrefix>schedule</mat-icon>
+            <ngx-mat-timepicker-toggle matSuffix [for]="tourTimePicker"></ngx-mat-timepicker-toggle>
+            <ngx-mat-timepicker #tourTimePicker [format]="24"></ngx-mat-timepicker>
+          </mat-form-field>
+        </div>
+
+        <div class="form-row">
           <!-- Pax -->
           <mat-form-field appearance="outline" class="form-field-half">
             <mat-label>{{ 'INVOICE.PAX' | translate }} ({{ 'COMMON.OPTIONAL' | translate }})</mat-label>

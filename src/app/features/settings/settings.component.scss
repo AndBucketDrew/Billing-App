@@ -153,6 +153,76 @@ mat-icon[matPrefix] {
   button[mat-stroked-button][color=warn] { @include m.btn-danger-ghost; }
 }
 
+// ─── Brand Color Picker ───────────────────────────────────────────────────────
+
+.brand-color-row {
+  margin-bottom: 16px;
+}
+
+.brand-color-label {
+  display: block;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-fg-default);
+  margin-bottom: 8px;
+}
+
+.brand-color-input {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.color-picker-input {
+  width: 48px;
+  height: 48px;
+  padding: 2px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  background: none;
+
+  &::-webkit-color-swatch-wrapper { padding: 0; }
+  &::-webkit-color-swatch { border: none; border-radius: 4px; }
+}
+
+.brand-color-value {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  color: var(--color-fg-muted);
+}
+
+.brand-color-hint {
+  margin: 6px 0 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-fg-subtle);
+}
+
+// ─── Email Template ───────────────────────────────────────────────────────────
+
+.keyword-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.keyword-chip {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  background: var(--color-canvas-subtle);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+  padding: 2px 8px;
+  color: var(--color-accent-fg);
+}
+
+.template-hint {
+  font-size: var(--font-size-md);
+  color: var(--color-fg-muted);
+  margin: 0 0 16px;
+}
+
 // ─── Bottom Save Button ───────────────────────────────────────────────────────
 
 .action-buttons {

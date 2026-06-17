@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, Menu } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, Menu, shell } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -455,6 +455,50 @@ ipcMain.handle('pdf:save', async (_, pdfBase64: string, filename: string): Promi
   const buffer = Buffer.from(pdfBase64, 'base64');
   fs.writeFileSync(result.filePath, buffer);
   return result.filePath;
+});
+
+ipcMain.handle('mail:openDraft', async (_, args: {
+  to: string;
+  subject: string;
+  body: string;
+  pdfBase64: string;
+  filename: string;
+}): Promise<void> => {
+  const sanitizeHeader = (s: string) => s.replace(/[\r\n]+/g, ' ').trim();
+
+  const boundary = `----=_Part_${Date.now()}`;
+  const b64Lines = (args.pdfBase64.match(/.{1,76}/g) ?? [args.pdfBase64]).join('\r\n');
+
+  const eml = [
+    'MIME-Version: 1.0',
+    `To: ${sanitizeHeader(args.to)}`,
+    `Subject: ${sanitizeHeader(args.subject)}`,
+    `Content-Type: multipart/mixed; boundary="${boundary}"`,
+    '',
+    `--${boundary}`,
+    'Content-Type: text/html; charset=UTF-8',
+    'Content-Transfer-Encoding: 8bit',
+    '',
+    args.body,
+    '',
+    `--${boundary}`,
+    `Content-Type: application/pdf; name="${sanitizeHeader(args.filename)}"`,
+    'Content-Transfer-Encoding: base64',
+    `Content-Disposition: attachment; filename="${sanitizeHeader(args.filename)}"`,
+    '',
+    b64Lines,
+    '',
+    `--${boundary}--`,
+  ].join('\r\n');
+
+  const tmpPath = path.join(app.getPath('temp'), `invoice_draft_${Date.now()}.eml`);
+  await fs.promises.writeFile(tmpPath, eml, 'utf8');
+  const openError = await shell.openPath(tmpPath);
+  // Clean up the temp file after 30 s — enough time for the mail client to read it
+  setTimeout(() => fs.promises.unlink(tmpPath).catch(() => {}), 30_000);
+  if (openError) {
+    throw new Error(`Could not open mail client: ${openError}`);
+  }
 });
 
 // ============================================

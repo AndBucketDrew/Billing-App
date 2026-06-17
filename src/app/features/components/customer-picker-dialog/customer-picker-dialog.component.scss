@@ -1,0 +1,119 @@
+:host ::ng-deep .mat-mdc-dialog-title {
+  padding: 24px 24px 8px !important;
+}
+
+:host ::ng-deep .mat-mdc-dialog-content {
+  padding: 0 24px 8px !important;
+}
+
+:host ::ng-deep .mat-mdc-dialog-actions {
+  padding: 8px 24px 16px !important;
+}
+
+.search-field {
+  width: 100%;
+  margin-top: 8px;
+  margin-bottom: 4px;
+}
+
+.section-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  padding: 8px 4px 8px;
+}
+
+.customer-list {
+  min-height: 160px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.customer-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  cursor: pointer;
+  background: #fff;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+
+  &:hover {
+    border-color: #1976d2;
+    box-shadow: 0 2px 8px rgba(25, 118, 210, 0.1);
+    background: #f5f9ff;
+  }
+
+  .row-icon-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 8px;
+    background: #f3e8ff;
+    flex-shrink: 0;
+
+    mat-icon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+      color: #9333ea;
+    }
+  }
+
+  .row-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+
+    .customer-name {
+      font-weight: 600;
+      font-size: 14px;
+      color: #1a1a1a;
+    }
+
+    .customer-meta {
+      font-size: 12px;
+      color: #888;
+    }
+  }
+
+  .row-arrow {
+    color: #ccc;
+    flex-shrink: 0;
+    transition: color 0.15s;
+  }
+
+  &:hover .row-arrow {
+    color: #1976d2;
+  }
+}
+
+.empty-state {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 16px;
+  color: #bbb;
+
+  mat-icon {
+    font-size: 36px;
+    width: 36px;
+    height: 36px;
+    margin-bottom: 8px;
+  }
+
+  p {
+    margin: 0;
+    font-size: 14px;
+  }
+}

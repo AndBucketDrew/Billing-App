@@ -4,6 +4,39 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [1.2.2]
+
+### Added
+
+* **Send via email** — finalized invoices now have an email button that opens a pre-filled draft in the default mail client with the invoice PDF attached as `.eml`
+  * Generates a styled HTML email using the company brand color, logo, and invoice summary (number, date, payment method, total)
+  * Supports German and English with automatic language selection based on the invoice language
+  * Custom subject and body templates configurable in Settings — use `{invoiceNumber}`, `{date}`, `{total}`, `{customer}`, `{companyName}`, `{paymentMethod}`, `{docType}`, `{filename}` as placeholders; leave blank to use the built-in default
+
+* **Company brand color** — new color picker in Settings (Invoice Settings section)
+  * Applied to the invoice table header background (replaces the previously hardcoded color)
+  * Drives the full email template color palette
+
+* **Email templates in Settings** — new card in Settings for customising the email subject and body per language (DE / EN); placeholder chips are shown inline for quick reference
+
+### Changed
+
+* **Dashboard redesign** 
+  * Three KPI cards (Total Revenue, Outstanding, Paid) computed from real invoice data, each showing a trend indicator (▲/▼ % vs the previous month) and a full-width smooth sparkline of the last 12 months
+  * New **Monthly Revenue** bar chart — 12 months of revenue as stacked Net + VAT bars with hover tooltips
+  * New **Invoice Status** donut chart breaking invoices into Paid / Outstanding / Drafts / Voided with counts and percentages
+  * Recent invoices reworked from a list into a table (Number, Customer, Date, Status, Amount) with colour-coded status badges
+  * Excel export moved into the header next to Create Invoice (year picker preserved)
+
+* **Customer picker redesign** — replaced the autocomplete dropdown on the customer name field with a modal picker button so the modal shows the 10 most recently used customers by default and a live search across all customers..
+
+* **Date and Time pickers** — replaced native `<input type="date">` and `<input type="datetime-local">` fields in the invoice editor with Angular Material datepickers and ngx-mat-timepicker.
+
+### Fixed
+
+* **Font** - Font is now consistent troughout the app
+---
+
 ## [1.2.1]
 
 ### Added

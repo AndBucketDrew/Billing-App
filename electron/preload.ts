@@ -76,6 +76,11 @@ export interface ElectronAPI {
     save: (pdfBase64: string, filename: string) => Promise<string | null>;
   };
 
+  // Mail operations
+  mail: {
+    openDraft: (args: { to: string; subject: string; body: string; pdfBase64: string; filename: string }) => Promise<void>;
+  };
+
   // Excel operations
   excel: {
     save: (excelBase64: string, filename: string) => Promise<string | null>;
@@ -193,7 +198,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   pdf: {
     save: (pdfBase64: string, filename: string) =>
-      ipcRenderer.invoke('pdf:save', pdfBase64, filename)
+      ipcRenderer.invoke('pdf:save', pdfBase64, filename),
+  },
+
+  mail: {
+    openDraft: (args: { to: string; subject: string; body: string; pdfBase64: string; filename: string }) =>
+      ipcRenderer.invoke('mail:openDraft', args),
   },
 
   excel: {
