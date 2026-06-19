@@ -1,7 +1,9 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, DestroyRef, OnInit } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { distinctUntilChanged, map } from 'rxjs/operators';
 import { SettingsService } from './core/services/settings.service';
 import { ElectronService } from './core/services/electron.service';
-import { Router, NavigationEnd } from '@angular/router';
+import { Router } from '@angular/router';
 import { RouterOutlet } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { SharedModule } from './shared/shared.module';
@@ -28,19 +30,21 @@ export class AppComponent implements OnInit {
   constructor(
     private settingsService: SettingsService,
     private electronService: ElectronService,
-    private router: Router
-  ) {
-    this.router.events.subscribe(event => {
-      if (event instanceof NavigationEnd) {
-        console.log('Navigated to:', event.url);
-      }
-    });
-  }
+    private router: Router,
+    private destroyRef: DestroyRef
+  ) {}
 
-  async ngOnInit(): Promise<void> {
-    console.log('App initialized');
-    console.log('Current route:', this.router.url);
-    await this.loadLogo();
+  ngOnInit(): void {
+    // React to the settings stream rather than a one-time snapshot: settings load
+    // asynchronously at boot, so a snapshot read here could miss the logo path and
+    // blank the logo on first paint. This also keeps the logo in sync with changes.
+    this.settingsService.settings$
+      .pipe(
+        map(settings => settings.logoPath),
+        distinctUntilChanged(),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe(logoPath => this.loadLogo(logoPath));
 
     // Show a banner if a data file was corrupt and had to be restored from backup
     this.electronService.api.data.on('data:restoredFromBackup', (filename) => {
@@ -59,13 +63,14 @@ export class AppComponent implements OnInit {
     this.electronService.api.update.install();
   }
 
-  private async loadLogo(): Promise<void> {
-    const settings = this.settingsService.getSettings();
-
-    if (!settings.logoPath) return;
+  private async loadLogo(logoPath: string | undefined): Promise<void> {
+    if (!logoPath) {
+      this.logoUrl = null;
+      return;
+    }
 
     try {
-      const resp = await fetch(settings.logoPath);
+      const resp = await fetch(logoPath);
       if (!resp.ok) return;
 
       const blob = await resp.blob();
@@ -82,7 +87,6 @@ export class AppComponent implements OnInit {
   }
 
   onNavigate(path: string): void {
-    console.log('Navigating to:', path);
     this.router.navigate([path]);
   }
 }

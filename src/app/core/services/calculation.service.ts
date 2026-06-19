@@ -1,9 +1,10 @@
 import { Injectable } from '@angular/core';
-import type { 
-  InvoiceLineItem, 
-  VatBreakdownItem, 
-  VatRate 
+import type {
+  InvoiceLineItem,
+  VatBreakdownItem,
+  VatRate
 } from '../models/domain.models';
+import { formatCurrencyEUR } from '../utils/format.util';
 
 export interface InvoiceTotals {
   vatBreakdown: VatBreakdownItem[];
@@ -101,12 +102,7 @@ export class CalculationService {
    * Format currency for display
    */
   formatCurrency(value: number, locale: string = 'de-DE'): string {
-    return new Intl.NumberFormat(locale, {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(value);
+    return formatCurrencyEUR(value, locale);
   }
 
   /**

@@ -1,4 +1,5 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, DestroyRef, OnInit } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -41,7 +42,8 @@ export class InvoiceEditorComponent implements OnInit {
     private calculation: CalculationService,
     private dialog: MatDialog,
     private snackBar: MatSnackBar,
-    private translate: TranslateService
+    private translate: TranslateService,
+    private destroyRef: DestroyRef
   ) {
     const settings = this.settingsService.getSettings();
 
@@ -79,7 +81,9 @@ export class InvoiceEditorComponent implements OnInit {
   ngOnInit(): void {
     this.buildCustomerLists();
 
-    this.invoiceForm.get('civitatisId')?.valueChanges.subscribe(value => {
+    this.invoiceForm.get('civitatisId')?.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(value => {
       if (value && value.trim() !== '') {
         const current = this.invoiceForm.get('paymentMethod')?.value;
         if (current !== 'civitatis') {
@@ -89,18 +93,24 @@ export class InvoiceEditorComponent implements OnInit {
     });
 
     // Clear Civitatis ID when switching away from Civitatis payment
-    this.invoiceForm.get('paymentMethod')?.valueChanges.subscribe(value => {
+    this.invoiceForm.get('paymentMethod')?.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(value => {
       if (value !== 'civitatis') {
         this.invoiceForm.patchValue({ civitatisId: '' }, { emitEvent: false });
       }
     });
 
-    this.invoiceForm.get('language')?.valueChanges.subscribe(lang => {
+    this.invoiceForm.get('language')?.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(lang => {
       this.updateSalutationOptions(lang);
       this.invoiceForm.patchValue({ salutation: null }, { emitEvent: false });
     });
 
-    this.route.params.subscribe(params => {
+    this.route.params
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(params => {
       if (params['id']) {
         this.isEditMode = true;
         this.invoiceId = params['id'];

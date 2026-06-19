@@ -1,4 +1,5 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, DestroyRef, OnInit } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { SettingsService } from '../../core/services/settings.service';
@@ -70,7 +71,8 @@ Kind regards,
     private fb: FormBuilder,
     private settingsService: SettingsService,
     private snackBar: MatSnackBar,
-    private translate: TranslateService
+    private translate: TranslateService,
+    private destroyRef: DestroyRef
   ) {
     // Initialize form with all fields
     this.settingsForm = this.fb.group({
@@ -122,7 +124,9 @@ Kind regards,
     try {
       await this.settingsService.loadSettings();
 
-      this.settingsService.settings$.subscribe((settings: CompanySettings) => {
+      this.settingsService.settings$
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe((settings: CompanySettings) => {
         this.settingsForm.patchValue({
           invoiceCounter: settings.invoiceCounter ?? 1,
           companyName: settings.companyName,

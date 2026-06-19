@@ -4,6 +4,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTable } from '@angular/material/table';
 import { TourService } from '../../core/services/tour.service';
 import { Tour, VatRate } from '../../core/models/domain.models';
+import { formatCurrencyEUR } from '../../core/utils/format.util';
 import { Observable } from 'rxjs';
 
 import { TranslateService } from '@ngx-translate/core';
@@ -118,11 +119,7 @@ export class TourListComponent implements OnInit {
    * Format currency
    */
   formatCurrency(value: number): string {
-    const locale = this.translate.currentLang === 'de' ? 'de-DE' : 'en-US';
-    return new Intl.NumberFormat(locale, {
-      style: 'currency',
-      currency: 'EUR'
-    }).format(value);
+    return formatCurrencyEUR(value, this.translate.currentLang);
   }
 
   /**

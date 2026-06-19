@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { MatDialogRef } from '@angular/material/dialog';
 import { TourService } from '../../../core/services/tour.service';
 import { Tour, VatRate } from '../../../core/models/domain.models';
+import { formatCurrencyEUR } from '../../../core/utils/format.util';
 import { Observable } from 'rxjs';
 import { SettingsService } from '../../../core/services/settings.service';
 
@@ -135,9 +136,6 @@ export class TourSelectorDialogComponent implements OnInit {
    * Format currency
    */
   formatCurrency(value: number): string {
-    return new Intl.NumberFormat('de-DE', {
-      style: 'currency',
-      currency: 'EUR'
-    }).format(value);
+    return formatCurrencyEUR(value, 'de');
   }
 }

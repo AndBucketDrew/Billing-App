@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [1.2.4]
+
+### Changed
+
+* **Email draft opens in compose mode** — the generated `.eml` now carries an `X-Unsent: 1` header, so Outlook / Windows Mail open it as an editable draft instead of a read-only received message
+* **Desktop shell security hardening**
+  * The renderer now runs sandboxed
+  * Deny-by-default navigation and window handling. The app frame can no longer be navigated away from the bundled UI, and external `http(s)` links open in the user's real browser instead of inside the app
+  * PDF preview windows are locked down to their local document only
+  * F12 DevTools shortcut is disabled in packaged builds (dev builds only)
+* **PDF rendering no longer changes the app language** — generating a PDF in a different language than the UI used to briefly flip the whole app's language. Translations are now resolved against an isolated, cached table per language
+* **Internal refactors** — centralised currency/date formatting in a shared helper, and extracted the email-building and invoice-filtering logic out of the invoice list into dedicated services
+
+### Fixed
+
+* **Missing PDF translations** — a translation key missing in the invoice's language now falls back to the default language (German) instead of printing the raw key into the PDF
+* **Subscription memory leaks** — long-lived RxJS subscriptions in the app shell, invoice list, invoice editor, and settings screens are now torn down when their component is destroyed
+
+---
+
 ## [1.2.2]
 
 ### Added

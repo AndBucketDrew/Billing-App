@@ -178,6 +178,7 @@ function createWindow(): void {
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: true,
       preload: path.join(__dirname, 'preload.js')
     },
     title: 'Tour Billing Application',
@@ -197,10 +198,68 @@ function createWindow(): void {
     mainWindow.loadFile(indexPath);
   }
 
-  // Toggle DevTools with F12
-  mainWindow.webContents.on('before-input-event', (event, input) => {
-    if (input.key === 'F12') {
-      mainWindow?.webContents.toggleDevTools();
+  // Toggle DevTools with F12 — dev builds only. In a packaged app the DevTools
+  // are an attack/foot-gun surface (arbitrary code execution against the page),
+  // so the shortcut is disabled there.
+  if (!app.isPackaged) {
+    mainWindow.webContents.on('before-input-event', (_event, input) => {
+      if (input.key === 'F12') {
+        mainWindow?.webContents.toggleDevTools();
+      }
+    });
+  }
+
+  // Deny-by-default navigation hardening. The renderer should never navigate the
+  // app frame away from the bundled UI, nor open new windows to arbitrary URLs.
+  // External http(s) links are handed off to the user's real browser instead.
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    // PDF preview (pdfMake.open()) opens an empty window synchronously, then
+    // navigates it to a generated blob: PDF URL. Allow that — plus data: PDFs —
+    // as a locked-down, plugin-enabled child so Chromium's PDF viewer can render
+    // it. Everything else stays deny-by-default.
+    if (url === 'about:blank' || url.startsWith('blob:') || url.startsWith('data:')) {
+      return {
+        action: 'allow',
+        overrideBrowserWindowOptions: {
+          autoHideMenuBar: true,
+          webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+            sandbox: true,
+            plugins: true, // enables the built-in PDF viewer
+          },
+        },
+      };
+    }
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      shell.openExternal(url);
+    }
+    return { action: 'deny' };
+  });
+
+  // Harden any child window we allowed above (the PDF preview): it may only
+  // navigate to its local blob:/data: document; external links are handed off to
+  // the real browser, and it cannot itself spawn further windows.
+  mainWindow.webContents.on('did-create-window', (childWindow) => {
+    childWindow.webContents.on('will-navigate', (event, url) => {
+      if (url === 'about:blank' || url.startsWith('blob:') || url.startsWith('data:')) {
+        return;
+      }
+      event.preventDefault();
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        shell.openExternal(url);
+      }
+    });
+    childWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  });
+
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    const current = mainWindow?.webContents.getURL();
+    if (url !== current) {
+      event.preventDefault();
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        shell.openExternal(url);
+      }
     }
   });
 
@@ -471,6 +530,11 @@ ipcMain.handle('mail:openDraft', async (_, args: {
 
   const eml = [
     'MIME-Version: 1.0',
+
+    // Tells Outlook / Windows Mail to open this .eml as an editable draft
+    // (compose mode with an editable To, a From field and a Send button)
+    // instead of a read-only received message (Reply/Reply All/Forward).
+    'X-Unsent: 1',
     `To: ${sanitizeHeader(args.to)}`,
     `Subject: ${sanitizeHeader(args.subject)}`,
     `Content-Type: multipart/mixed; boundary="${boundary}"`,

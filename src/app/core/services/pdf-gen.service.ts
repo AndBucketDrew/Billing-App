@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
-import { TranslateService } from '@ngx-translate/core';
+import { TranslateService, TranslateParser } from '@ngx-translate/core';
+import { firstValueFrom } from 'rxjs';
 import { ElectronService } from './electron.service';
 import { CalculationService } from './calculation.service';
 import type { Invoice, CompanySettings, VatRate } from '../models/domain.models';
@@ -18,11 +19,33 @@ if (pdfMake.vfs === undefined) {
 })
 export class PdfGeneratorService {
 
+  /** App default language; used as the fallback table for keys missing in an
+   *  invoice's own language (matches TranslateModule's defaultLanguage). */
+  private static readonly DEFAULT_LANGUAGE = 'de';
+
+  /** Per-language translation tables, resolved lazily and cached so PDF rendering
+   *  never has to mutate the globally-active TranslateService language. */
+  private translationCache = new Map<string, Record<string, any>>();
+
   constructor(
     private translate: TranslateService,
+    private parser: TranslateParser,
     private electron: ElectronService,
     private calculation: CalculationService
   ) { }
+
+  /**
+   * Load (and cache) the translation table for a language without touching the
+   * app's active language. Returns the nested key/value object for `lang`.
+   */
+  private async getTranslations(lang: string): Promise<Record<string, any>> {
+    const cached = this.translationCache.get(lang);
+    if (cached) return cached;
+
+    const table = await firstValueFrom(this.translate.getTranslation(lang));
+    this.translationCache.set(lang, table);
+    return table;
+  }
 
   /**
    * Generate and save PDF invoice
@@ -97,12 +120,22 @@ export class PdfGeneratorService {
     invoice: Invoice,
     settings: CompanySettings
   ): Promise<any> {
-    const currentLang = this.translate.currentLang;
-    if (currentLang !== invoice.language) {
-      this.translate.use(invoice.language);
-    }
-
-    const t = (key: string) => this.translate.instant(key);
+    // Resolve translations against an isolated table for the invoice's language.
+    // (Deliberately does NOT call translate.use(), which would flip the whole
+    //  app's UI language as a side effect of rendering a PDF.)
+    // Fall back to the app's default language ('de') for any key missing in the
+    // invoice's language, mirroring TranslateService.instant()'s defaultLanguage
+    // behaviour — otherwise a missing key would render as the raw key string.
+    const translations = await this.getTranslations(invoice.language);
+    const fallback = invoice.language === PdfGeneratorService.DEFAULT_LANGUAGE
+      ? translations
+      : await this.getTranslations(PdfGeneratorService.DEFAULT_LANGUAGE);
+    const t = (key: string) => {
+      const value = this.parser.getValue(translations, key);
+      if (value !== undefined) return value;
+      const fallbackValue = this.parser.getValue(fallback, key);
+      return fallbackValue !== undefined ? fallbackValue : key;
+    };
     const lang = invoice.language;
 
     const content: any[] = [];
@@ -508,11 +541,6 @@ export class PdfGeneratorService {
       ],
       columnGap: 10
     });
-
-    // Restore original language
-    if (currentLang !== invoice.language) {
-      this.translate.use(currentLang);
-    }
 
     return {
       content,

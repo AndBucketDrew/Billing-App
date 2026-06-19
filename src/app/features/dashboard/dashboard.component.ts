@@ -6,6 +6,7 @@ import { TourService } from '../../core/services/tour.service';
 import { InvoiceService } from '../../core/services/invoice.service';
 import { ExcelExportService } from '../../core/services/excel-export.service';
 import { Invoice } from '../../core/models/domain.models';
+import { formatCurrencyEUR } from '../../core/utils/format.util';
 import { TranslateService } from '@ngx-translate/core';
 
 interface KpiCard {
@@ -294,7 +295,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   formatCurrency(value: number): string {
-    return new Intl.NumberFormat(this.localeId(), { style: 'currency', currency: 'EUR' }).format(value);
+    return formatCurrencyEUR(value, this.translate.currentLang);
   }
 
   navigate(path: string): void {

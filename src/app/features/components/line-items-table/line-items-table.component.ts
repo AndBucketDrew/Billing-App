@@ -1,6 +1,7 @@
 import { Component, Input, Output, EventEmitter, ViewChildren, QueryList, ElementRef, AfterViewChecked } from '@angular/core';
 import { InvoiceService } from '../../../core/services/invoice.service';
 import { InvoiceLineItem, VatRate } from '../../../core/models/domain.models';
+import { formatCurrencyEUR } from '../../../core/utils/format.util';
 import { TranslateService } from '@ngx-translate/core';
 
 interface VatOption {
@@ -148,8 +149,7 @@ export class LineItemsTableComponent implements AfterViewChecked {
   }
 
   formatCurrency(value: number): string {
-    const locale = this.translate.currentLang === 'de' ? 'de-DE' : 'en-US';
-    return new Intl.NumberFormat(locale, { style: 'currency', currency: 'EUR' }).format(value);
+    return formatCurrencyEUR(value, this.translate.currentLang);
   }
 
   getVatLabel(vatRate: VatRate): string {
