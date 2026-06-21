@@ -23,6 +23,8 @@ import {
 export interface AutoSavedEvent {
   invoice: DetectedInvoice;
   filePath: string;
+  /** PDF text layer extracted at save time (absent for non-PDF / image-only PDFs). */
+  extractedText?: string;
 }
 
 export interface AutoSaveErrorEvent {
@@ -142,9 +144,21 @@ export class OutlookService {
     filename: string;
     subject?: string;
     targetFolder: string;
-  }): Promise<{ success: boolean; filePath?: string; error?: string }> {
+  }): Promise<{ success: boolean; filePath?: string; extractedText?: string; error?: string }> {
     if (!this.isElectron()) return Promise.resolve({ success: false, error: 'Not in Electron' });
     return this.api.saveAttachment(args) as any;
+  }
+
+  /** Reads a saved invoice file's bytes (base64) for the in-app preview. */
+  readSavedFile(filePath: string): Promise<{ success: boolean; base64?: string; error?: string }> {
+    if (!this.isElectron()) return Promise.resolve({ success: false, error: 'Not in Electron' });
+    return (this.api as any).readSavedFile(filePath);
+  }
+
+  /** Opens a saved invoice file in the OS default viewer (used for .docx). */
+  openFile(filePath: string): Promise<{ success: boolean; error?: string }> {
+    if (!this.isElectron()) return Promise.resolve({ success: false, error: 'Not in Electron' });
+    return (this.api as any).openFile(filePath);
   }
 
   chooseFolder(): Promise<string | null> {

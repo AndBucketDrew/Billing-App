@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { NO_ERRORS_SCHEMA } from '@angular/core';
 
 import { SettingsComponent } from './settings.component';
 
@@ -8,7 +9,10 @@ describe('SettingsComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [SettingsComponent]
+      imports: [SettingsComponent],
+      // The settings template embeds <app-outlook-settings>; ignore unknown
+      // child elements/attributes so this unit test stays focused on SettingsComponent.
+      schemas: [NO_ERRORS_SCHEMA]
     })
     .compileComponents();
 

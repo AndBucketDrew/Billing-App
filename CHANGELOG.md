@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [1.2.5]
+
+### Added
+
+* **"Automatic invoice field parsing** new **PDF Parser** page in the Outlook Inbox reads the text layer of each saved invoice and extracts the fields you need to pay it: payee, IBAN, BIC, amount, currency, invoice number, invoice date, and due date
+  * Each field carries a confidence flag (high / medium / low), and the raw matched amount text is shown for verification
+  * Non-PDF attachments and image-only (scanned) PDFs surface with blank fields for quick manual entry instead of being skipped
+* **In-app document preview** — a side-by-side preview of the source document next to its parsed fields
+  * PDFs render inside the app using the built-in PDF viewer
+  * `.docx` / `.doc` files open in the OS default viewer
+* **Per-invoice review & confirm workflow** — parsed invoices start in a *to review* list, once you've checked the fields against the document you confirm the row, and only confirmed invoices can be exported. Editing any field clears the confirmation (and the exported flag) so stale data can't slip through
+* **Excel export of payables** — export the confirmed invoices to an "Invoices to Pay" spreadsheet (Payee, IBAN, BIC, Amount, Currency, Invoice No, Invoice Date, Due Date, Email Sender, Source File)
+
+### Changed
+
+* **Outlook Inbox restructured** — the single monolithic inbox screen is now a **shell with two sub-pages**: *Invoice Detection* (the existing review/confirm queue) and the new *PDF Parser*.
+* **Outlook settings extracted** — Outlook configuration is now a self-contained component embedded in the main Settings screen, saved independently of the other settings
+* **Attachment save now returns extracted text** — both manual save and auto-save return the document's text layer alongside the saved path so the parser can populate fields immediately
+
+### Security
+
+* **Saved-file access is path-validated** — the new in-app preview and "open externally" handlers re-resolve the caller-supplied path and confirm it sits inside the configured inbox folder, so a buggy or compromised renderer can't read or launch arbitrary files
+
+---
+
 ## [1.2.4]
 
 ### Changed

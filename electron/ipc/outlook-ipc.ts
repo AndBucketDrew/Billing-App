@@ -31,7 +31,7 @@
  *   outlook:pollerStopped     — (no payload) emitted by MailPoller.stop()
  */
 
-import { ipcMain, dialog, BrowserWindow, app } from 'electron';
+import { ipcMain, dialog, BrowserWindow, app, shell } from 'electron';
 import { safeStorage } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -41,6 +41,8 @@ import { MockMailClient } from '../graph/mock-graph-client';
 import { ImapClient } from '../imap/imap-client';
 import { MailPoller } from '../graph/mail-poller';
 import { InvoiceDetector, DetectedInvoice } from '../invoice-detector/invoice-detector';
+import { extractInvoiceText } from '../invoice-parser/text-extract';
+import type { ParsedInvoiceFields } from '../invoice-parser/invoice-field-parser';
 import { isTnef, extractTnef, extractMapiAttachments, extractRtfBody } from '../imap/tnef-extractor';
 import type { IMailClient } from '../imap/email-types';
 
@@ -143,6 +145,26 @@ export interface InvoiceReviewItem {
   targetFolder?: string;
   savedPath?: string;
   error?: string;
+  /**
+   * Payee/amount/etc. extracted from the saved PDF's text layer and (optionally)
+   * edited by the user in the review row. Populated by the renderer after saving;
+   * persisted with the queue so it survives a session restart. For non-PDF attachments
+   * or image-only PDFs (no text layer) this is still present but blank, so the invoice
+   * surfaces in the parser with empty inputs the user fills in by hand.
+   */
+  parsedFields?: ParsedInvoiceFields;
+  /**
+   * True once the user has reviewed the parsed fields against the source document and
+   * confirmed they are correct. Only confirmed items are exportable to Excel. Cleared
+   * whenever a parsed field is edited, so the user re-confirms after any correction.
+   */
+  reviewConfirmed?: boolean;
+  /**
+   * True once this invoice has been written to an Excel export. Used to flag already-
+   * exported rows in the UI so the user doesn't double-export. Cleared whenever a parsed
+   * field is edited, since the exported copy is then stale.
+   */
+  exported?: boolean;
 }
 
 // ─── On-disk schema (extends settings with encrypted password field) ──────────
@@ -601,7 +623,12 @@ export function registerOutlookIpcHandlers(
         const finalPath = uniquePath(filePath);
         fs.writeFileSync(finalPath, buffer);
 
-        return { success: true, filePath: finalPath };
+        // Extract the document text so the renderer can parse payee/amount for the
+        // review row + Excel export. Best-effort: extractInvoiceText never throws and
+        // returns '' for unsupported/scanned files (→ manual entry in the UI).
+        const extractedText = await extractInvoiceText(buffer, resolvedFilename);
+
+        return { success: true, filePath: finalPath, extractedText };
       } catch (e: unknown) {
         return { success: false, error: toMessage(e) };
       }
@@ -624,6 +651,43 @@ export function registerOutlookIpcHandlers(
     }
 
     return { success: true, folderPath: result.filePaths[0] };
+  });
+
+  // ─── Saved-file preview ───────────────────────────────────────────────────
+  // Both handlers only ever touch files inside the configured inbox folder — the
+  // renderer passes a savedPath it got from saveAttachment/autoSaved, but we re-validate
+  // here so a compromised/buggy renderer can't read or launch arbitrary files.
+
+  /** Resolves a caller-supplied path and confirms it sits inside the inbox root. */
+  function resolveInsideInbox(filePath: string): string | null {
+    const root = readRaw().inboxFolder;
+    if (!root || !filePath) return null;
+    const resolvedRoot = path.resolve(root);
+    const resolved = path.resolve(filePath);
+    if (resolved !== resolvedRoot && !resolved.startsWith(resolvedRoot + path.sep)) return null;
+    return resolved;
+  }
+
+  // Returns the saved file's bytes as base64 so the renderer can build a Blob URL
+  // (used for the in-app PDF preview — keeps everything same-origin, no file:// access).
+  ipcMain.handle('outlook:readSavedFile', async (_, filePath: string) => {
+    try {
+      const resolved = resolveInsideInbox(filePath);
+      if (!resolved) return { success: false, error: 'File is outside the inbox folder.' };
+      if (!fs.existsSync(resolved)) return { success: false, error: 'File no longer exists.' };
+      return { success: true, base64: fs.readFileSync(resolved).toString('base64') };
+    } catch (e: unknown) {
+      return { success: false, error: toMessage(e) };
+    }
+  });
+
+  // Opens the saved file in the OS default viewer (used for .docx, which Chromium can't
+  // render in-app).
+  ipcMain.handle('outlook:openFile', async (_, filePath: string) => {
+    const resolved = resolveInsideInbox(filePath);
+    if (!resolved) return { success: false, error: 'File is outside the inbox folder.' };
+    const err = await shell.openPath(resolved); // returns '' on success, message on failure
+    return err ? { success: false, error: err } : { success: true };
   });
 
   // ─── Polling control ──────────────────────────────────────────────────────
@@ -681,7 +745,11 @@ export function registerOutlookIpcHandlers(
 
       const finalPath = uniquePath(candidatePath);
       fs.writeFileSync(finalPath, buffer);
-      getWindow()?.webContents.send('outlook:autoSaved', { invoice: inv, filePath: finalPath });
+
+      // Extract the document text so auto-saved invoices also get payee/amount parsing
+      // in the renderer (same as the manual saveAttachment path). Best-effort, never throws.
+      const extractedText = await extractInvoiceText(buffer, attachName);
+      getWindow()?.webContents.send('outlook:autoSaved', { invoice: inv, filePath: finalPath, extractedText });
     };
   }
 

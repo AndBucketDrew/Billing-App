@@ -116,10 +116,14 @@ export interface ElectronAPI {
       filename: string;
       subject?: string;
       targetFolder: string;
-    }) => Promise<IpcResult<{ filePath: string }>>;
+    }) => Promise<IpcResult<{ filePath: string; extractedText?: string }>>;
 
     // Native folder picker
     chooseFolder: () => Promise<IpcResult<{ folderPath: string }>>;
+
+    // Saved-file preview (in-app PDF render + open .docx externally)
+    readSavedFile: (filePath: string) => Promise<IpcResult<{ base64: string }>>;
+    openFile: (filePath: string) => Promise<IpcResult>;
 
     // Background polling
     startPolling: () => Promise<IpcResult>;
@@ -253,6 +257,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     }) => ipcRenderer.invoke('outlook:saveAttachment', args),
 
     chooseFolder: () => ipcRenderer.invoke('outlook:chooseFolder'),
+
+    readSavedFile: (filePath: string) => ipcRenderer.invoke('outlook:readSavedFile', filePath),
+    openFile: (filePath: string) => ipcRenderer.invoke('outlook:openFile', filePath),
 
     startPolling: () => ipcRenderer.invoke('outlook:startPolling'),
     stopPolling: () => ipcRenderer.invoke('outlook:stopPolling'),

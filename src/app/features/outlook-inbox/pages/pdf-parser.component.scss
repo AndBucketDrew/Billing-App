@@ -1,0 +1,487 @@
+@use 'mixins' as m;
+
+// ─── Card shell (shared base) ─────────────────────────────────────────────────
+
+.table-card {
+  @include m.table-card;
+
+  .table-card-header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding: 14px 20px 12px;
+    border-bottom: 1px solid var(--color-border-default);
+
+    .table-title {
+      font-size: var(--font-size-md);
+      font-weight: 600;
+      color: var(--color-fg-default);
+    }
+
+    .table-hint {
+      font-size: var(--font-size-sm);
+      color: var(--color-fg-muted);
+    }
+  }
+}
+
+.empty-state {
+  @include m.empty-state;
+}
+
+// ─── Invoices to Pay (parsed fields + source preview) ──────────────────────────
+.payable-card {
+  // The shared .table-card mixin sets `overflow: hidden` (to clip wide tables to the
+  // card's rounded corners). This card holds no wide table — instead it has a sticky
+  // preview pane, and an `overflow: hidden` ancestor silently disables `position: sticky`.
+  // Restore visible overflow so the preview can stay pinned while the list scrolls.
+  overflow: visible;
+  ::ng-deep .mat-mdc-card-content { overflow: visible; }
+
+  .table-card-header {
+    align-items: center;
+
+    .bar-spacer { flex: 1; }
+    button[mat-raised-button] { @include m.btn-primary; }
+  }
+}
+
+// ─── Filter chips ──────────────────────────────────────────────────────────────
+.parser-filter {
+  display: flex;
+  gap: 10px;
+  padding: 14px 20px 16px;
+  flex-wrap: wrap;
+
+  .filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 14px;
+    border: 1.5px solid var(--color-border-default);
+    border-radius: 22px;
+    background: var(--color-canvas-default);
+    color: var(--color-fg-muted);
+    font-family: var(--font-family-base);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+
+    mat-icon {
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+    }
+
+    .chip-count {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 20px;
+      height: 20px;
+      padding: 0 6px;
+      border-radius: 10px;
+      background: var(--color-canvas-subtle);
+      color: var(--color-fg-muted);
+      font-size: var(--font-size-xs);
+      font-weight: 700;
+    }
+
+    &:hover {
+      border-color: var(--color-border-muted);
+      background: var(--color-canvas-subtle);
+    }
+
+    &.active {
+      border-color: rgba(9, 105, 218, 0.4);
+      background: var(--color-accent-subtle, rgba(9, 105, 218, 0.08));
+      color: var(--color-accent-fg);
+
+      .chip-count {
+        background: var(--color-accent-fg);
+        color: #fff;
+      }
+    }
+  }
+}
+
+// ─── Filter empty state ─────────────────────────────────────────────────────────
+.filter-empty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 20px;
+  font-size: var(--font-size-sm);
+  color: var(--color-fg-muted);
+
+  mat-icon { color: var(--color-success-fg); }
+}
+
+// Two-column layout: editable list (left) + source-document preview (right)
+.payable-layout {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 0 20px 16px;
+}
+
+.payable-preview {
+  order: 2;                 // sits on the RIGHT, after the list
+  flex: 1 1 64%;            // wide enough that the rendered page (not Chromium's fixed
+  min-width: 560px;         // thumbnail rail) dominates the viewer — page ends up ~80%
+  position: sticky;
+  // Clear the 56px app toolbar (position: sticky, top: 0) so the preview pins just
+  // below it instead of sliding behind it and getting its top clipped.
+  top: 68px;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-canvas-default);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  height: calc(100vh - 92px);
+  max-height: 80vh;
+
+  .preview-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--color-canvas-subtle);
+    border-bottom: 1px solid var(--color-border-default);
+
+    .preview-title {
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+      color: var(--color-fg-default);
+    }
+    mat-icon { color: var(--color-fg-muted); }
+    .bar-spacer { flex: 1; }
+    button[mat-icon-button] { @include m.icon-btn; }
+  }
+
+  .preview-body {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+    background: var(--color-canvas-inset, var(--color-canvas-subtle));
+  }
+
+  .preview-frame { width: 100%; height: 100%; border: 0; }
+
+  .preview-msg {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 24px;
+    text-align: center;
+    font-size: var(--font-size-sm);
+    color: var(--color-fg-muted);
+
+    mat-icon { color: var(--color-fg-subtle); }
+  }
+}
+
+.payable-list {
+  order: 1;                 // sits on the LEFT
+  flex: 1 1 36%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+// When no preview is open, the list spans the full width
+.payable-layout:not(.has-preview) .payable-list { flex-basis: 100%; }
+
+.payable-item {
+  background: var(--color-canvas-default);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+
+  &.selected {
+    border-color: var(--color-accent-fg);
+    box-shadow: 0 0 0 1px var(--color-accent-fg) inset;
+  }
+
+  // Verified rows get a calm green accent so confirmed work is visually distinct.
+  &.confirmed {
+    border-color: var(--color-success-fg);
+    box-shadow: 0 0 0 1px var(--color-success-fg) inset;
+  }
+
+  // Collapsed (confirmed) rows are compact — tighten the padding.
+  &.collapsed { padding: 8px 12px; }
+}
+
+// While a preview is open, fade out every row except the one being previewed/edited,
+// so it's unmistakable which invoice the source document on the right belongs to.
+// Hovering a dimmed row restores it, signalling it's still clickable to switch preview.
+.payable-layout.has-preview .payable-item {
+  transition: border-color 0.12s ease, box-shadow 0.12s ease,
+    opacity 0.12s ease, filter 0.12s ease;
+
+  &:not(.selected) {
+    opacity: 0.4;
+    filter: grayscale(0.7);
+
+    &:hover { opacity: 0.75; filter: grayscale(0.3); }
+  }
+}
+
+// ── Item head: source row + collapse toggle ─────────────────────────────────────
+.payable-item-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 10px;
+
+  button[mat-icon-button] { @include m.icon-btn; flex-shrink: 0; }
+}
+
+// Clickable source row that opens the preview
+button.payable-source {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-fg-default);
+
+  .file-icon { color: var(--color-fg-muted); flex-shrink: 0; }
+
+  .file-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex-shrink: 0;
+    max-width: 60%;
+  }
+
+  // Sender address shown next to the filename — muted, truncates before the name.
+  .source-email {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 400;
+    font-size: var(--font-size-xs);
+    color: var(--color-fg-muted);
+
+    mat-icon {
+      font-size: 14px;
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+    }
+  }
+
+  .preview-cue {
+    margin-left: auto;
+    color: var(--color-fg-subtle);
+    opacity: 0.6;
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    transition: color 0.12s ease, opacity 0.12s ease;
+
+    // Once previewed, the cue calms down to a confirmed eye in success green.
+    &.previewed { color: var(--color-success-fg); opacity: 0.9; }
+  }
+  &:hover .preview-cue { opacity: 1; color: var(--color-accent-fg); }
+}
+
+// Un-previewed rows pulse the eye in attention orange so the user knows to look first.
+.payable-item.needs-preview button.payable-source .preview-cue {
+  color: var(--color-attention-fg);
+  opacity: 1;
+  animation: preview-cue-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes preview-cue-pulse {
+  0%, 100% { transform: scale(1);    opacity: 0.75; }
+  50%      { transform: scale(1.18); opacity: 1; }
+}
+
+// ── Collapsed compact summary (confirmed) ───────────────────────────────────────
+.payable-collapsed {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  .file-icon { color: var(--color-fg-muted); flex-shrink: 0; font-size: 18px; width: 18px; height: 18px; }
+
+  // Name shrinks first (with ellipsis) so the action buttons never get clipped,
+  // even when the list column is narrowed by an open preview pane.
+  .collapsed-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--color-fg-default);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  // Sender address next to the filename.
+  .collapsed-email {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--font-size-xs);
+    color: var(--color-fg-muted);
+
+    mat-icon {
+      font-size: 14px;
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+    }
+  }
+
+  // Secondary info — yields before the name, hidden entirely when space is tight.
+  .collapsed-summary {
+    flex: 0 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-size: var(--font-size-sm);
+    color: var(--color-fg-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    .collapsed-amount {
+      font-family: var(--font-family-mono);
+      font-weight: 600;
+      color: var(--color-fg-default);
+    }
+  }
+
+  .confirmed-badge { flex-shrink: 0; }
+  button[mat-icon-button] { @include m.icon-btn; flex-shrink: 0; }
+  button[mat-stroked-button] { @include m.btn-ghost; flex-shrink: 0; }
+}
+
+// In the narrow (preview-open) column, drop the secondary summary + email so the
+// filename and the Confirmed / Edit actions always fit on one line.
+.payable-layout.has-preview .payable-collapsed {
+  .collapsed-summary,
+  .collapsed-email,
+  .exported-badge { display: none; }
+}
+
+// Confirm / verified action row beneath each invoice's fields.
+.payable-confirm {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--color-border-default);
+
+  button[mat-stroked-button] { @include m.btn-ghost; }
+
+  .confirm-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: var(--font-size-sm);
+    color: var(--color-attention-fg);
+
+    mat-icon { font-size: 18px; width: 18px; height: 18px; }
+  }
+
+  .confirmed-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--color-success-fg);
+
+    mat-icon { font-size: 18px; width: 18px; height: 18px; }
+  }
+}
+
+// Shared confirmed badge (also used in the collapsed row)
+.confirmed-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-success-fg);
+
+  mat-icon { font-size: 18px; width: 18px; height: 18px; }
+}
+
+// "Exported to Excel" flag on confirmed rows.
+.exported-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: var(--color-accent-subtle, rgba(9, 105, 218, 0.1));
+  border: 1px solid rgba(9, 105, 218, 0.25);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--color-accent-fg);
+
+  mat-icon { font-size: 14px; width: 14px; height: 14px; }
+}
+
+// ── Grouped field sections ──────────────────────────────────────────────────────
+.field-group {
+  & + .field-group { margin-top: 12px; }
+
+  .group-label {
+    display: block;
+    font-size: var(--font-size-xs);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-fg-subtle);
+    margin-bottom: 6px;
+  }
+
+  .group-fields {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+
+    .pf {
+      flex: 1 1 160px;
+
+      &.pf-payee { flex: 2 1 240px; }
+      &.pf-iban  { flex: 2 1 240px; }
+      &.pf-bic   { flex: 0 1 140px; }
+      &.pf-currency { flex: 0 1 90px; }
+      &.pf-amount   { flex: 0 1 130px; }
+    }
+  }
+}

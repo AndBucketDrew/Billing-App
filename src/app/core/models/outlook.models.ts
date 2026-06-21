@@ -14,6 +14,13 @@
 // ── Invoice detector types ────────────────────────────────────────────────────
 export type { ConfidenceLevel, DetectedInvoice } from '../../../../electron/invoice-detector/invoice-detector';
 
+// ── Invoice field-parser types ────────────────────────────────────────────────
+export type {
+  ParsedInvoiceFields,
+  FieldConfidence,
+  OwnCompany,
+} from '../../../../electron/invoice-parser/invoice-field-parser';
+
 // ── IPC layer types (includes InvoiceReviewItem / InvoiceReviewStatus) ────────
 export type {
   ConnectionType,

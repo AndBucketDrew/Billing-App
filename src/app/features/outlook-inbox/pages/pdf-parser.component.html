@@ -1,0 +1,248 @@
+<!-- ── Invoices to Pay (parsed from saved PDFs) ───────────────────────────── -->
+<mat-card class="table-card payable-card" *ngIf="store.parsedItems().length > 0; else noParsed">
+
+  <div class="table-card-header">
+    <span class="table-title">Invoices to Pay</span>
+    <span class="bar-spacer"></span>
+    <button mat-raised-button color="primary" (click)="store.exportToExcel()"
+      [disabled]="store.exportableItems().length === 0"
+      [matTooltip]="store.exportableItems().length === 0
+        ? (store.confirmedItems().length > 0 ? 'All confirmed invoices are already exported' : 'Confirm at least one invoice first')
+        : ''">
+      <mat-icon>download</mat-icon>
+      Export to Excel ({{ store.exportableItems().length }})
+    </button>
+  </div>
+
+  <!-- Filter: defaults to the to-review queue; confirmed invoices are tucked away -->
+  <div class="parser-filter">
+    <button type="button" class="filter-chip" [class.active]="filter() === 'review'"
+      (click)="setFilter('review')">
+      <mat-icon>fact_check</mat-icon>
+      To review <span class="chip-count">{{ reviewCount() }}</span>
+    </button>
+    <button type="button" class="filter-chip" [class.active]="filter() === 'confirmed'"
+      (click)="setFilter('confirmed')">
+      <mat-icon>verified</mat-icon>
+      Confirmed <span class="chip-count">{{ confirmedCount() }}</span>
+    </button>
+    <button type="button" class="filter-chip" [class.active]="filter() === 'all'"
+      (click)="setFilter('all')">
+      <mat-icon>list</mat-icon>
+      All <span class="chip-count">{{ store.parsedItems().length }}</span>
+    </button>
+  </div>
+
+  <div class="payable-layout" [class.has-preview]="store.selectedKey()">
+
+    <!-- Preview pane (PDFs render in-app; .docx opens externally) -->
+    <div class="payable-preview" *ngIf="store.selectedKey()">
+      <div class="preview-toolbar">
+        <mat-icon>visibility</mat-icon>
+        <span class="preview-title">Source document</span>
+        <span class="bar-spacer"></span>
+        <button mat-icon-button (click)="store.openSelectedExternally()" matTooltip="Open in external viewer">
+          <mat-icon>open_in_new</mat-icon>
+        </button>
+        <button mat-icon-button (click)="store.closePreview()" matTooltip="Close preview">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+      <div class="preview-body">
+        <mat-spinner *ngIf="store.previewLoading()" diameter="36"></mat-spinner>
+        <iframe *ngIf="store.previewUrl() as previewUrl" [src]="previewUrl" class="preview-frame" title="Invoice preview"></iframe>
+        <div class="preview-msg" *ngIf="store.previewMessage() as previewMessage">
+          <mat-icon>info</mat-icon>
+          <span>{{ previewMessage }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="payable-list">
+
+      <!-- Empty state for the active filter -->
+      <div class="filter-empty" *ngIf="visibleItems().length === 0">
+        <mat-icon>{{ filter() === 'confirmed' ? 'verified' : 'fact_check' }}</mat-icon>
+        <span *ngIf="filter() === 'review'">Nothing left to review — all invoices are confirmed.</span>
+        <span *ngIf="filter() === 'confirmed'">No confirmed invoices yet.</span>
+        <span *ngIf="filter() === 'all'">No parsed invoices.</span>
+      </div>
+
+      <div class="payable-item" *ngFor="let item of visibleItems(); trackBy: store.trackByMessageId"
+        [class.selected]="store.trackByMessageId(0, item) === store.selectedKey()"
+        [class.confirmed]="item.reviewConfirmed"
+        [class.collapsed]="isCollapsed(item)"
+        [class.needs-preview]="!store.hasPreviewed(item)">
+
+        <!-- Collapsed compact summary (confirmed invoices) -->
+        <div class="payable-collapsed" *ngIf="isCollapsed(item)">
+          <mat-icon class="file-icon">description</mat-icon>
+          <span class="collapsed-name" [title]="item.invoice.attachmentName">{{ item.invoice.attachmentName }}</span>
+          <span class="collapsed-email" *ngIf="item.invoice.senderEmail" [title]="item.invoice.senderEmail">
+            <mat-icon>mail_outline</mat-icon>
+            {{ item.invoice.senderEmail }}
+          </span>
+          <span class="collapsed-summary">
+            {{ item.parsedFields?.payee || '—' }}
+            <span class="collapsed-amount">{{ item.parsedFields?.amount }} {{ item.parsedFields?.currency }}</span>
+          </span>
+          <span class="exported-badge" *ngIf="item.exported" matTooltip="Already exported to Excel">
+            <mat-icon>file_download_done</mat-icon>
+            Exported
+          </span>
+          <span class="confirmed-badge">
+            <mat-icon>verified</mat-icon>
+            Confirmed
+          </span>
+          <button mat-stroked-button (click)="toggleExpand(item)" matTooltip="Edit fields">
+            <mat-icon>edit</mat-icon>
+            Edit
+          </button>
+        </div>
+
+        <!-- Expanded editor -->
+        <ng-container *ngIf="!isCollapsed(item)">
+
+          <div class="payable-item-head">
+            <button type="button" class="payable-source" (click)="store.selectForPreview(item)"
+              [matTooltip]="store.hasPreviewed(item) ? 'Preview this document' : 'Preview required before confirming'">
+              <mat-icon class="file-icon">description</mat-icon>
+              <span class="file-name" [title]="item.invoice.attachmentName">{{ item.invoice.attachmentName }}</span>
+              <span class="source-email" *ngIf="item.invoice.senderEmail"
+                [title]="item.invoice.senderEmail">
+                <mat-icon>mail_outline</mat-icon>
+                {{ item.invoice.senderEmail }}
+              </span>
+              <mat-icon class="preview-cue"
+                [class.previewed]="store.hasPreviewed(item)">{{ store.hasPreviewed(item) ? 'visibility' : 'visibility_off' }}</mat-icon>
+            </button>
+          </div>
+
+          <!-- Payment details -->
+          <div class="field-group">
+            <span class="group-label">Payment</span>
+            <div class="group-fields">
+              <mat-form-field appearance="outline" class="pf pf-payee"
+                [color]="store.fieldConfidenceColor(item.parsedFields?.fieldConfidence?.payee)">
+                <mat-label>Payee (who to pay)</mat-label>
+                <input matInput [ngModel]="item.parsedFields?.payee"
+                  (ngModelChange)="store.updateParsedField(item, 'payee', $event)">
+                <mat-icon matSuffix *ngIf="item.parsedFields?.fieldConfidence?.payee === 'low'"
+                  matTooltip="Low confidence — please verify">warning</mat-icon>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="pf pf-iban">
+                <mat-label>IBAN</mat-label>
+                <input matInput [ngModel]="item.parsedFields?.iban"
+                  (ngModelChange)="store.updateParsedField(item, 'iban', $event)">
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="pf pf-bic">
+                <mat-label>BIC</mat-label>
+                <input matInput [ngModel]="item.parsedFields?.bic"
+                  (ngModelChange)="store.updateParsedField(item, 'bic', $event)">
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="pf pf-amount"
+                [color]="store.fieldConfidenceColor(item.parsedFields?.fieldConfidence?.amount)">
+                <mat-label>Amount</mat-label>
+                <input matInput [ngModel]="item.parsedFields?.amount"
+                  (ngModelChange)="store.updateParsedField(item, 'amount', $event)">
+                <mat-icon matSuffix *ngIf="item.parsedFields?.fieldConfidence?.amount === 'low'"
+                  matTooltip="Low confidence — please verify">warning</mat-icon>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="pf pf-currency">
+                <mat-label>Currency</mat-label>
+                <input matInput [ngModel]="item.parsedFields?.currency"
+                  (ngModelChange)="store.updateParsedField(item, 'currency', $event)">
+              </mat-form-field>
+            </div>
+          </div>
+
+          <!-- Invoice details -->
+          <div class="field-group">
+            <span class="group-label">Invoice details</span>
+            <div class="group-fields">
+              <mat-form-field appearance="outline" class="pf pf-invno">
+                <mat-label>Invoice No</mat-label>
+                <input matInput [ngModel]="item.parsedFields?.invoiceNumber"
+                  (ngModelChange)="store.updateParsedField(item, 'invoiceNumber', $event)">
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="pf pf-date">
+                <mat-label>Invoice Date</mat-label>
+                <input matInput [ngModel]="item.parsedFields?.invoiceDate"
+                  (ngModelChange)="store.updateParsedField(item, 'invoiceDate', $event)" placeholder="YYYY-MM-DD">
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="pf pf-date">
+                <mat-label>Due Date</mat-label>
+                <input matInput [ngModel]="item.parsedFields?.dueDate"
+                  (ngModelChange)="store.updateParsedField(item, 'dueDate', $event)" placeholder="YYYY-MM-DD">
+              </mat-form-field>
+            </div>
+          </div>
+
+          <div class="payable-confirm">
+            <!-- Button on the left, status text on the right -->
+            <ng-container *ngIf="!item.reviewConfirmed">
+              <button mat-raised-button color="primary" (click)="store.confirmParsed(item)"
+                [disabled]="!store.canConfirm(item)"
+                [matTooltip]="store.canConfirm(item) ? 'Mark as verified and add to export' : 'Open the preview first'">
+                <mat-icon>check</mat-icon>
+                Confirm
+              </button>
+              <span class="confirm-hint" *ngIf="!store.hasPreviewed(item)">
+                <mat-icon>visibility</mat-icon>
+                Preview the document to confirm
+              </span>
+            </ng-container>
+
+            <ng-container *ngIf="item.reviewConfirmed">
+              <!-- Unsaved edits: confirm them to re-include the invoice in the next export -->
+              <ng-container *ngIf="store.isDirty(item); else confirmedDone">
+                <button mat-raised-button color="primary" (click)="confirmEdits(item)">
+                  <mat-icon>check</mat-icon>
+                  Confirm changes
+                </button>
+                <span class="confirm-hint">
+                  <mat-icon>info</mat-icon>
+                  Unsaved edits — confirm to export again
+                </span>
+              </ng-container>
+
+              <ng-template #confirmedDone>
+                <button mat-stroked-button (click)="toggleExpand(item)"
+                  matTooltip="Collapse this invoice">
+                  <mat-icon>done</mat-icon>
+                  Done
+                </button>
+                <span class="confirmed-badge">
+                  <mat-icon>verified</mat-icon>
+                  Confirmed
+                </span>
+                <span class="exported-badge" *ngIf="item.exported" matTooltip="Already exported to Excel">
+                  <mat-icon>file_download_done</mat-icon>
+                  Exported
+                </span>
+              </ng-template>
+            </ng-container>
+          </div>
+        </ng-container>
+      </div>
+    </div><!-- /payable-list -->
+  </div><!-- /payable-layout -->
+</mat-card>
+
+<!-- Shown when nothing has been saved + parsed yet -->
+<ng-template #noParsed>
+  <mat-card class="table-card">
+    <div class="empty-state">
+      <mat-icon class="empty-icon">request_quote</mat-icon>
+      <h3>No parsed invoices yet</h3>
+      <p>Save a detected PDF on the <strong>Invoice Detection</strong> tab — its payee and amount
+        will be extracted and appear here ready to review and export.</p>
+    </div>
+  </mat-card>
+</ng-template>

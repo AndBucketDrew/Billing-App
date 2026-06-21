@@ -121,6 +121,8 @@ export class ElectronService {
         fetchEmails:    async () => ({ success: true as const, invoices: [] }),
         saveAttachment: async () => ({ success: false as const, error: 'Not in Electron' }),
         chooseFolder:   async () => ({ success: false as const, canceled: true }),
+        readSavedFile:  async () => ({ success: false as const, error: 'Not in Electron' }),
+        openFile:       async () => ({ success: false as const, error: 'Not in Electron' }),
         startPolling:   async () => ({ success: true as const }),
         stopPolling:    async () => ({ success: true as const }),
         isPolling:      async () => ({ polling: false }),

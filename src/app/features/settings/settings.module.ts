@@ -3,6 +3,7 @@ import { RouterModule, Routes } from '@angular/router';
 import { SharedModule } from '../../shared/shared.module';
 
 import { SettingsComponent } from './settings.component';
+import { OutlookSettingsComponent } from './outlook-settings.component';
 
 
 const routes: Routes = [
@@ -14,7 +15,8 @@ const routes: Routes = [
 
 @NgModule({
   declarations: [
-    SettingsComponent
+    SettingsComponent,
+    OutlookSettingsComponent
   ],
   imports: [
     SharedModule,

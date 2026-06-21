@@ -1,0 +1,166 @@
+<!-- ─── Outlook Invoice Inbox (shell) ───────────────────────────────────────── -->
+<div class="outlook-container">
+
+  <!-- ── Header Card ─────────────────────────────────────────────────────── -->
+  <mat-card class="header-card">
+    <mat-card-content>
+      <div class="header-content">
+
+        <div class="title-section">
+          <h1 class="page-title">Outlook Invoice Inbox</h1>
+          <p class="page-subtitle" *ngIf="store.account() as account">
+            Connected as {{ account.username }}
+          </p>
+          <p class="page-subtitle" *ngIf="!store.account()">
+            Connect your mailbox to detect invoice attachments automatically
+          </p>
+        </div>
+
+        <div class="header-actions">
+          <!-- Not connected -->
+          <ng-container *ngIf="!store.account()">
+            <button mat-raised-button color="primary" (click)="store.login()" [disabled]="store.isLoading()">
+              <mat-icon>login</mat-icon>
+              Connect Outlook
+            </button>
+          </ng-container>
+
+          <!-- Connected -->
+          <ng-container *ngIf="store.account()">
+            <button mat-stroked-button (click)="store.fetchNow()" [disabled]="store.isLoading()">
+              <mat-icon>refresh</mat-icon>
+              Fetch Now
+            </button>
+            <button mat-stroked-button (click)="store.resetScan()" [disabled]="store.isLoading()"
+              matTooltip="Clear pending items and rescan the last 30 days">
+              <mat-icon>history</mat-icon>
+              Rescan
+            </button>
+            <button mat-stroked-button
+              [class.polling-active]="store.isPolling()"
+              (click)="store.togglePolling()">
+              <mat-icon>{{ store.isPolling() ? 'stop' : 'play_arrow' }}</mat-icon>
+              {{ store.isPolling() ? 'Stop Polling' : 'Start Polling' }}
+            </button>
+            <button mat-stroked-button class="btn-danger" (click)="store.logout()">
+              <mat-icon>logout</mat-icon>
+              Sign Out
+            </button>
+          </ng-container>
+        </div>
+      </div>
+
+      <!-- ── Setup steps — shown when not signed in ──────────────────────── -->
+      <div class="setup-steps" *ngIf="!store.account()">
+
+        <!-- MSAL steps -->
+        <ng-container *ngIf="store.settings()?.connectionType === 'msal'">
+          <div class="setup-step" [class.step-done]="store.settings()?.clientId">
+            <div class="step-badge">
+              <mat-icon *ngIf="store.settings()?.clientId">check</mat-icon>
+              <span *ngIf="!store.settings()?.clientId">1</span>
+            </div>
+            <div class="step-text">
+              <strong>Configure Azure Client ID</strong>
+              <span>Paste your Application (Client) ID in the Outlook Settings card on the
+                <a routerLink="/settings">Settings</a> page</span>
+            </div>
+          </div>
+          <div class="setup-step">
+            <div class="step-badge">2</div>
+            <div class="step-text">
+              <strong>Sign in with Microsoft</strong>
+              <span>Your browser opens for a secure, one-time sign-in</span>
+            </div>
+          </div>
+        </ng-container>
+
+        <!-- IMAP steps -->
+        <ng-container *ngIf="store.settings()?.connectionType === 'imap'">
+          <div class="setup-step" [class.step-done]="store.settings()?.hasStoredPassword">
+            <div class="step-badge">
+              <mat-icon *ngIf="store.settings()?.hasStoredPassword">check</mat-icon>
+              <span *ngIf="!store.settings()?.hasStoredPassword">1</span>
+            </div>
+            <div class="step-text">
+              <strong>Configure IMAP credentials</strong>
+              <span>Fill in server, username and password in the Outlook Settings card on the
+                <a routerLink="/settings">Settings</a> page</span>
+            </div>
+          </div>
+          <div class="setup-step">
+            <div class="step-badge">2</div>
+            <div class="step-text">
+              <strong>Test &amp; connect</strong>
+              <span>Click "Connect" to verify your credentials</span>
+            </div>
+          </div>
+        </ng-container>
+
+        <!-- Common step 3 -->
+        <div class="setup-step">
+          <div class="step-badge">3</div>
+          <div class="step-text">
+            <strong>Fetch or auto-poll for invoices</strong>
+            <span>We'll scan your inbox for PDF invoice attachments</span>
+          </div>
+        </div>
+      </div>
+
+      <mat-progress-bar
+        *ngIf="store.isLoading()"
+        mode="indeterminate"
+        class="card-progress">
+      </mat-progress-bar>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- ── Config notice ───────────────────────────────────────────────────── -->
+  <ng-container *ngIf="store.settings() as settings">
+    <div class="notice-bar"
+      *ngIf="(settings.connectionType === 'msal' && !settings.clientId) || (settings.connectionType === 'imap' && !settings.hasStoredPassword)">
+      <mat-icon>warning</mat-icon>
+      <span *ngIf="settings.connectionType === 'msal' && !settings.clientId">
+        <strong>Azure Client ID not configured.</strong>
+        Complete Step 1 in the Outlook Settings card on the
+        <a routerLink="/settings">Settings</a> page, then click Connect.
+      </span>
+      <span *ngIf="settings.connectionType === 'imap' && !settings.hasStoredPassword">
+        <strong>IMAP credentials not configured.</strong>
+        Fill in the IMAP settings on the
+        <a routerLink="/settings">Settings</a> page, save, then click Connect.
+      </span>
+    </div>
+  </ng-container>
+
+  <!-- ── Status bar ──────────────────────────────────────────────────────── -->
+  <div class="status-bar" *ngIf="store.account()">
+    <span class="poll-status" [class.active]="store.isPolling()">
+      <span class="poll-dot"></span>
+      {{ store.isPolling() ? 'Polling active' : 'Polling stopped' }}
+    </span>
+    <span class="last-checked" *ngIf="store.lastChecked() as lastChecked">
+      Last checked: {{ lastChecked | date:'HH:mm:ss' }}
+    </span>
+    <span class="bar-spacer"></span>
+    <span class="pending-count" *ngIf="store.pendingCount() > 0">
+      {{ store.pendingCount() }} pending
+    </span>
+  </div>
+
+  <!-- ── Sub-navigation ──────────────────────────────────────────────────── -->
+  <nav class="sub-nav">
+    <a mat-stroked-button routerLink="detection" routerLinkActive="active">
+      <mat-icon>inbox</mat-icon>
+      Invoice Detection
+    </a>
+    <a mat-stroked-button routerLink="parser" routerLinkActive="active">
+      <mat-icon>request_quote</mat-icon>
+      PDF Parser
+    </a>
+  </nav>
+
+  <!-- ── Active sub-page ─────────────────────────────────────────────────── -->
+  <router-outlet></router-outlet>
+
+</div>

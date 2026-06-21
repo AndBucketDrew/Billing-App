@@ -6,6 +6,7 @@
 import { Injectable } from '@angular/core';
 import ExcelJS from 'exceljs';
 import { Invoice } from '../models/domain.models';
+import { InvoiceReviewItem } from '../models/outlook.models';
 
 @Injectable({ providedIn: 'root' })
 export class ExcelExportService {
@@ -73,6 +74,59 @@ export class ExcelExportService {
     const buffer = await wb.xlsx.writeBuffer();
     const base64 = this.arrayBufferToBase64(buffer as ArrayBuffer);
     const filename = `invoices-${year}.xlsx`;
+
+    const saved = await (window as any).electronAPI.excel.save(base64, filename);
+    if (!saved) throw new Error('Export cancelled or failed');
+  }
+
+  /**
+   * Exports the payee/amount fields parsed from downloaded invoice PDFs (the Outlook
+   * review queue) into a single "accounts payable"-style sheet: one row per invoice,
+   * showing who to pay and how much. Reuses the same ExcelJS + IPC save plumbing as
+   * exportYearToExcel.
+   */
+  async exportParsedInvoices(items: InvoiceReviewItem[]): Promise<void> {
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'Tour Billing';
+    wb.created = new Date();
+
+    const ws = wb.addWorksheet('Invoices to Pay');
+    ws.columns = [
+      { header: 'Payee',        key: 'payee',         width: 30 },
+      { header: 'IBAN',         key: 'iban',          width: 26 },
+      { header: 'BIC',          key: 'bic',           width: 14 },
+      { header: 'Amount',       key: 'amount',        width: 12 },
+      { header: 'Currency',     key: 'currency',      width: 9  },
+      { header: 'Invoice No',   key: 'invoiceNumber', width: 16 },
+      { header: 'Invoice Date', key: 'invoiceDate',   width: 14 },
+      { header: 'Due Date',     key: 'dueDate',       width: 14 },
+      { header: 'Email Sender', key: 'sender',        width: 28 },
+      { header: 'Source File',  key: 'sourceFile',    width: 32 },
+    ];
+    ws.getRow(1).font = { bold: true };
+
+    for (const item of items) {
+      const f = item.parsedFields;
+      ws.addRow({
+        payee:         f?.payee ?? '',
+        iban:          f?.iban ?? '',
+        bic:           f?.bic ?? '',
+        amount:        f?.amount ?? null,
+        currency:      f?.currency ?? '',
+        invoiceNumber: f?.invoiceNumber ?? '',
+        invoiceDate:   f?.invoiceDate ?? '',
+        dueDate:       f?.dueDate ?? '',
+        sender:        item.invoice.senderName ?? '',
+        sourceFile:    item.invoice.attachmentName ?? '',
+      });
+    }
+
+    // Right-align and format the amount column as a 2-decimal number.
+    ws.getColumn('amount').numFmt = '#,##0.00';
+
+    const buffer = await wb.xlsx.writeBuffer();
+    const base64 = this.arrayBufferToBase64(buffer as ArrayBuffer);
+    const filename = `invoices-to-pay-${new Date().toISOString().slice(0, 10)}.xlsx`;
 
     const saved = await (window as any).electronAPI.excel.save(base64, filename);
     if (!saved) throw new Error('Export cancelled or failed');

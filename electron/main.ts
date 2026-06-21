@@ -179,6 +179,7 @@ function createWindow(): void {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      plugins: true, // enables the built-in PDF viewer for the in-app invoice preview
       preload: path.join(__dirname, 'preload.js')
     },
     title: 'Tour Billing Application',
