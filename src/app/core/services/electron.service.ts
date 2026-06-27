@@ -105,6 +105,9 @@ export class ElectronService {
       excel: {
         save: async () => null
       },
+      sepa: {
+        save: async () => null
+      },
       data: {
         on:  () => {},
         off: () => {},

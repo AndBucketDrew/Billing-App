@@ -584,6 +584,24 @@ ipcMain.handle('excel:save', async (_, excelBase64: string, filename: string): P
 });
 
 // ============================================
+// IPC HANDLERS - SEPA (pain.001 credit-transfer XML)
+// ============================================
+
+ipcMain.handle('sepa:save', async (_, xml: string, filename: string): Promise<string | null> => {
+  const result = await dialog.showSaveDialog(mainWindow!, {
+    defaultPath: filename,
+    filters: [{ name: 'SEPA XML', extensions: ['xml'] }]
+  });
+
+  if (result.canceled || !result.filePath) return null;
+
+  // Write as UTF-8 (no BOM) — pain.001 declares encoding="UTF-8" and many bank
+  // importers reject a leading BOM.
+  fs.writeFileSync(result.filePath, xml, 'utf-8');
+  return result.filePath;
+});
+
+// ============================================
 // AUTO-UPDATER
 // ============================================
 

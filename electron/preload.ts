@@ -86,6 +86,11 @@ export interface ElectronAPI {
     save: (excelBase64: string, filename: string) => Promise<string | null>;
   };
 
+  // SEPA (pain.001 credit-transfer XML) operations
+  sepa: {
+    save: (xml: string, filename: string) => Promise<string | null>;
+  };
+
   // Data integrity push events (main → renderer)
   data: {
     on:  (event: 'data:restoredFromBackup', handler: (filename: string) => void) => void;
@@ -213,6 +218,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   excel: {
     save: (excelBase64: string, filename: string) =>
       ipcRenderer.invoke('excel:save', excelBase64, filename)
+  },
+
+  sepa: {
+    save: (xml: string, filename: string) =>
+      ipcRenderer.invoke('sepa:save', xml, filename)
   },
 
   data: {

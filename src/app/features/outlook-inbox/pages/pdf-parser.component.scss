@@ -217,6 +217,13 @@
 
   // Collapsed (confirmed) rows are compact — tighten the padding.
   &.collapsed { padding: 8px 12px; }
+
+  // Ignored rows are set aside — dashed border + muted name mark them as inactive.
+  // (.file-icon and .collapsed-summary are already muted by .payable-collapsed.)
+  &.ignored {
+    border-style: dashed;
+    .collapsed-name { color: var(--color-fg-muted); }
+  }
 }
 
 // While a preview is open, fade out every row except the one being previewed/edited,

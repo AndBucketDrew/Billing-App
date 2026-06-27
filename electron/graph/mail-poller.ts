@@ -21,7 +21,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import type { IMailClient, MailAttachment } from '../imap/email-types';
 import { InvoiceDetector, DetectedInvoice } from '../invoice-detector/invoice-detector';
-import { isTnef, extractTnef, extractMapiAttachments } from '../imap/tnef-extractor';
+import { isTnef, extractTnef, extractMapiAttachments, isInlineImageName } from '../imap/tnef-extractor';
 
 const STATE_FILENAME = 'outlook-poll-state.json';
 
@@ -238,13 +238,20 @@ export class MailPoller {
 
         if (files.length === 0) { result.push(att); continue; }
 
+        // Outlook bundles signature/body logos (image001.png) inside the same
+        // winmail.dat as the real attachment. Flag those inline so the detector skips
+        // them — but only when a real document is present alongside. If every file is
+        // an imageNNN.* (e.g. a photographed invoice pasted into the body), none is
+        // suppressed so the genuine attachment still surfaces in the review queue.
+        const hasRealAttachment = files.some(f => !isInlineImageName(f.name));
+
         for (const f of files) {
           result.push({
             id: att.id,             // keep original ID — download still fetches the TNEF blob
             name: f.name,
             contentType: guessMime(f.name),
             size: f.data.length,
-            isInline: false,
+            isInline: hasRealAttachment && isInlineImageName(f.name),
           });
         }
       } catch {

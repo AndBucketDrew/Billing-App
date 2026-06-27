@@ -28,6 +28,7 @@ import { EditConfirmDialogComponent, EditConfirmResult } from './edit-confirm-di
 import { OutlookService, AutoSavedEvent, AutoSaveErrorEvent } from '../../core/services/outlook.service';
 import { SettingsService } from '../../core/services/settings.service';
 import { ExcelExportService } from '../../core/services/excel-export.service';
+import { SepaExportService, SepaExportResult } from '../../core/services/sepa-export.service';
 import {
   DetectedInvoice,
   OutlookAccount,
@@ -78,8 +79,14 @@ export class OutlookInboxStore implements OnDestroy {
   /** Items that have been saved AND carry parsed payee/amount data (PDFs with a text layer). */
   readonly parsedItems = computed(() => this.items().filter(i => i.status === 'saved' && !!i.parsedFields));
 
+  /** Parsed items still in play — excludes the ones the user has set aside via "Ignore". */
+  readonly activeParsedItems = computed(() => this.parsedItems().filter(i => !i.ignored));
+
+  /** Parsed items the user has set aside; shown on the Ignored tab and restorable. */
+  readonly ignoredItems = computed(() => this.parsedItems().filter(i => i.ignored));
+
   /** Parsed items the user has reviewed and confirmed. */
-  readonly confirmedItems = computed(() => this.parsedItems().filter(i => i.reviewConfirmed));
+  readonly confirmedItems = computed(() => this.activeParsedItems().filter(i => i.reviewConfirmed));
 
   /** Confirmed items not yet written to an Excel file — the ones a new export includes. */
   readonly exportableItems = computed(() => this.confirmedItems().filter(i => !i.exported));
@@ -96,6 +103,7 @@ export class OutlookInboxStore implements OnDestroy {
     private readonly snack: MatSnackBar,
     private readonly settingsService: SettingsService,
     private readonly excel: ExcelExportService,
+    private readonly sepa: SepaExportService,
     private readonly sanitizer: DomSanitizer,
     private readonly dialog: MatDialog,
   ) {}
@@ -407,6 +415,27 @@ export class OutlookInboxStore implements OnDestroy {
     this.persistQueue();
   }
 
+  /**
+   * Sets a parsed invoice aside: it drops out of the review/confirmed/all lists and the
+   * export, and moves to the Ignored tab. If it was open in the preview, the preview is
+   * closed since the row is leaving the list. Reversible via {@link restore}.
+   */
+  ignoreParsed(item: InvoiceReviewItem): void {
+    item.ignored = true;
+    if (this.trackByMessageId(0, item) === this.selectedKey()) this.closePreview();
+    this.items.set([...this.items()]);
+    this.persistQueue();
+    this.snack.open('Moved to Ignored', undefined, { duration: 2500 });
+  }
+
+  /** Brings an ignored invoice back into the review queue. */
+  restoreParsed(item: InvoiceReviewItem): void {
+    item.ignored = false;
+    this.items.set([...this.items()]);
+    this.persistQueue();
+    this.snack.open('Restored', undefined, { duration: 2500 });
+  }
+
   // ── Parsed-field extraction & export ───────────────────────────────────────────
 
   /**
@@ -511,7 +540,17 @@ export class OutlookInboxStore implements OnDestroy {
     catch { /* private mode / quota — fall back to always showing the notice */ }
   }
 
-  async exportToExcel(): Promise<void> {
+  /**
+   * Exports the confirmed-but-not-yet-exported invoices to BOTH an Excel sheet and a
+   * SEPA pain.001 XML file in one action — the Excel sheet is the human-readable record,
+   * the XML is what you upload to online banking. The user picks a save location for each.
+   *
+   * Rows are flagged "exported" only once both files are written. The Excel sheet
+   * contains every row, so SEPA legitimately skipping a row (missing IBAN/amount, non-EUR)
+   * never loses it; if either step is cancelled, nothing is flagged so the whole export
+   * can be retried cleanly.
+   */
+  async exportBoth(): Promise<void> {
     const rows = this.exportableItems();
     if (rows.length === 0) {
       const msg = this.confirmedItems().length > 0
@@ -521,8 +560,8 @@ export class OutlookInboxStore implements OnDestroy {
       return;
     }
 
-    // Ask whether the exported rows should be flagged — unchecked lets the user test
-    // the output without marking anything as exported.
+    // One confirm dialog for the whole operation; unchecking "mark exported" lets the
+    // user test the output without flagging anything.
     const ref = this.dialog.open<ExportConfirmDialogComponent, ExportConfirmData, ExportConfirmResult | undefined>(
       ExportConfirmDialogComponent,
       { width: '440px', data: { count: rows.length } },
@@ -530,19 +569,59 @@ export class OutlookInboxStore implements OnDestroy {
     const choice = await firstValueFrom(ref.afterClosed());
     if (!choice) return; // cancelled
 
+    // 1) Excel first — it contains every row regardless of SEPA eligibility.
     try {
       await this.excel.exportParsedInvoices(rows);
-      // Flag the exported rows (unless the user opted out) so the UI can show an
-      // "Exported" marker and the user doesn't unknowingly export the same invoices again.
-      if (choice.markExported) {
-        rows.forEach(r => (r.exported = true));
-        this.items.set([...this.items()]);
-        this.persistQueue();
-      }
-      this.snack.open(`Exported ${rows.length} invoice(s) to Excel`, undefined, { duration: 3000 });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      this.snack.open(`Export failed: ${msg}`, 'Dismiss', { duration: 5000 });
+      this.snack.open(`Excel export cancelled or failed: ${msg}`, 'Dismiss', { duration: 5000 });
+      return; // don't proceed to SEPA or flag anything
+    }
+
+    // 2) SEPA XML — may skip rows lacking an IBAN/amount (or all of them); those still
+    // live in the Excel file. A result with count 0 means nothing was eligible and no
+    // file was written, which is not an error.
+    let sepa: SepaExportResult | undefined;
+    let sepaError = '';
+    let sepaCancelled = false;
+    try {
+      sepa = await this.sepa.exportPayments(rows, this.settingsService.getSettings());
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      sepaCancelled = msg === 'Export cancelled';
+      sepaError = sepaCancelled ? 'SEPA step cancelled' : `SEPA export failed: ${msg}`;
+    }
+
+    // Excel is the authoritative record and it succeeded, so flag the rows when the user
+    // opted in. The only case we hold off is a *cancelled* SEPA save — the user likely
+    // wants to retry that. No eligible rows, or a SEPA config error, still flags: the
+    // Excel sheet holds every row, and otherwise these invoices could never leave the list.
+    if (choice.markExported && !sepaCancelled) {
+      rows.forEach(r => (r.exported = true));
+      this.items.set([...this.items()]);
+      this.persistQueue();
+    }
+
+    if (sepa && sepa.count > 0) {
+      const skippedNote = sepa.skipped.length
+        ? ` — ${sepa.skipped.length} not in SEPA file (missing IBAN/amount or non-EUR)`
+        : '';
+      this.snack.open(
+        `Exported ${rows.length} to Excel and ${sepa.count} payment(s) (€${sepa.total.toFixed(2)}) to SEPA XML${skippedNote}`,
+        skippedNote ? 'OK' : undefined,
+        { duration: skippedNote ? 7000 : 4000 },
+      );
+    } else if (sepa) {
+      // Excel written, but no invoice had a valid IBAN/EUR amount — no XML file created.
+      this.snack.open(
+        `Exported ${rows.length} to Excel. No SEPA file — no invoice had a valid IBAN and EUR amount.`,
+        'OK',
+        { duration: 6000 },
+      );
+    } else {
+      // SEPA threw (cancelled or a config error such as a missing company IBAN); Excel
+      // still succeeded. Rows are flagged unless the save was cancelled.
+      this.snack.open(`Exported ${rows.length} to Excel. ${sepaError}.`, 'Dismiss', { duration: 6000 });
     }
   }
 

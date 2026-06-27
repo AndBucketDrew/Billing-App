@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [1.2.6]
+
+### Added
+
+* **SEPA XML export of payables** — alongside the Excel export, confirmed "Invoices to Pay" can now be exported as a SEPA credit-transfer file (ISO 20022 **pain.001.001.03**) for direct upload to online banking
+  * The debtor account (account holder, IBAN, BIC) is taken from your company bank details in Settings
+  * Each creditor comes from a confirmed parsed invoice; rows missing an IBAN, missing/zero amount, or in a non-EUR currency are skipped and reported in the result message
+  * Reuses the same confirm / mark-as-exported flow as the Excel export, so the two stay in sync
+* **Ignore / Restore for parsed invoices** — a new **Ignored** tab on the PDF Parser page. Set an invoice aside with *Ignore* to drop it out of the review, confirmed, all, and export lists; restore it later from the Ignored tab. Ignored state is persisted with the queue
+
+### Changed
+
+* **Fonts are now self-hosted** — Roboto ships bundled with the app instead of being loaded from `fonts.googleapis.com`, removing the runtime network dependency so the UI renders correctly offline
+
+### Fixed
+
+* **`winmail.dat` (TNEF) attachments parse correctly** — the TNEF parser was rewritten to read the real classic-format attribute layout (4-byte attribute field, no inter-attribute padding). Earlier versions mis-parsed these files and could fail to extract the attachment
+* **Real document is picked out of bundled `winmail.dat`** — when Outlook packs a signature/body logo (`image001.png`) into the same `winmail.dat` as the actual invoice, the parser now ranks inline images last and surfaces the real PDF/document in the review queue instead of the logo
+
+---
+
 ## [1.2.5]
 
 ### Added

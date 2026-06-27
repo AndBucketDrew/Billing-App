@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/c
 import { OutlookInboxStore } from '../outlook-inbox.store';
 import { InvoiceReviewItem } from '../../../core/models/outlook.models';
 
-type ParserFilter = 'review' | 'confirmed' | 'all';
+type ParserFilter = 'review' | 'confirmed' | 'ignored' | 'all';
 
 /**
  * PDF Parser page — "Invoices to Pay": payee/amount fields auto-extracted from
@@ -26,16 +26,20 @@ export class PdfParserComponent {
   /** trackBy keys of confirmed rows the user has manually expanded. */
   private readonly expandedKeys = signal(new Set<string>());
 
-  readonly reviewCount = computed(() => this.store.parsedItems().filter(i => !i.reviewConfirmed).length);
-  readonly confirmedCount = computed(() => this.store.parsedItems().filter(i => i.reviewConfirmed).length);
+  readonly reviewCount = computed(() => this.store.activeParsedItems().filter(i => !i.reviewConfirmed).length);
+  readonly confirmedCount = computed(() => this.store.activeParsedItems().filter(i => i.reviewConfirmed).length);
+  readonly ignoredCount = computed(() => this.store.ignoredItems().length);
+  /** Count for the "All" chip — every parsed invoice except the ignored ones. */
+  readonly activeCount = computed(() => this.store.activeParsedItems().length);
 
   /** The parsed items shown for the active filter. */
   readonly visibleItems = computed<InvoiceReviewItem[]>(() => {
-    const items = this.store.parsedItems();
+    const active = this.store.activeParsedItems();
     switch (this.filter()) {
-      case 'review':    return items.filter(i => !i.reviewConfirmed);
-      case 'confirmed': return items.filter(i => i.reviewConfirmed);
-      default:          return items;
+      case 'review':    return active.filter(i => !i.reviewConfirmed);
+      case 'confirmed': return active.filter(i => i.reviewConfirmed);
+      case 'ignored':   return this.store.ignoredItems();
+      default:          return active;
     }
   });
 

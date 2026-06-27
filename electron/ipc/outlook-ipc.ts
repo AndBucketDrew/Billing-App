@@ -43,10 +43,33 @@ import { MailPoller } from '../graph/mail-poller';
 import { InvoiceDetector, DetectedInvoice } from '../invoice-detector/invoice-detector';
 import { extractInvoiceText } from '../invoice-parser/text-extract';
 import type { ParsedInvoiceFields } from '../invoice-parser/invoice-field-parser';
-import { isTnef, extractTnef, extractMapiAttachments, extractRtfBody } from '../imap/tnef-extractor';
+import { isTnef, extractTnef, extractMapiAttachments, extractRtfBody, isInlineImageName, type TnefFile } from '../imap/tnef-extractor';
 import type { IMailClient } from '../imap/email-types';
 
 const EXTRACTABLE_EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png', '.tiff', '.doc', '.docx'];
+
+/**
+ * Ranks an extracted TNEF file for "which one is the real attachment?".
+ * Lower = better. Documents beat images; inline signature logos (image001.png)
+ * rank last so a winmail.dat that bundles a logo + a real PDF resolves to the PDF.
+ */
+function tnefRank(name: string): number {
+  const lower = name.toLowerCase();
+  if (isInlineImageName(name)) return 4;                 // inline signature/body logo
+  if (/\.(pdf|docx?|xlsx?)$/.test(lower)) return 0;      // real documents
+  if (EXTRACTABLE_EXTENSIONS.some(ext => lower.endsWith(ext))) return 2; // other images
+  return 3;                                              // anything else
+}
+
+/** Picks the most likely "real" attachment from an extracted TNEF file list. */
+function pickTnefFile(files: TnefFile[], requestedName: string): TnefFile {
+  // If the caller asked for a specific file (the poller already resolved the real
+  // name into the review queue), honour it exactly — never substitute another file.
+  const want = requestedName.toLowerCase();
+  const exact = files.find(f => f.name.toLowerCase() === want);
+  if (exact) return exact;
+  return [...files].sort((a, b) => tnefRank(a.name) - tnefRank(b.name))[0];
+}
 
 
 /**
@@ -71,10 +94,7 @@ function resolveTnef(
   if (files.length === 0) files = extractMapiAttachments(buffer);
 
   if (files.length > 0) {
-    const match = files.find(f =>
-      EXTRACTABLE_EXTENSIONS.some(ext => f.name.toLowerCase().endsWith(ext)),
-    );
-    const chosen = match ?? files[0];
+    const chosen = pickTnefFile(files, fallbackName);
     return { buffer: chosen.data, name: chosen.name || fallbackName };
   }
 
@@ -165,6 +185,12 @@ export interface InvoiceReviewItem {
    * field is edited, since the exported copy is then stale.
    */
   exported?: boolean;
+  /**
+   * True when the user has set this parsed invoice aside via "Ignore". Ignored items are
+   * hidden from the review/confirmed/all lists and the export, and collected on the
+   * Ignored tab where the user can restore them. Persisted with the queue.
+   */
+  ignored?: boolean;
 }
 
 // ─── On-disk schema (extends settings with encrypted password field) ──────────

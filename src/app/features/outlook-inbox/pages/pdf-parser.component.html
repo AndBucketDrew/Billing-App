@@ -4,13 +4,13 @@
   <div class="table-card-header">
     <span class="table-title">Invoices to Pay</span>
     <span class="bar-spacer"></span>
-    <button mat-raised-button color="primary" (click)="store.exportToExcel()"
+    <button mat-raised-button color="primary" (click)="store.exportBoth()"
       [disabled]="store.exportableItems().length === 0"
       [matTooltip]="store.exportableItems().length === 0
         ? (store.confirmedItems().length > 0 ? 'All confirmed invoices are already exported' : 'Confirm at least one invoice first')
-        : ''">
+        : 'Export the confirmed invoices to an Excel sheet and a SEPA pain.001 XML file for online banking'">
       <mat-icon>download</mat-icon>
-      Export to Excel ({{ store.exportableItems().length }})
+      Export Excel + SEPA ({{ store.exportableItems().length }})
     </button>
   </div>
 
@@ -26,10 +26,15 @@
       <mat-icon>verified</mat-icon>
       Confirmed <span class="chip-count">{{ confirmedCount() }}</span>
     </button>
+    <button type="button" class="filter-chip" [class.active]="filter() === 'ignored'"
+      (click)="setFilter('ignored')">
+      <mat-icon>visibility_off</mat-icon>
+      Ignored <span class="chip-count">{{ ignoredCount() }}</span>
+    </button>
     <button type="button" class="filter-chip" [class.active]="filter() === 'all'"
       (click)="setFilter('all')">
       <mat-icon>list</mat-icon>
-      All <span class="chip-count">{{ store.parsedItems().length }}</span>
+      All <span class="chip-count">{{ activeCount() }}</span>
     </button>
   </div>
 
@@ -62,20 +67,36 @@
 
       <!-- Empty state for the active filter -->
       <div class="filter-empty" *ngIf="visibleItems().length === 0">
-        <mat-icon>{{ filter() === 'confirmed' ? 'verified' : 'fact_check' }}</mat-icon>
+        <mat-icon>{{ filter() === 'confirmed' ? 'verified' : (filter() === 'ignored' ? 'visibility_off' : 'fact_check') }}</mat-icon>
         <span *ngIf="filter() === 'review'">Nothing left to review — all invoices are confirmed.</span>
         <span *ngIf="filter() === 'confirmed'">No confirmed invoices yet.</span>
+        <span *ngIf="filter() === 'ignored'">No ignored invoices.</span>
         <span *ngIf="filter() === 'all'">No parsed invoices.</span>
       </div>
 
       <div class="payable-item" *ngFor="let item of visibleItems(); trackBy: store.trackByMessageId"
         [class.selected]="store.trackByMessageId(0, item) === store.selectedKey()"
-        [class.confirmed]="item.reviewConfirmed"
-        [class.collapsed]="isCollapsed(item)"
-        [class.needs-preview]="!store.hasPreviewed(item)">
+        [class.confirmed]="item.reviewConfirmed && !item.ignored"
+        [class.ignored]="item.ignored"
+        [class.collapsed]="!item.ignored && isCollapsed(item)"
+        [class.needs-preview]="!item.ignored && !store.hasPreviewed(item)">
+
+        <!-- Ignored row: compact, with a single Restore action -->
+        <div class="payable-collapsed payable-ignored-row" *ngIf="item.ignored">
+          <mat-icon class="file-icon">visibility_off</mat-icon>
+          <span class="collapsed-name" [title]="item.invoice.attachmentName">{{ item.invoice.attachmentName }}</span>
+          <span class="collapsed-summary">
+            {{ item.parsedFields?.payee || '—' }}
+            <span class="collapsed-amount">{{ item.parsedFields?.amount }} {{ item.parsedFields?.currency }}</span>
+          </span>
+          <button mat-stroked-button (click)="store.restoreParsed(item)" matTooltip="Move back to the review queue">
+            <mat-icon>undo</mat-icon>
+            Restore
+          </button>
+        </div>
 
         <!-- Collapsed compact summary (confirmed invoices) -->
-        <div class="payable-collapsed" *ngIf="isCollapsed(item)">
+        <div class="payable-collapsed" *ngIf="!item.ignored && isCollapsed(item)">
           <mat-icon class="file-icon">description</mat-icon>
           <span class="collapsed-name" [title]="item.invoice.attachmentName">{{ item.invoice.attachmentName }}</span>
           <span class="collapsed-email" *ngIf="item.invoice.senderEmail" [title]="item.invoice.senderEmail">
@@ -98,10 +119,15 @@
             <mat-icon>edit</mat-icon>
             Edit
           </button>
+          <button mat-stroked-button (click)="store.ignoreParsed(item)"
+            matTooltip="Move to the Ignored tab (you can restore it later)">
+            <mat-icon>visibility_off</mat-icon>
+            Ignore
+          </button>
         </div>
 
         <!-- Expanded editor -->
-        <ng-container *ngIf="!isCollapsed(item)">
+        <ng-container *ngIf="!item.ignored && !isCollapsed(item)">
 
           <div class="payable-item-head">
             <button type="button" class="payable-source" (click)="store.selectForPreview(item)"
@@ -192,6 +218,11 @@
                 [matTooltip]="store.canConfirm(item) ? 'Mark as verified and add to export' : 'Open the preview first'">
                 <mat-icon>check</mat-icon>
                 Confirm
+              </button>
+              <button mat-stroked-button (click)="store.ignoreParsed(item)"
+                matTooltip="Move to the Ignored tab (you can restore it later)">
+                <mat-icon>visibility_off</mat-icon>
+                Ignore
               </button>
               <span class="confirm-hint" *ngIf="!store.hasPreviewed(item)">
                 <mat-icon>visibility</mat-icon>

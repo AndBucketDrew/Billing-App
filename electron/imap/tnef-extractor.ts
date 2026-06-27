@@ -11,26 +11,30 @@
  *   2 bytes  legacy key (ignored)
  *   then: repeated TNEF attributes, each:
  *     1 byte  level      (0x01 = message, 0x02 = attachment)
- *     2 bytes type       (attribute type/ID, LE)
- *     4 bytes size       (data length, LE)
+ *     4 bytes attribute  (LE; low word = attribute ID, high word = data type)
+ *     4 bytes length     (data length, LE)
  *     N bytes data
  *     2 bytes checksum   (sum of data bytes % 65536)
- *     P bytes padding    (align stream position to 4-byte boundary after checksum)
+ *   No padding/alignment between attributes (verified against real Outlook output
+ *   and libytnef — earlier versions of this file wrongly assumed a 2-byte attribute
+ *   field plus 4-byte alignment, which broke classic-format winmail.dat files).
  *
- * Attribute types used here:
- *   0x8018  ATTACHTITLE          — display filename (null-terminated)
- *   0x9018  ATTACHTRANSPORTNAME  — transport filename (fallback, same format)
- *   0x800B  ATTACHDATA           — attachment binary content
+ * Attribute IDs used here (the low 16 bits of the 4-byte attribute field):
+ *   0x9002  ATTACH_RENDDATA  — marks the start of a new attachment
+ *   0x800F  ATTACH_DATA      — attachment binary content
+ *   0x8010  ATTACH_TITLE     — display filename (8.3 / latin1, null-terminated)
+ *   0x0069  ATTACHMENT       — MAPI property stream (carries PR_ATTACH_LONG_FILENAME)
  */
 
 import { decompressRTF } from '@kenjiuno/decompressrtf';
 
 const TNEF_SIGNATURE        = 0x223E9F78;
 const LVL_ATTACHMENT        = 0x02;
-const ATTR_ATTACH_TITLE     = 0x8018; // display name
-const ATTR_ATTACH_TRANS     = 0x9018; // transport name (used by some Outlook versions)
-const ATTR_ATTACH_DATA      = 0x800B; // binary file content
-const ATTR_MAPI_PROPS       = 0x0069; // MAPI property stream (contains PR_ATTACH_LONG_FILENAME)
+// Attribute IDs = low 16 bits of the 4-byte TNEF attribute field.
+const ID_ATTACH_RENDDATA    = 0x9002; // marks the start of a new attachment
+const ID_ATTACH_DATA        = 0x800F; // binary file content
+const ID_ATTACH_TITLE       = 0x8010; // display filename (8.3 / latin1)
+const ID_ATTACHMENT_MAPI    = 0x0069; // MAPI property stream (contains PR_ATTACH_LONG_FILENAME)
 
 export interface TnefFile {
   name: string;
@@ -39,6 +43,16 @@ export interface TnefFile {
 
 export function isTnef(buf: Buffer): boolean {
   return buf.length >= 4 && buf.readUInt32LE(0) === TNEF_SIGNATURE;
+}
+
+/**
+ * True for Outlook's auto-generated inline-image filenames (imageNNN.png/jpg/…).
+ * These are embedded signature/body logos referenced by a cid:, never the real
+ * attachment the user cares about — so they should rank below documents and be
+ * treated as inline when surfacing TNEF contents.
+ */
+export function isInlineImageName(name: string): boolean {
+  return /^image\d+\.(png|jpe?g|gif|bmp|tiff?)$/i.test(name.trim());
 }
 
 /**
@@ -72,58 +86,56 @@ export function extractTnef(buf: Buffer): TnefFile[] {
 
   let pos = 6; // 4-byte signature + 2-byte legacy key
   const files: TnefFile[] = [];
-  let pendingName = '';
-  let pendingData: Buffer | null = null;
+
+  // Per-attachment accumulators. An attachment spans the run of attributes from
+  // one ATTACH_RENDDATA (or the first ATTACH_* attribute) up to the next one.
+  let curTitle = '';            // from ATTACH_TITLE (8.3 / latin1 short name)
+  let curLong  = '';            // from PR_ATTACH_LONG_FILENAME (preferred)
+  let curData: Buffer | null = null;
 
   function flush(): void {
-    if (pendingName && pendingData) {
-      files.push({ name: pendingName, data: pendingData });
-      pendingName = '';
-      pendingData = null;
+    if (curData) {
+      files.push({ name: curLong || curTitle || 'attachment', data: curData });
     }
+    curTitle = '';
+    curLong  = '';
+    curData  = null;
   }
 
-  while (pos + 7 <= buf.length) {
+  // TNEF attribute header is 9 bytes: level(1) + attribute(4) + length(4).
+  while (pos + 9 <= buf.length) {
     const level = buf[pos];
-    const type  = buf.readUInt16LE(pos + 1);
-    const size  = buf.readUInt32LE(pos + 3);
-    pos += 7; // consume header (1 + 2 + 4)
+    const id    = buf.readUInt16LE(pos + 1); // low word of the 4-byte attribute = attribute ID
+    const len   = buf.readUInt32LE(pos + 5);
+    const dataStart = pos + 9;
 
-    if (pos + size > buf.length) break;
-    const chunk = buf.subarray(pos, pos + size);
-    pos += size;
-    pos += 2; // checksum word
+    if (dataStart + len > buf.length) break; // truncated, or not real classic TNEF
+    const chunk = buf.subarray(dataStart, dataStart + len);
+    pos = dataStart + len + 2; // skip the 2-byte checksum; classic TNEF has no padding
 
-    // Align the stream to a 4-byte boundary AFTER the checksum.
-    // This matches real Outlook output and reference parsers (libytnef, npm tnef).
-    if (pos % 4 !== 0) pos += 4 - (pos % 4);
+    if (level !== LVL_ATTACHMENT) continue;
 
-    if (level === LVL_ATTACHMENT) {
-      if (type === ATTR_ATTACH_TITLE || type === ATTR_ATTACH_TRANS) {
-        flush(); // save previous complete attachment
-        pendingName = chunk.toString('latin1').replace(/\0+$/, '').trim();
-        flush(); // also flush immediately if DATA arrived before TITLE
-      } else if (type === ATTR_ATTACH_DATA) {
-        pendingData = Buffer.from(chunk);
-        flush();
-      } else if (type === ATTR_MAPI_PROPS) {
-        // ATTACHTITLE often holds the 8.3 short name; the MAPI property block
-        // carries PR_ATTACH_LONG_FILENAME with the full name. Prefer it.
+    switch (id) {
+      case ID_ATTACH_RENDDATA:
+        flush(); // a new attachment begins — emit the previous one
+        break;
+      case ID_ATTACH_DATA:
+        curData = Buffer.from(chunk);
+        break;
+      case ID_ATTACH_TITLE:
+        curTitle = chunk.toString('latin1').replace(/\0+$/, '').trim();
+        break;
+      case ID_ATTACHMENT_MAPI: {
+        // ATTACH_TITLE often holds only the 8.3 short name; the MAPI property
+        // block carries PR_ATTACH_LONG_FILENAME with the full name. Prefer it.
         const longName = readLongFilenameFromChunk(chunk);
-        if (longName) {
-          if (pendingData !== null) {
-            // DATA not yet flushed — update before flush fires
-            pendingName = longName;
-          } else if (files.length > 0) {
-            // DATA was already flushed — retroactively fix the saved entry
-            files[files.length - 1].name = longName;
-          }
-        }
+        if (longName) curLong = longName;
+        break;
       }
     }
   }
 
-  flush(); // catch any trailing attachment
+  flush(); // catch the trailing attachment
   return files;
 }
 
