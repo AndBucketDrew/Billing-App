@@ -1,6 +1,7 @@
-import { Injectable } from '@angular/core';
+import { Injectable, Inject } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
-import { ElectronService } from './electron.service';
+import { DATA_GATEWAY, DataGateway } from '../data/data-gateway';
+import { ConnectionStatusService } from './connection-status.service';
 import type { Tour } from '../models/domain.models';
 
 @Injectable({
@@ -10,7 +11,18 @@ export class TourService {
   private toursSubject = new BehaviorSubject<Tour[]>([]);
   public tours$: Observable<Tour[]> = this.toursSubject.asObservable();
 
-  constructor(private electron: ElectronService) {
+  /**
+   * True when the last load threw — for ANY reason, not just connectivity. Lets the
+   * list distinguish "couldn't load" from "genuinely empty" even on a non-network
+   * failure (5xx / RLS), which the connection offline banner does not cover.
+   */
+  private loadFailedSubject = new BehaviorSubject<boolean>(false);
+  public loadFailed$: Observable<boolean> = this.loadFailedSubject.asObservable();
+
+  constructor(
+    @Inject(DATA_GATEWAY) private data: DataGateway,
+    private connection: ConnectionStatusService,
+  ) {
     this.loadTours();
   }
 
@@ -19,10 +31,14 @@ export class TourService {
    */
   async loadTours(): Promise<void> {
     try {
-      const tours = await this.electron.api.tour.getAll();
+      const tours = await this.data.tour.getAll();
       this.toursSubject.next(tours);
+      this.loadFailedSubject.next(false);
+      this.connection.reportSuccess();
     } catch (error) {
       console.error('Error loading tours:', error);
+      this.loadFailedSubject.next(true);
+      this.connection.reportError(error);
       throw error;
     }
   }
@@ -59,7 +75,7 @@ export class TourService {
     basePriceNet: number;
   }): Promise<Tour> {
     try {
-      const newTour = await this.electron.api.tour.create(tourData);
+      const newTour = await this.data.tour.create(tourData);
       await this.loadTours(); // Refresh list
       return newTour;
     } catch (error) {
@@ -73,7 +89,7 @@ export class TourService {
    */
   async updateTour(id: string, updates: Partial<Tour>): Promise<Tour | null> {
     try {
-      const updated = await this.electron.api.tour.update(id, updates);
+      const updated = await this.data.tour.update(id, updates);
       if (updated) {
         await this.loadTours(); // Refresh list
       }
@@ -89,7 +105,7 @@ export class TourService {
    */
   async deleteTour(id: string): Promise<boolean> {
     try {
-      const success = await this.electron.api.tour.delete(id);
+      const success = await this.data.tour.delete(id);
       if (success) {
         await this.loadTours(); // Refresh list
       }

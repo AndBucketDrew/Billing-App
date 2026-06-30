@@ -188,7 +188,13 @@ Kind regards,
       }, { emitEvent: false });
 
       await this.settingsService.updateSettings({
-        invoiceCounter: formValue.invoiceCounter,
+        // The invoice counter is server-authoritative — finalize_invoice bumps it
+        // atomically. Only write it back when the user actually edited the field;
+        // otherwise a normal save would stamp a stale snapshot over the counter and
+        // break sequential numbering (re-handing out an already-used counter value).
+        ...(this.settingsForm.get('invoiceCounter')?.dirty
+          ? { invoiceCounter: formValue.invoiceCounter }
+          : {}),
         companyName: formValue.companyName,
         companyAddress: formValue.companyAddress,
         cityCountry: formValue.cityCountry,

@@ -1,5 +1,5 @@
 <!-- Toolbar -->
-<header class="app-toolbar">
+<header class="app-toolbar" *ngIf="!hideChrome">
   <div class="toolbar-inner">
 
     <!-- Logo -->
@@ -45,6 +45,15 @@
     <!-- Language Switcher -->
     <app-language-switcher></app-language-switcher>
 
+    <!-- Sign out (only when cloud auth is active) -->
+    <button
+      *ngIf="cloudEnabled && (isAuthenticated$ | async)"
+      mat-icon-button
+      (click)="signOut()"
+      matTooltip="Sign out">
+      <mat-icon>logout</mat-icon>
+    </button>
+
   </div>
 </header>
 
@@ -57,6 +66,34 @@
   <strong>{{ backupWarning }} was corrupt</strong> — your data was restored from the last backup.
   The most recent save may be missing. You can find both files in
   <code>%AppData%\Good Vienna TOurs\</code>.
+</app-banner>
+
+<!-- Cloud migration succeeded -->
+<app-banner
+  *ngIf="importNotice"
+  type="success"
+  icon="cloud_done"
+  (dismissed)="importNotice = null">
+  {{ importNotice }}
+</app-banner>
+
+<!-- Cloud migration failed -->
+<app-banner
+  *ngIf="importError"
+  type="error"
+  icon="cloud_off"
+  (dismissed)="importError = null">
+  {{ importError }}
+</app-banner>
+
+<!-- Cloud unreachable — reads are failing (offline / backend down) -->
+<app-banner
+  *ngIf="showConnectionBanner"
+  type="error"
+  icon="cloud_off"
+  (dismissed)="dismissConnectionBanner()">
+  Can't reach the cloud — your data may be out of date.
+  <button mat-button color="primary" (click)="retryConnection()">Retry</button>
 </app-banner>
 
 <!-- Update available — downloading in background -->

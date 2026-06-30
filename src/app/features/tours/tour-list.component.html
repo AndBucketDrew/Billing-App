@@ -81,15 +81,23 @@
           <!-- Empty State -->
           <tr class="mat-row" *matNoDataRow>
             <td class="mat-cell empty-state" [attr.colspan]="displayedColumns.length">
-              <div class="empty-content">
-                <mat-icon class="empty-icon">tour</mat-icon>
-                <h3>{{ 'TOUR.NO_TOURS' | translate }}</h3>
-                <p>{{ 'TOUR.CREATE' | translate }}</p>
-                <button mat-raised-button color="primary" (click)="openCreateDialog()">
-                  <mat-icon>add</mat-icon>
-                  {{ 'TOUR.CREATE' | translate }}
-                </button>
+              <!-- Load failed (any error, not just connectivity): don't pretend the list is genuinely empty -->
+              <div class="empty-content" *ngIf="(loadFailed$ | async); else noTours">
+                <mat-icon class="empty-icon">cloud_off</mat-icon>
+                <h3>Couldn't load your tours</h3>
+                <p>Something went wrong loading your data — check your connection and retry.</p>
               </div>
+              <ng-template #noTours>
+                <div class="empty-content">
+                  <mat-icon class="empty-icon">tour</mat-icon>
+                  <h3>{{ 'TOUR.NO_TOURS' | translate }}</h3>
+                  <p>{{ 'TOUR.CREATE' | translate }}</p>
+                  <button mat-raised-button color="primary" (click)="openCreateDialog()">
+                    <mat-icon>add</mat-icon>
+                    {{ 'TOUR.CREATE' | translate }}
+                  </button>
+                </div>
+              </ng-template>
             </td>
           </tr>
         </table>

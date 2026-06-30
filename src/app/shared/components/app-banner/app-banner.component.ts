@@ -8,6 +8,6 @@ import { Component, Input, Output, EventEmitter } from '@angular/core';
 })
 export class AppBannerComponent {
   @Input() icon = 'info_outline';
-  @Input() type: 'warning' | 'error' = 'warning';
+  @Input() type: 'warning' | 'error' | 'success' = 'warning';
   @Output() dismissed = new EventEmitter<void>();
 }

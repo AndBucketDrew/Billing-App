@@ -1,4 +1,4 @@
-import { Component, DestroyRef, OnInit } from '@angular/core';
+import { Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -29,6 +29,9 @@ export class InvoiceListComponent implements OnInit {
   filterYear: number | null = null;
   searchQuery: string = '';
   isExporting = false;
+
+  /** True when the last load threw — distinguishes "couldn't load" from "no invoices yet". */
+  readonly loadFailed$ = inject(InvoiceService).loadFailed$;
 
   constructor(
     private invoiceService: InvoiceService,

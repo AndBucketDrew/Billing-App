@@ -23,6 +23,16 @@
     }
   }
 
+  &--success {
+    background: #ecfdf5;
+    border-bottom-color: #6ee7b7;
+    color: #065f46;
+
+    .app-banner__icon {
+      color: #10b981;
+    }
+  }
+
   &__icon {
     font-size: 18px;
     width: 18px;

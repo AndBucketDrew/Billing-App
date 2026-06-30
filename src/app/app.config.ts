@@ -12,6 +12,9 @@ import { TranslateModule, TranslateLoader } from '@ngx-translate/core';
 import { TranslateHttpLoader } from '@ngx-translate/http-loader';
 import { AppRoutingModule } from './app-routing.module';
 
+import { DATA_GATEWAY } from './core/data/data-gateway';
+import { SupabaseDataGateway } from './core/data/supabase-data.gateway';
+
 export function HttpLoaderFactory(http: HttpClient) {
   return new TranslateHttpLoader(http, './assets/i18n/', '.json');
 }
@@ -21,6 +24,10 @@ export const appConfig: ApplicationConfig = {
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideClientHydration(withEventReplay()),
     provideHttpClient(withFetch()),
+
+    // Storage seam for the SaaS migration. Cloud-backed (Supabase) is now active;
+    // swap back to ElectronDataGateway here to return to local-JSON storage.
+    { provide: DATA_GATEWAY, useExisting: SupabaseDataGateway },
 
     importProvidersFrom(
       BrowserAnimationsModule,

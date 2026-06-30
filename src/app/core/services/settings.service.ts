@@ -1,6 +1,8 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, Inject } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { ElectronService } from './electron.service';
+import { DATA_GATEWAY, DataGateway } from '../data/data-gateway';
+import { ConnectionStatusService } from './connection-status.service';
 import { TranslateService } from '@ngx-translate/core';
 import type { CompanySettings } from '../models/domain.models';
 
@@ -31,8 +33,10 @@ export class SettingsService {
   public settings$: Observable<CompanySettings> = this.settingsSubject.asObservable();
 
   constructor(
+    @Inject(DATA_GATEWAY) private data: DataGateway,
     private electron: ElectronService,
-    private translate: TranslateService
+    private translate: TranslateService,
+    private connection: ConnectionStatusService,
   ) {
     this.loadSettings();
   }
@@ -42,13 +46,15 @@ export class SettingsService {
    */
   async loadSettings(): Promise<void> {
     try {
-      const settings = await this.electron.api.settings.get();
+      const settings = await this.data.settings.get();
       this.settingsSubject.next(settings);
-      
+      this.connection.reportSuccess();
+
       // Apply language setting
       this.translate.use(settings.language);
     } catch (error) {
       console.error('Error loading settings:', error);
+      this.connection.reportError(error);
       throw error;
     }
   }
@@ -65,7 +71,7 @@ export class SettingsService {
    */
   async updateSettings(updates: Partial<CompanySettings>): Promise<CompanySettings> {
     try {
-      const updated = await this.electron.api.settings.update(updates);
+      const updated = await this.data.settings.update(updates);
       this.settingsSubject.next(updated);
       
       // Apply language change if updated

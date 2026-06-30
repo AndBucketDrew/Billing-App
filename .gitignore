@@ -47,3 +47,9 @@ testem.log
 # System files
 .DS_Store
 Thumbs.db
+
+# Local environment config (Supabase URL + publishable anon key).
+# The anon key is publishable and RLS-protected, but we keep per-project config
+# out of VCS. Copy environment.example.ts to these and fill in your own values.
+/src/environments/environment.ts
+/src/environments/environment.development.ts

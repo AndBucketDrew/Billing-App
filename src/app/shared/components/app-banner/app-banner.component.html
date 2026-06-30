@@ -1,4 +1,6 @@
-<div class="app-banner" [class.app-banner--error]="type === 'error'">
+<div class="app-banner"
+     [class.app-banner--error]="type === 'error'"
+     [class.app-banner--success]="type === 'success'">
   <mat-icon class="app-banner__icon">{{ icon }}</mat-icon>
   <div class="app-banner__text">
     <ng-content></ng-content>

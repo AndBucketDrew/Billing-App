@@ -1,7 +1,8 @@
-import { Injectable } from '@angular/core';
+import { Injectable, Inject } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
-import { ElectronService } from './electron.service';
+import { DATA_GATEWAY, DataGateway } from '../data/data-gateway';
 import { CalculationService } from './calculation.service';
+import { ConnectionStatusService } from './connection-status.service';
 import type { Invoice, InvoiceLineItem, InvoiceType, PaymentMethod, VatRate } from '../models/domain.models';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -12,19 +13,33 @@ export class InvoiceService {
   private invoicesSubject = new BehaviorSubject<Invoice[]>([]);
   public invoices$: Observable<Invoice[]> = this.invoicesSubject.asObservable();
 
+  /**
+   * True when the last load threw — for ANY reason, not just connectivity. Lets the
+   * list distinguish "couldn't load" from "genuinely empty"; the connection offline
+   * banner only covers network-style failures, so a 5xx/RLS error would otherwise
+   * fall through to a misleading "no invoices yet" empty state.
+   */
+  private loadFailedSubject = new BehaviorSubject<boolean>(false);
+  public loadFailed$: Observable<boolean> = this.loadFailedSubject.asObservable();
+
   constructor(
-    private electron: ElectronService,
+    @Inject(DATA_GATEWAY) private data: DataGateway,
     private calculation: CalculationService,
+    private connection: ConnectionStatusService,
   ) {
     this.loadInvoices();
   }
 
   async loadInvoices(): Promise<void> {
     try {
-      const invoices = await this.electron.api.invoice.getAll();
+      const invoices = await this.data.invoice.getAll();
       this.invoicesSubject.next(invoices);
+      this.loadFailedSubject.next(false);
+      this.connection.reportSuccess();
     } catch (error) {
       console.error('Error loading invoices:', error);
+      this.loadFailedSubject.next(true);
+      this.connection.reportError(error);
       throw error;
     }
   }
@@ -35,7 +50,7 @@ export class InvoiceService {
 
   async getInvoiceById(id: string): Promise<Invoice | null> {
     try {
-      return await this.electron.api.invoice.getById(id);
+      return await this.data.invoice.getById(id);
     } catch (error) {
       console.error('Error getting invoice:', error);
       throw error;
@@ -75,7 +90,7 @@ export class InvoiceService {
         totalGross: totals.totalGross
       };
 
-      const newInvoice = await this.electron.api.invoice.create(payload);
+      const newInvoice = await this.data.invoice.create(payload);
       await this.loadInvoices();
       return newInvoice;
     } catch (error) {
@@ -94,7 +109,7 @@ export class InvoiceService {
         updates.totalGross = totals.totalGross;
       }
 
-      const updated = await this.electron.api.invoice.update(id, updates);
+      const updated = await this.data.invoice.update(id, updates);
       if (updated) {
         await this.loadInvoices();
       }
@@ -107,7 +122,7 @@ export class InvoiceService {
 
   async deleteInvoice(id: string): Promise<boolean> {
     try {
-      const success = await this.electron.api.invoice.delete(id);
+      const success = await this.data.invoice.delete(id);
       if (success) {
         await this.loadInvoices();
       }
@@ -125,7 +140,7 @@ export class InvoiceService {
    */
   async finalizeInvoice(id: string): Promise<Invoice | null> {
     try {
-      const finalized = await this.electron.api.invoice.finalize(id);
+      const finalized = await this.data.invoice.finalize(id);
       if (finalized) {
         await this.loadInvoices();
       }
@@ -172,7 +187,7 @@ export class InvoiceService {
         totalGross: totals.totalGross,
       };
 
-      const newInvoice = await this.electron.api.invoice.createCreditNote(originalInvoice.id, payload);
+      const newInvoice = await this.data.invoice.createCreditNote(originalInvoice.id, payload);
       await this.loadInvoices();
       return newInvoice;
     } catch (error) {

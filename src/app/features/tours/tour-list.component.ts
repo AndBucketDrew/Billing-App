@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, OnInit, ViewChild, inject } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTable } from '@angular/material/table';
@@ -19,6 +19,9 @@ import { TourFormDialogComponent } from './tour-form-dialog/tour-form-dialog.com
 export class TourListComponent implements OnInit {
   tours$: Observable<Tour[]>;
   displayedColumns: string[] = ['name', 'description', 'basePriceNet', 'actions'];
+
+  /** True when the last load threw — distinguishes "couldn't load" from "no tours yet". */
+  readonly loadFailed$ = inject(TourService).loadFailed$;
   
   @ViewChild(MatTable) table?: MatTable<Tour>;
 

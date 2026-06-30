@@ -196,15 +196,23 @@
           <!-- Empty State -->
           <tr class="mat-row" *matNoDataRow>
             <td class="mat-cell empty-state" [attr.colspan]="displayedColumns.length">
-              <div class="empty-content">
-                <mat-icon class="empty-icon">receipt_long</mat-icon>
-                <h3>{{ 'INVOICE.NO_INVOICES' | translate }}</h3>
-                <p>{{ 'INVOICE.CREATE' | translate }}</p>
-                <button mat-raised-button color="primary" (click)="createInvoice()">
-                  <mat-icon>add</mat-icon>
-                  {{ 'INVOICE.CREATE' | translate }}
-                </button>
+              <!-- Load failed (any error, not just connectivity): don't pretend the list is genuinely empty -->
+              <div class="empty-content" *ngIf="(loadFailed$ | async); else noInvoices">
+                <mat-icon class="empty-icon">cloud_off</mat-icon>
+                <h3>Couldn't load your invoices</h3>
+                <p>Something went wrong loading your data — check your connection and retry.</p>
               </div>
+              <ng-template #noInvoices>
+                <div class="empty-content">
+                  <mat-icon class="empty-icon">receipt_long</mat-icon>
+                  <h3>{{ 'INVOICE.NO_INVOICES' | translate }}</h3>
+                  <p>{{ 'INVOICE.CREATE' | translate }}</p>
+                  <button mat-raised-button color="primary" (click)="createInvoice()">
+                    <mat-icon>add</mat-icon>
+                    {{ 'INVOICE.CREATE' | translate }}
+                  </button>
+                </div>
+              </ng-template>
             </td>
           </tr>
         </table>
